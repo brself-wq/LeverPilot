@@ -17,9 +17,10 @@ public final class MockVirtualEspressoMachine: MachineProtocol {
     public var currentFrame: MachineFrame = MachineFrame(state: .ready)
     public var sessionFrames: [MachineFrame] = []
     
-    // Subsystems owned by this machine
+    // Subsystems & Config owned by this machine
     public let profileStore: ProfileStore
     public var activeProfile: Profile? = nil
+    public var config: MachineConfig = .flair58Default
     
     public let mockSensors = MockSensorArray()
     public var sensors: any SensorArrayProtocol { mockSensors }
@@ -36,8 +37,9 @@ public final class MockVirtualEspressoMachine: MachineProtocol {
         }
     }
     
-    public init(profileStore: ProfileStore) {
+    public init(profileStore: ProfileStore, config: MachineConfig = .flair58Default) {
         self.profileStore = profileStore
+        self.config = config
         if let initial = profileStore.profiles.first {
             selectProfile(initial)
         }
@@ -72,20 +74,19 @@ public final class MockVirtualEspressoMachine: MachineProtocol {
         elapsed = 0.0
         sessionFrames.removeAll()
         
-        // Modern async loop running on @MainActor (10Hz tick)
         extractionTask = Task { @MainActor [weak self] in
             while !Task.isCancelled {
                 do {
                     try await Task.sleep(for: .milliseconds(100))
                 } catch {
-                    break // Task was cancelled
+                    break
                 }
                 
                 guard let self = self, !Task.isCancelled else { break }
                 
                 self.elapsed += 0.1
                 
-                // Synthetic shot curve: ramp to 8.5 bar, flow steady at 2.0 g/s after 4s
+                // Simulated ramp & flow curve
                 let simPressure = min(8.5, self.elapsed * 1.8)
                 let simFlow = self.elapsed > 4.0 ? 2.0 : 0.0
                 let simWeight = max(0.0, (self.elapsed - 4.0) * 2.0)
@@ -98,7 +99,7 @@ public final class MockVirtualEspressoMachine: MachineProtocol {
                 self.currentFrame = frame
                 self.sessionFrames.append(frame)
                 
-                // Universal cutoff: auto-stop when target final weight is reached
+                // Check cutoff against profile final weight
                 let targetWeight = self.activeProfile?.finalWeight ?? 45.0
                 if simWeight >= targetWeight {
                     self.endExtraction()

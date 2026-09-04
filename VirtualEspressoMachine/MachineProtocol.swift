@@ -15,11 +15,12 @@ public protocol MachineProtocol: AnyObject {
     var currentFrame: MachineFrame { get }
     var sensors: any SensorArrayProtocol { get }
     
-    // MARK: - Recipe Subsystem
+    // MARK: - Recipe & Configuration Subsystems
     var profileStore: ProfileStore { get }
     var activeProfile: Profile? { get }
+    var config: MachineConfig { get } // 👈 Unified, extensible configuration
     
-    // MARK: - Macro Workflow Transitions
+    // Macro Workflow Transitions
     func setToMachineReady()
     func selectProfile(_ profile: Profile)
     func setToShotReady()

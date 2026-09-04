@@ -11,7 +11,7 @@ struct VirtualEspressoMachineApp: App {
         WindowGroup {
             TabView {
                 // Tab 1: Your new Landscape Barista HUD
-                BaristaHUDView()
+                BaristaHUDSimulatorView()
                     .tabItem {
                         Label("Barista HUD", systemImage: "gauge.with.dots.needle.bottom.50percent")
                     }
