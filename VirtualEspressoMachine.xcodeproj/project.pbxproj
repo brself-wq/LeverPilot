@@ -15,7 +15,7 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		B5B100E0304A370300F70661 /* VirtualEspressoMachine */ = {
+		B5514B22304DB5D800494F6F /* VirtualEspressoMachine */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = VirtualEspressoMachine;
 			sourceTree = "<group>";
@@ -37,8 +37,8 @@
 		B5B100D5304A370300F70661 = {
 			isa = PBXGroup;
 			children = (
-				B5B100E0304A370300F70661 /* VirtualEspressoMachine */,
 				B5B100DF304A370300F70661 /* Products */,
+				B5514B22304DB5D800494F6F /* VirtualEspressoMachine */,
 			);
 			sourceTree = "<group>";
 		};
@@ -66,7 +66,7 @@
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
-				B5B100E0304A370300F70661 /* VirtualEspressoMachine */,
+				B5514B22304DB5D800494F6F /* VirtualEspressoMachine */,
 			);
 			name = VirtualEspressoMachine;
 			packageProductDependencies = (

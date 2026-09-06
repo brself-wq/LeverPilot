@@ -9,32 +9,34 @@ import SwiftUI
 import Charts
 import MeticulousProfile
 
-// MARK: - Discrete Coordinate & Progress Models
+// MARK: - Discrete Coordinate & Progress Models (Nonisolated Value Types)
 
-public struct PlanPoint: Identifiable, Sendable {
-    public let id = UUID()
+public nonisolated struct PlanPoint: Identifiable, Sendable {
+    public let id: UUID
     public let x: Double
     public let y: Double
     
-    public init(x: Double, y: Double) {
+    public init(id: UUID = UUID(), x: Double, y: Double) {
+        self.id = id
         self.x = x
         self.y = y
     }
 }
 
-public struct ActualPoint: Identifiable, Sendable {
-    public let id = UUID()
+public nonisolated struct ActualPoint: Identifiable, Sendable {
+    public let id: UUID
     public let x: Double
     public let y: Double
     
-    public init(x: Double, y: Double) {
+    public init(id: UUID = UUID(), x: Double, y: Double) {
+        self.id = id
         self.x = x
         self.y = y
     }
 }
 
-public struct ExitTriggerProgressItem: Identifiable, Sendable {
-    public let id = UUID()
+public nonisolated struct ExitTriggerProgressItem: Identifiable, Sendable {
+    public let id: UUID
     public let sensorKey: SensorKey
     public let icon: String
     public let label: String
@@ -43,7 +45,8 @@ public struct ExitTriggerProgressItem: Identifiable, Sendable {
     public let progress: Double
     public let isLeading: Bool
     
-    public init(sensorKey: SensorKey, icon: String, label: String, currentString: String, targetString: String, progress: Double, isLeading: Bool) {
+    public init(id: UUID = UUID(), sensorKey: SensorKey, icon: String, label: String, currentString: String, targetString: String, progress: Double, isLeading: Bool) {
+        self.id = id
         self.sensorKey = sensorKey
         self.icon = icon
         self.label = label
@@ -54,20 +57,21 @@ public struct ExitTriggerProgressItem: Identifiable, Sendable {
     }
 }
 
-public enum StagePillState: Sendable {
+public nonisolated enum StagePillState: Sendable {
     case completed
     case active
     case upcoming
 }
 
-public struct StagePillItem: Identifiable, Sendable {
-    public let id = UUID()
+public nonisolated struct StagePillItem: Identifiable, Sendable {
+    public let id: UUID
     public let stageNumber: Int
     public let title: String
     public let icon: String
     public let state: StagePillState
     
-    public init(stageNumber: Int, title: String, icon: String, state: StagePillState) {
+    public init(id: UUID = UUID(), stageNumber: Int, title: String, icon: String, state: StagePillState) {
+        self.id = id
         self.stageNumber = stageNumber
         self.title = title
         self.icon = icon
@@ -455,7 +459,7 @@ public struct BaristaHUDView: View {
         .cornerRadius(12)
     }
     
-    // MARK: - 4. Exit Triggers Panel (Leading uses sensor's own color!)
+    // MARK: - 4. Exit Triggers Panel
     
     @ViewBuilder
     private var exitTriggersView: some View {

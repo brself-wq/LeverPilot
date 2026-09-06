@@ -1,0 +1,25 @@
+{
+  "id": "nutcracker-stall-rescue",
+  "profileId": "1ec13e5a-e549-4f31-a47a-5acbdce2c4cc",
+  "notes": "Stall Rescue: 5s pre-soak timeout, then steady recovery to 40g",
+  "samples": [
+    { "timestamp": 0.0, "pressure": 0.0, "flow": 0.0, "weight": 0.0, "stageIndex": 0 },
+    { "timestamp": 1.0, "pressure": 1.5, "flow": 0.0, "weight": 0.0, "stageIndex": 0 },
+    { "timestamp": 2.0, "pressure": 2.0, "flow": 0.0, "weight": 0.0, "stageIndex": 0 },
+    { "timestamp": 3.0, "pressure": 2.0, "flow": 0.0, "weight": 0.0, "stageIndex": 0 },
+    { "timestamp": 4.0, "pressure": 2.0, "flow": 0.0, "weight": 0.0, "stageIndex": 0 },
+    { "timestamp": 5.0, "pressure": 2.0, "flow": 0.0, "weight": 0.0, "stageIndex": 0 },
+    
+    { "timestamp": 5.1, "pressure": 2.2, "flow": 0.2, "weight": 0.1, "stageIndex": 1 },
+    { "timestamp": 6.0, "pressure": 2.5, "flow": 0.6, "weight": 0.5, "stageIndex": 1 },
+    { "timestamp": 8.0, "pressure": 3.0, "flow": 1.2, "weight": 1.8, "stageIndex": 1 },
+    { "timestamp": 10.0, "pressure": 3.2, "flow": 1.4, "weight": 3.5, "stageIndex": 1 },
+    { "timestamp": 11.0, "pressure": 3.5, "flow": 1.5, "weight": 4.0, "stageIndex": 1 },
+    
+    { "timestamp": 11.1, "pressure": 4.0, "flow": 1.8, "weight": 4.2, "stageIndex": 2 },
+    { "timestamp": 14.0, "pressure": 6.1, "flow": 2.0, "weight": 10.0, "stageIndex": 2 },
+    { "timestamp": 18.0, "pressure": 6.1, "flow": 2.0, "weight": 18.0, "stageIndex": 2 },
+    { "timestamp": 24.0, "pressure": 6.1, "flow": 2.0, "weight": 30.0, "stageIndex": 2 },
+    { "timestamp": 29.0, "pressure": 6.1, "flow": 2.0, "weight": 40.0, "stageIndex": 2 }
+  ]
+}

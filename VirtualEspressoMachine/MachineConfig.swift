@@ -7,9 +7,9 @@
 
 import Foundation
 
-// MARK: - Comparison Operator
+// MARK: - Comparison Operator (Nonisolated)
 
-public enum TriggerComparison: String, Sendable, Codable, Equatable {
+public nonisolated enum TriggerComparison: String, Sendable, Codable, Equatable {
     case greaterThanOrEqual = ">="
     case lessThanOrEqual = "<="
     case greaterThan = ">"

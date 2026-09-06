@@ -34,7 +34,9 @@ public final class ProfileStore {
     
     /// Testing / Preview initializer: inject an explicit list of profiles
     public init(profiles: [Profile]) {
-        self.profiles = profiles
+        self.profiles = profiles.sorted {
+            $0.name.localizedStandardCompare($1.name) == .orderedAscending
+        }
     }
     
     // MARK: - Query & Resolution
@@ -74,7 +76,10 @@ public final class ProfileStore {
         }
         
         if !loaded.isEmpty {
-            self.profiles = loaded
+            // Sort deterministically by name so launch order is always stable
+            self.profiles = loaded.sorted {
+                $0.name.localizedStandardCompare($1.name) == .orderedAscending
+            }
         }
     }
     
