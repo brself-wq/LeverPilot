@@ -20,6 +20,7 @@ struct BaristaHUDSimulatorView: View {
     @State private var selectedScenarioID: String = ""
     @State private var activeStageIndex: Int = 0
     @State private var currentStageBaseline = StageBaseline()
+    @State private var stageBaselines: [Int: StageBaseline] = [0: StageBaseline(startTime: 0.0, startWeight: 0.0)]
     
     // Playback Engine State
     @State private var isPlaying: Bool = false
@@ -194,6 +195,8 @@ struct BaristaHUDSimulatorView: View {
                 if let first = profileStore.profiles.first {
                     selectedProfileID = first.id
                     autoSelectMatchingScenario()
+                    currentStageBaseline = StageBaseline(startTime: 0.0, startWeight: 0.0)
+                    stageBaselines = [0: currentStageBaseline]
                     setupStage(stageIndex: 0)
                 }
             }
@@ -260,7 +263,14 @@ struct BaristaHUDSimulatorView: View {
         if isPlaying { stopPlayback() }
         currentSampleIndex -= 1
         let sample = scenario.samples[currentSampleIndex]
-        renderSampleAtCurrentIndex(sample: sample, in: scenario)
+        
+        // When stepping backwards into a preceding stage's time window, restore its stage and baseline
+        if activeStageIndex > 0 && sample.timestamp < currentStageBaseline.startTime {
+            activeStageIndex -= 1
+            currentStageBaseline = stageBaselines[activeStageIndex] ?? StageBaseline(startTime: 0.0, startWeight: 0.0)
+        }
+        
+        renderSampleAtCurrentIndex(sample: sample, in: scenario, allowAdvance: false)
     }
     
     private func stopPlayback() {
@@ -273,6 +283,8 @@ struct BaristaHUDSimulatorView: View {
         stopPlayback()
         currentSampleIndex = 0
         activeStageIndex = 0
+        currentStageBaseline = StageBaseline(startTime: 0.0, startWeight: 0.0)
+        stageBaselines = [0: currentStageBaseline]
         setupStage(stageIndex: 0)
     }
     
@@ -281,6 +293,8 @@ struct BaristaHUDSimulatorView: View {
         selectedProfileID = profile.id
         activeStageIndex = 0
         currentSampleIndex = 0
+        currentStageBaseline = StageBaseline(startTime: 0.0, startWeight: 0.0)
+        stageBaselines = [0: currentStageBaseline]
         if currentScenario?.profileId != profile.id {
             selectedScenarioID = scenarioStore.scenarios(for: profile.id).first?.id ?? ""
         }
@@ -288,12 +302,20 @@ struct BaristaHUDSimulatorView: View {
     }
     
     private func jumpToStage(_ index: Int) {
-        guard let scenario = currentScenario else { return }
+        guard let scenario = currentScenario, let profile = currentProfile, profile.stages.indices.contains(index) else { return }
+        activeStageIndex = index
         if let targetSampleIndex = scenario.samples.firstIndex(where: { $0.stageIndex == index }) {
             currentSampleIndex = targetSampleIndex
             let sample = scenario.samples[currentSampleIndex]
-            renderSampleAtCurrentIndex(sample: sample, in: scenario)
+            currentStageBaseline = StageBaseline(
+                startTime: sample.timestamp,
+                startWeight: sample.weight
+            )
+            stageBaselines[index] = currentStageBaseline
+            renderSampleAtCurrentIndex(sample: sample, in: scenario, allowAdvance: false)
         } else {
+            currentStageBaseline = StageBaseline(startTime: 0.0, startWeight: 0.0)
+            stageBaselines[index] = currentStageBaseline
             setupStage(stageIndex: index)
         }
     }
@@ -304,24 +326,13 @@ struct BaristaHUDSimulatorView: View {
         }
     }
     
-    // MARK: - Simulation Tick Execution (Delegated to ProfileExecutionEngine!)
+    // MARK: - Simulation Tick Execution (Active Engine-Driven Simulation)
     
-    private func renderSampleAtCurrentIndex(sample: ShotSample, in scenario: ShotRecord) {
+    private func renderSampleAtCurrentIndex(sample: ShotSample, in scenario: ShotRecord, allowAdvance: Bool = true) {
         guard let profile = currentProfile else { return }
-        
-        // 1. Stage Handoff & Baseline Synchronization
-        if sample.stageIndex != activeStageIndex && profile.stages.indices.contains(sample.stageIndex) {
-            activeStageIndex = sample.stageIndex
-            let stageStartSample = scenario.samples.first(where: { $0.stageIndex == activeStageIndex })
-            currentStageBaseline = StageBaseline(
-                startTime: stageStartSample?.timestamp ?? sample.timestamp,
-                startWeight: stageStartSample?.weight ?? sample.weight
-            )
-        }
-        
         guard let stage = currentStage else { return }
         
-        // 2. Synthesize MachineFrame from live sample
+        // 1. Synthesize MachineFrame from live sample
         let machineFrame = MachineFrame(
             timestamp: sample.timestamp,
             state: .extracting,
@@ -334,8 +345,8 @@ struct BaristaHUDSimulatorView: View {
             ]
         )
         
-        // 3. Delegate ALL math, limits, and triggers to ProfileExecutionEngine!
-        let result = engine.evaluate(
+        // 2. Delegate evaluation to ProfileExecutionEngine
+        var result = engine.evaluate(
             stage: stage,
             stageIndex: activeStageIndex,
             totalStages: profile.stages.count,
@@ -344,20 +355,51 @@ struct BaristaHUDSimulatorView: View {
             finalWeightTarget: profile.finalWeight
         )
         
+        // 3. Active Engine-Driven Stage Transition
+        // Transitions are triggered when shouldAdvanceStage == true, not by passively following sample.stageIndex
+        if allowAdvance && result.shouldAdvanceStage {
+            if activeStageIndex + 1 < profile.stages.count {
+                // Advance active stage
+                activeStageIndex += 1
+                // Reset stage baseline with current sample's timestamp and weight
+                currentStageBaseline = StageBaseline(
+                    startTime: sample.timestamp,
+                    startWeight: sample.weight
+                )
+                stageBaselines[activeStageIndex] = currentStageBaseline
+                
+                // Re-evaluate immediate guidance for the newly activated stage
+                if let nextStage = currentStage {
+                    result = engine.evaluate(
+                        stage: nextStage,
+                        stageIndex: activeStageIndex,
+                        totalStages: profile.stages.count,
+                        frame: machineFrame,
+                        baseline: currentStageBaseline,
+                        finalWeightTarget: profile.finalWeight
+                    )
+                }
+            } else if isPlaying {
+                // Final stage finished
+                stopPlayback()
+            }
+        }
+        
         // 4. Update UI Display State
         self.frame = result.guidanceFrame
         self.planCurve = result.planCurve
         self.exitTriggerItems = result.exitTriggerItems
         
-        // 5. Rebuild Stage Telemetry Trail (Deterministic history slicing for rewind support)
+        // 5. Rebuild Stage Telemetry Trail for current engine-driven stage baseline
         let stageStartTime = currentStageBaseline.startTime
         let stageSamples = scenario.samples.enumerated().filter { idx, s in
-            s.stageIndex == activeStageIndex && idx <= currentSampleIndex
+            s.timestamp >= (stageStartTime - 0.001) && idx <= currentSampleIndex
         }
         
+        let activeStage = currentStage ?? stage
         self.actualHistory = stageSamples.map { _, s in
             let metricVal: Double
-            switch stage.type {
+            switch activeStage.type {
             case .pressure: metricVal = s.pressure
             case .flow:     metricVal = s.flow
             case .power:    metricVal = 100.0
@@ -423,9 +465,6 @@ struct BaristaHUDSimulatorView: View {
             targetValue: 0.0,
             actualValue: 0.0,
             delta: 0.0,
-            elapsedTime: 0.0,
-            stageTime: 0.0,
-            actualWeight: 0.0,
             stageProgress: 0.0,
             yieldProgress: 0.0,
             guardrail: nil

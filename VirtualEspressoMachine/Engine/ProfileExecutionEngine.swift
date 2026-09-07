@@ -117,9 +117,6 @@ public nonisolated struct ProfileExecutionEngine: Sendable {
             targetValue: targetValue,
             actualValue: actualValue,
             delta: delta,
-            elapsedTime: frame.timestamp,
-            stageTime: localTime,
-            actualWeight: currentWeight,
             stageProgress: stageProgressRatio,
             yieldProgress: yieldRatio,
             guardrail: limitStatus
@@ -202,29 +199,40 @@ public nonisolated struct ProfileExecutionEngine: Sendable {
                 let icon: String
                 let unit: String
                 
-                let isRelative = trigger.relative ?? true
+                let isRelative = trigger.relative ?? false
                 
                 switch trigger.type {
                 case .time:
                     sensorKey = .time
                     icon = "clock.fill"
                     unit = "s"
-                    currentVal = isRelative ? localTime : frame.timestamp
+                    // Meticulous Firmware Semantics: Stage time triggers define stage duration.
+                    // The firmware evaluates elapsed time from when this stage activated (localTime).
+                    // We ignore `trigger.relative` because Meticulous profile serializers default
+                    // it to `false` in JSON, but the physical machine firmware always measures from stage entry.
+                    currentVal = localTime
+                    
                 case .weight:
                     sensorKey = .weight
                     icon = "scalemass.fill"
                     unit = "g"
+                    // Weight respects relative:
+                    // false -> total scale weight (cup yield target, e.g. 36g)
+                    // true  -> yield added during this stage (e.g. +15g)
                     currentVal = isRelative ? localWeight : (frame[.weight] ?? 0.0)
+                    
                 case .pressure:
                     sensorKey = .pressure
                     icon = "gauge.with.dots.needle.bottom.50percent"
                     unit = "bar"
                     currentVal = frame[.pressure] ?? 0.0
+                    
                 case .flow:
                     sensorKey = .flow
                     icon = "water.waves"
                     unit = "mL/s"
                     currentVal = frame[.flow] ?? 0.0
+                    
                 default:
                     sensorKey = .power
                     icon = "bolt.fill"

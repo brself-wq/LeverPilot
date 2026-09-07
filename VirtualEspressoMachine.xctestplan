@@ -1,0 +1,30 @@
+{
+  "configurations" : [
+    {
+      "id" : "69BA2968-8B6D-4DE9-9858-FCE80899AD6E",
+      "name" : "Test Scheme Action",
+      "options" : {
+
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "performanceAntipatternCheckerEnabled" : true,
+    "targetForVariableExpansion" : {
+      "containerPath" : "container:VirtualEspressoMachine.xcodeproj",
+      "identifier" : "B5B100DD304A370300F70661",
+      "name" : "VirtualEspressoMachine"
+    }
+  },
+  "testTargets" : [
+    {
+      "parallelizable" : true,
+      "target" : {
+        "containerPath" : "container:VirtualEspressoMachine.xcodeproj",
+        "identifier" : "B5996436304F42DF00341BC9",
+        "name" : "VirtualEspressoMachineTests"
+      }
+    }
+  ],
+  "version" : 1
+}

@@ -7,10 +7,23 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		B5996445304F462100341BC9 /* MeticulousProfile in Frameworks */ = {isa = PBXBuildFile; productRef = B5996444304F462100341BC9 /* MeticulousProfile */; };
 		B5B10100304A37E900F70661 /* MeticulousProfile in Frameworks */ = {isa = PBXBuildFile; productRef = B5B100FF304A37E900F70661 /* MeticulousProfile */; };
 /* End PBXBuildFile section */
 
+/* Begin PBXContainerItemProxy section */
+		B599643B304F42DF00341BC9 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = B5B100D6304A370300F70661 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = B5B100DD304A370300F70661;
+			remoteInfo = VirtualEspressoMachine;
+		};
+/* End PBXContainerItemProxy section */
+
 /* Begin PBXFileReference section */
+		B5996437304F42DF00341BC9 /* VirtualEspressoMachineTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = VirtualEspressoMachineTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		B5996446304F4B9200341BC9 /* VirtualEspressoMachine.xctestplan */ = {isa = PBXFileReference; lastKnownFileType = text; path = VirtualEspressoMachine.xctestplan; sourceTree = "<group>"; };
 		B5B100DE304A370300F70661 /* VirtualEspressoMachine.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = VirtualEspressoMachine.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -20,9 +33,22 @@
 			path = VirtualEspressoMachine;
 			sourceTree = "<group>";
 		};
+		B5996438304F42DF00341BC9 /* VirtualEspressoMachineTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = VirtualEspressoMachineTests;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		B5996434304F42DF00341BC9 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B5996445304F462100341BC9 /* MeticulousProfile in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		B5B100DB304A370300F70661 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -34,11 +60,21 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		B5996443304F462100341BC9 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 		B5B100D5304A370300F70661 = {
 			isa = PBXGroup;
 			children = (
+				B5996446304F4B9200341BC9 /* VirtualEspressoMachine.xctestplan */,
+				B5996438304F42DF00341BC9 /* VirtualEspressoMachineTests */,
 				B5B100DF304A370300F70661 /* Products */,
 				B5514B22304DB5D800494F6F /* VirtualEspressoMachine */,
+				B5996443304F462100341BC9 /* Frameworks */,
 			);
 			sourceTree = "<group>";
 		};
@@ -46,6 +82,7 @@
 			isa = PBXGroup;
 			children = (
 				B5B100DE304A370300F70661 /* VirtualEspressoMachine.app */,
+				B5996437304F42DF00341BC9 /* VirtualEspressoMachineTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -53,6 +90,30 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		B5996436304F42DF00341BC9 /* VirtualEspressoMachineTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = B599643D304F42DF00341BC9 /* Build configuration list for PBXNativeTarget "VirtualEspressoMachineTests" */;
+			buildPhases = (
+				B5996433304F42DF00341BC9 /* Sources */,
+				B5996434304F42DF00341BC9 /* Frameworks */,
+				B5996435304F42DF00341BC9 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				B599643C304F42DF00341BC9 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				B5996438304F42DF00341BC9 /* VirtualEspressoMachineTests */,
+			);
+			name = VirtualEspressoMachineTests;
+			packageProductDependencies = (
+				B5996444304F462100341BC9 /* MeticulousProfile */,
+			);
+			productName = VirtualEspressoMachineTests;
+			productReference = B5996437304F42DF00341BC9 /* VirtualEspressoMachineTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 		B5B100DD304A370300F70661 /* VirtualEspressoMachine */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = B5B100E9304A370400F70661 /* Build configuration list for PBXNativeTarget "VirtualEspressoMachine" */;
@@ -86,6 +147,10 @@
 				LastSwiftUpdateCheck = 2650;
 				LastUpgradeCheck = 2650;
 				TargetAttributes = {
+					B5996436304F42DF00341BC9 = {
+						CreatedOnToolsVersion = 26.5;
+						TestTargetID = B5B100DD304A370300F70661;
+					};
 					B5B100DD304A370300F70661 = {
 						CreatedOnToolsVersion = 26.5;
 					};
@@ -109,11 +174,19 @@
 			projectRoot = "";
 			targets = (
 				B5B100DD304A370300F70661 /* VirtualEspressoMachine */,
+				B5996436304F42DF00341BC9 /* VirtualEspressoMachineTests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		B5996435304F42DF00341BC9 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		B5B100DC304A370300F70661 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -124,6 +197,13 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		B5996433304F42DF00341BC9 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		B5B100DA304A370300F70661 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -133,7 +213,72 @@
 		};
 /* End PBXSourcesBuildPhase section */
 
+/* Begin PBXTargetDependency section */
+		B599643C304F42DF00341BC9 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			platformFilters = (
+				macos,
+				xros,
+			);
+			target = B5B100DD304A370300F70661 /* VirtualEspressoMachine */;
+			targetProxy = B599643B304F42DF00341BC9 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
 /* Begin XCBuildConfiguration section */
+		B599643E304F42DF00341BC9 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = Y5BFSKQ6PK;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.brself.VirtualEspressoMachineTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
+				SDKROOT = xros;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SUPPORTED_PLATFORMS = macosx;
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/VirtualEspressoMachine.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/VirtualEspressoMachine";
+				XROS_DEPLOYMENT_TARGET = 26.5;
+			};
+			name = Debug;
+		};
+		B599643F304F42DF00341BC9 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = Y5BFSKQ6PK;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.brself.VirtualEspressoMachineTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = xros;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SUPPORTED_PLATFORMS = macosx;
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/VirtualEspressoMachine.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/VirtualEspressoMachine";
+				VALIDATE_PRODUCT = YES;
+				XROS_DEPLOYMENT_TARGET = 26.5;
+			};
+			name = Release;
+		};
 		B5B100E7304A370400F70661 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -341,6 +486,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		B599643D304F42DF00341BC9 /* Build configuration list for PBXNativeTarget "VirtualEspressoMachineTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				B599643E304F42DF00341BC9 /* Debug */,
+				B599643F304F42DF00341BC9 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		B5B100D9304A370300F70661 /* Build configuration list for PBXProject "VirtualEspressoMachine" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
@@ -369,6 +523,11 @@
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		B5996444304F462100341BC9 /* MeticulousProfile */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = B5B100FE304A37E900F70661 /* XCLocalSwiftPackageReference "../MeticulousProfile" */;
+			productName = MeticulousProfile;
+		};
 		B5B100FF304A37E900F70661 /* MeticulousProfile */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = MeticulousProfile;
