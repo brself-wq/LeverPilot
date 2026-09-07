@@ -69,12 +69,7 @@ struct BaristaHUDSimulatorView: View {
                 domainLabel: currentStage?.dynamics.over.rawValue.capitalized ?? "Time",
                 finalWeightTarget: currentProfile?.finalWeight ?? 40.0,
                 nominalDuration: currentScenario?.duration ?? 32.0,
-                isAlarmActive: simulateAlarm || (frame.guardrail?.isBreached ?? false),
-                onSelectStage: { index in
-                    if !isPlaying {
-                        jumpToStage(index)
-                    }
-                }
+                isAlarmActive: simulateAlarm || (frame.guardrail?.isBreached ?? false)
             )
             
             // Simulation & Playback Control Dock
@@ -428,6 +423,9 @@ struct BaristaHUDSimulatorView: View {
             targetValue: 0.0,
             actualValue: 0.0,
             delta: 0.0,
+            elapsedTime: 0.0,
+            stageTime: 0.0,
+            actualWeight: 0.0,
             stageProgress: 0.0,
             yieldProgress: 0.0,
             guardrail: nil

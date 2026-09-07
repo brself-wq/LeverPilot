@@ -97,8 +97,6 @@ public struct BaristaHUDView: View {
     let nominalDuration: Double
     let isAlarmActive: Bool
     
-    var onSelectStage: ((Int) -> Void)? = nil
-    
     @State private var alarmFlashPhase: Bool = false
     
     public init(
@@ -110,8 +108,7 @@ public struct BaristaHUDView: View {
         domainLabel: String = "TIME",
         finalWeightTarget: Double = 40.0,
         nominalDuration: Double = 32.0,
-        isAlarmActive: Bool = false,
-        onSelectStage: ((Int) -> Void)? = nil
+        isAlarmActive: Bool = false
     ) {
         self.frame = frame
         self.planCurve = planCurve
@@ -122,7 +119,6 @@ public struct BaristaHUDView: View {
         self.finalWeightTarget = finalWeightTarget
         self.nominalDuration = nominalDuration
         self.isAlarmActive = isAlarmActive
-        self.onSelectStage = onSelectStage
     }
     
     // 4-Channel Canonical Color Palette
@@ -207,17 +203,12 @@ public struct BaristaHUDView: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 6) {
                     ForEach(stagePills) { pill in
-                        Button(action: {
-                            onSelectStage?(pill.stageNumber - 1)
-                        }) {
-                            StagePill(
-                                stageNumber: pill.stageNumber,
-                                title: pill.title,
-                                icon: pill.icon,
-                                state: pill.state
-                            )
-                        }
-                        .buttonStyle(.plain)
+                        StagePill(
+                            stageNumber: pill.stageNumber,
+                            title: pill.title,
+                            icon: pill.icon,
+                            state: pill.state
+                        )
                         
                         if pill.stageNumber < stagePills.count {
                             Image(systemName: "chevron.right")
@@ -240,37 +231,44 @@ public struct BaristaHUDView: View {
     private var leftCockpitView: some View {
         VStack(alignment: .leading, spacing: 10) {
             
-            // Macro Shot Status: Clock + Final Yield
-            HStack(spacing: 6) {
-                HStack(spacing: 4) {
-                    Image(systemName: "timer")
-                        .font(.system(size: 9))
+            // Macro Shot Status: Full-Width Clock (Total + Stage) & Cup Yield
+            HStack(spacing: 8) {
+                // Time Card
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "timer")
+                            .font(.system(size: 9))
+                            .foregroundStyle(.secondary)
+                        Text(String(format: "%04.1fs", frame.elapsedTime))
+                            .font(.system(size: 13, weight: .bold, design: .monospaced))
+                            .foregroundStyle(.primary)
+                    }
+                    Text("Stage: \(String(format: "%.1fs", frame.stageTime))")
+                        .font(.system(size: 9, weight: .medium, design: .monospaced))
                         .foregroundStyle(.secondary)
-                    Text(String(format: "%04.1fs", frame.yieldProgress * nominalDuration))
-                        .font(.system(size: 11, weight: .bold, design: .monospaced))
-                    Text("(\(Int(nominalDuration))s)")
-                        .font(.system(size: 9))
-                        .foregroundStyle(.tertiary)
                 }
-                .padding(.horizontal, 7)
-                .padding(.vertical, 4)
-                .background(Color.white.opacity(0.03))
-                .cornerRadius(6)
+                .frame(maxWidth: .infinity, alignment: .leading)
                 
-                Spacer()
-                
-                HStack(spacing: 4) {
-                    Image(systemName: "scalemass.fill")
-                        .font(.system(size: 9))
+                // Weight Card
+                VStack(alignment: .trailing, spacing: 2) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "scalemass.fill")
+                            .font(.system(size: 9))
+                            .foregroundStyle(.secondary)
+                        Text(String(format: "%.1fg", frame.actualWeight))
+                            .font(.system(size: 13, weight: .bold, design: .monospaced))
+                            .foregroundStyle(Color(red: 0.90, green: 0.68, blue: 0.28))
+                    }
+                    Text("Target: \(String(format: "%.1fg", finalWeightTarget))")
+                        .font(.system(size: 9, weight: .medium, design: .monospaced))
                         .foregroundStyle(.secondary)
-                    Text(String(format: "%.1f / %.1fg", frame.yieldProgress * finalWeightTarget, finalWeightTarget))
-                        .font(.system(size: 11, weight: .bold, design: .monospaced))
                 }
-                .padding(.horizontal, 7)
-                .padding(.vertical, 4)
-                .background(Color.white.opacity(0.03))
-                .cornerRadius(6)
+                .frame(maxWidth: .infinity, alignment: .trailing)
             }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 6)
+            .background(Color.white.opacity(0.04))
+            .cornerRadius(8)
             
             Divider().background(Color.white.opacity(0.06))
             

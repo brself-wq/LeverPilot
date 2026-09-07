@@ -117,6 +117,9 @@ public nonisolated struct ProfileExecutionEngine: Sendable {
             targetValue: targetValue,
             actualValue: actualValue,
             delta: delta,
+            elapsedTime: frame.timestamp,
+            stageTime: localTime,
+            actualWeight: currentWeight,
             stageProgress: stageProgressRatio,
             yieldProgress: yieldRatio,
             guardrail: limitStatus

@@ -33,11 +33,16 @@ public nonisolated struct GuidanceFrame: Sendable {
     public let actualValue: Double          // e.g. 1.8 bar
     public let delta: Double                // actual - target (-0.2 bar -> "PULL HARDER")
     
-    // 3. Progress & Cutoff
+    // 3. Time & Weight Telemetry (Absolute and Relative)
+    public let elapsedTime: TimeInterval    // Total shot time from start of extraction (seconds)
+    public let stageTime: TimeInterval      // Local elapsed time in current stage (seconds)
+    public let actualWeight: Double         // Current liquid yield in cup (grams)
+    
+    // 4. Progress Ratios
     public let stageProgress: Double        // 0.0 ... 1.0 (closest exit trigger)
     public let yieldProgress: Double        // currentWeight / finalWeight (e.g. 12g / 40g = 30%)
     
-    // 4. Guardrail / Safety Limit
+    // 5. Guardrail / Safety Limit
     public let guardrail: GuardrailStatus?  // nil if this stage has no limits defined
     
     public var isAlarmActive: Bool {
@@ -52,6 +57,9 @@ public nonisolated struct GuidanceFrame: Sendable {
         targetValue: Double,
         actualValue: Double,
         delta: Double,
+        elapsedTime: TimeInterval = 0.0,
+        stageTime: TimeInterval = 0.0,
+        actualWeight: Double = 0.0,
         stageProgress: Double,
         yieldProgress: Double,
         guardrail: GuardrailStatus? = nil
@@ -63,6 +71,9 @@ public nonisolated struct GuidanceFrame: Sendable {
         self.targetValue = targetValue
         self.actualValue = actualValue
         self.delta = delta
+        self.elapsedTime = elapsedTime
+        self.stageTime = stageTime
+        self.actualWeight = actualWeight
         self.stageProgress = stageProgress
         self.yieldProgress = yieldProgress
         self.guardrail = guardrail
