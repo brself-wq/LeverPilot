@@ -5,14 +5,6 @@
 //  Created by Ben Self on 9/6/26.
 //
 
-
-//
-//  BaristaHUDSimulatorView.swift
-//  VirtualEspressoMachine
-//
-//  Created by Ben Self on 9/4/26.
-//
-
 import SwiftUI
 import MeticulousProfile
 
@@ -91,12 +83,7 @@ struct BaristaHUDSimulatorView: View {
                 Menu {
                     ForEach(profileStore.profiles, id: \.id) { profile in
                         Button(profile.name) {
-                            stopPlayback()
-                            selectedProfileID = profile.id
-                            activeStageIndex = 0
-                            currentSampleIndex = 0
-                            autoSelectMatchingScenario()
-                            setupStage(stageIndex: 0)
+                            selectProfileAndScenario(profile)
                         }
                     }
                 } label: {
@@ -208,10 +195,12 @@ struct BaristaHUDSimulatorView: View {
             .background(Color(red: 0.04, green: 0.04, blue: 0.05))
         }
         .onAppear {
-            if let first = profileStore.profiles.first {
-                selectedProfileID = first.id
-                autoSelectMatchingScenario()
-                setupStage(stageIndex: 0)
+            if selectedProfileID.isEmpty {
+                if let first = profileStore.profiles.first {
+                    selectedProfileID = first.id
+                    autoSelectMatchingScenario()
+                    setupStage(stageIndex: 0)
+                }
             }
         }
     }
@@ -289,6 +278,17 @@ struct BaristaHUDSimulatorView: View {
         stopPlayback()
         currentSampleIndex = 0
         activeStageIndex = 0
+        setupStage(stageIndex: 0)
+    }
+    
+    private func selectProfileAndScenario(_ profile: Profile) {
+        stopPlayback()
+        selectedProfileID = profile.id
+        activeStageIndex = 0
+        currentSampleIndex = 0
+        if currentScenario?.profileId != profile.id {
+            selectedScenarioID = scenarioStore.scenarios(for: profile.id).first?.id ?? ""
+        }
         setupStage(stageIndex: 0)
     }
     
