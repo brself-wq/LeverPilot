@@ -2,17 +2,13 @@
 //  VirtualEspressoMachineTests.swift
 //  VirtualEspressoMachineTests
 //
-//  Created by Ben Self on 9/7/26.
-//
 
-import Testing
+import XCTest
+@testable import VirtualEspressoMachine
 
-struct VirtualEspressoMachineTests {
-
-    @Test func example() async throws {
-        // Write your test here and use APIs like `#expect(...)` to check expected conditions.
-        // Swift Testing Documentation
-        // https://developer.apple.com/documentation/testing
+final class VirtualEspressoMachineTests: XCTestCase {
+    
+    func test_testTargetSanity() {
+        XCTAssertTrue(true, "Test target is linked and running.")
     }
-
 }

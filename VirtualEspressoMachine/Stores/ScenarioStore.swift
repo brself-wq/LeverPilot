@@ -1,4 +1,3 @@
-
 //
 //  ScenarioStore.swift
 //  VirtualEspressoMachine
