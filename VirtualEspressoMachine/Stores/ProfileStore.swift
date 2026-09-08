@@ -71,12 +71,15 @@ public final class ProfileStore {
                 let profile = try loadProfile(from: url)
                 loaded.append(profile)
             } catch {
-                print("[ProfileStore] Skipped non-profile JSON at \(url.lastPathComponent): \(error)")
+                // If it's a valid scenario fixture, skip silently without log spam
+                let isScenario = (try? JSONDecoder().decode(ShotRecord.self, from: Data(contentsOf: url))) != nil
+                if !isScenario {
+                    print("[ProfileStore] Skipped non-profile JSON at \(url.lastPathComponent): \(error)")
+                }
             }
         }
         
         if !loaded.isEmpty {
-            // Sort deterministically by name so launch order is always stable
             self.profiles = loaded.sorted {
                 $0.name.localizedStandardCompare($1.name) == .orderedAscending
             }

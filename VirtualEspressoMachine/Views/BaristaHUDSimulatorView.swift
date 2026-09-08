@@ -9,48 +9,45 @@ import SwiftUI
 import MeticulousProfile
 
 struct BaristaHUDSimulatorView: View {
+    // Data Stores
     @State private var profileStore = ProfileStore()
     @State private var scenarioStore = ScenarioStore()
     
-    // Delegated Domain Engine
-    private let engine = ProfileExecutionEngine()
+    // Domain Engines
+    private let executionEngine = ProfileExecutionEngine()
+    @State private var playbackEngine = PlaybackEngine()
     
-    // Active Profile & Scenario Selection
+    // Active Selections (Unselected at launch)
     @State private var selectedProfileID: String = ""
     @State private var selectedScenarioID: String = ""
+    
+    // Execution Baseline Tracking
     @State private var activeStageIndex: Int = 0
     @State private var currentStageBaseline = StageBaseline()
     @State private var stageBaselines: [Int: StageBaseline] = [0: StageBaseline(startTime: 0.0, startWeight: 0.0)]
     
-    // Playback Engine State
-    @State private var isPlaying: Bool = false
-    @State private var playbackSpeedMultiplier: Double = 1.0 // 0.25x, 0.5x, 1x, 2x
-    @State private var currentSampleIndex: Int = 0
-    @State private var playbackTask: Task<Void, Never>? = nil
-    
-    private let availableSpeeds: [Double] = [0.25, 0.5, 1.0, 2.0]
-    
-    // Live Display Buffers Feeding BaristaHUDView
+    // Buffers feeding BaristaHUDView
     @State private var frame: GuidanceFrame = Self.emptyFrame
     @State private var planCurve: [PlanPoint] = []
     @State private var actualHistory: [ActualPoint] = []
     @State private var exitTriggerItems: [ExitTriggerProgressItem] = []
     @State private var stagePills: [StagePillItem] = []
     
+    // Live Clocks & Yield
+    @State private var currentElapsedTime: Double = 0.0
+    @State private var currentStageTime: Double = 0.0
+    @State private var currentActualWeight: Double = 0.0
+    
     @State private var simulateAlarm: Bool = false
     
     private var currentProfile: Profile? {
-        profileStore.profiles.first(where: { $0.id == selectedProfileID }) ?? profileStore.profiles.first
-    }
-    
-    private var availableScenariosForProfile: [ShotRecord] {
-        guard let p = currentProfile else { return scenarioStore.scenarios }
-        let matched = scenarioStore.scenarios(for: p.id)
-        return matched.isEmpty ? scenarioStore.scenarios : matched
+        guard !selectedProfileID.isEmpty else { return nil }
+        return profileStore.profiles.first(where: { $0.id == selectedProfileID })
     }
     
     private var currentScenario: ShotRecord? {
-        availableScenariosForProfile.first(where: { $0.id == selectedScenarioID }) ?? availableScenariosForProfile.first
+        guard !selectedScenarioID.isEmpty else { return nil }
+        return scenarioStore.scenarios.first(where: { $0.id == selectedScenarioID })
     }
     
     private var currentStage: Stage? {
@@ -58,9 +55,32 @@ struct BaristaHUDSimulatorView: View {
         return p.stages[activeStageIndex]
     }
     
+    // Dynamically resolves target yield from finalWeight, exit triggers, or profile stages
+    private var resolvedTargetWeight: Double {
+        if let fw = currentProfile?.finalWeight, fw > 0 {
+            return fw
+        }
+        if let weightItem = exitTriggerItems.first(where: { $0.sensorKey == .weight }) {
+            let numStr = weightItem.targetString.replacingOccurrences(of: "g", with: "").trimmingCharacters(in: .whitespaces)
+            if let val = Double(numStr), val > 0 {
+                return val
+            }
+        }
+        if let profile = currentProfile {
+            for stage in profile.stages.reversed() {
+                if let triggers = stage.exitTriggers,
+                   let trigger = triggers.first(where: { $0.type == .weight }),
+                   let target = trigger.value.numericValue, target > 0 {
+                    return target
+                }
+            }
+        }
+        return currentProfile != nil ? 36.0 : 0.0
+    }
+    
     var body: some View {
         VStack(spacing: 0) {
-            // Releasable Barista HUD Presentation View
+            // Production Barista HUD Presentation View
             BaristaHUDView(
                 frame: frame,
                 planCurve: planCurve,
@@ -68,271 +88,83 @@ struct BaristaHUDSimulatorView: View {
                 exitTriggerItems: exitTriggerItems,
                 stagePills: stagePills,
                 domainLabel: currentStage?.dynamics.over.rawValue.capitalized ?? "Time",
-                finalWeightTarget: currentProfile?.finalWeight ?? 40.0,
+                finalWeightTarget: resolvedTargetWeight,
                 nominalDuration: currentScenario?.duration ?? 32.0,
-                isAlarmActive: simulateAlarm || (frame.guardrail?.isBreached ?? false)
+                isAlarmActive: simulateAlarm || (frame.guardrail?.isBreached ?? false),
+                elapsedTime: currentElapsedTime,
+                stageTime: currentStageTime,
+                actualWeight: currentActualWeight
             )
             
-            // Simulation & Playback Control Dock
-            HStack(spacing: 10) {
-                // 1. Profile Selector Menu
-                Menu {
-                    ForEach(profileStore.profiles, id: \.id) { profile in
-                        Button(profile.name) {
-                            selectProfileAndScenario(profile)
-                        }
-                    }
-                } label: {
-                    HStack(spacing: 4) {
-                        Image(systemName: "cup.and.saucer.fill")
-                        Text(currentProfile?.name ?? "Profile")
-                            .lineLimit(1)
-                        Image(systemName: "chevron.up.chevron.down")
-                    }
-                    .font(.system(size: 10, weight: .bold))
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(Color.white.opacity(0.08))
-                    .cornerRadius(6)
-                }
-                
-                // 2. Scenario Fixture Selector Menu
-                Menu {
-                    ForEach(availableScenariosForProfile, id: \.id) { scenario in
-                        Button(scenario.tastingNotes ?? scenario.id) {
-                            stopPlayback()
-                            selectedScenarioID = scenario.id
-                            resetPlayback()
-                        }
-                    }
-                } label: {
-                    HStack(spacing: 4) {
-                        Image(systemName: "doc.text.fill")
-                        Text(currentScenario?.id ?? "Scenario")
-                            .lineLimit(1)
-                        Image(systemName: "chevron.up.chevron.down")
-                    }
-                    .font(.system(size: 10, weight: .bold))
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(Color.white.opacity(0.08))
-                    .cornerRadius(6)
-                }
-                
-                Divider().frame(height: 16)
-                
-                // 3. Playback Controls (Play / Step Back / Step Forward / Reset / Speed)
-                HStack(spacing: 6) {
-                    // Play / Pause
-                    Button(action: togglePlayback) {
-                        Label(isPlaying ? "Pause" : "Play", systemImage: isPlaying ? "pause.fill" : "play.fill")
-                            .font(.system(size: 11, weight: .bold))
-                            .frame(minWidth: 60)
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.small)
-                    .tint(isPlaying ? .orange : .blue)
-                    
-                    // Step Backward (-0.1s)
-                    Button(action: stepBackward) {
-                        Image(systemName: "backward.frame.fill")
-                            .font(.system(size: 11, weight: .bold))
-                    }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
-                    .disabled(isPlaying || currentSampleIndex == 0)
-                    
-                    // Step Forward (+0.1s)
-                    Button(action: stepForward) {
-                        Image(systemName: "forward.frame.fill")
-                            .font(.system(size: 11, weight: .bold))
-                    }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
-                    .disabled(isPlaying || currentSampleIndex >= (currentScenario?.samples.count ?? 0) - 1)
-                    
-                    // Reset to Beginning
-                    Button(action: resetPlayback) {
-                        Image(systemName: "arrow.counterclockwise")
-                            .font(.system(size: 11, weight: .bold))
-                    }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
-                    
-                    // Speed Multiplier Cycle (25% -> 50% -> 100% -> 200%)
-                    Button(action: cycleSpeed) {
-                        Text(speedLabel)
-                            .font(.system(size: 10, weight: .black, design: .monospaced))
-                            .frame(minWidth: 42)
-                    }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
-                    .tint(playbackSpeedMultiplier != 1.0 ? .cyan : .gray)
-                }
-                
-                // 4. Tick Counter
-                if let scenario = currentScenario {
-                    Text("TICK: \(currentSampleIndex)/\(scenario.samples.count) (\(String(format: "%.1fs", Double(currentSampleIndex) * 0.1)))")
-                        .font(.system(size: 9, design: .monospaced))
-                        .foregroundStyle(.secondary)
-                }
-                
-                Spacer()
-                
-                // Alarm Toggle
-                Toggle("Alarm", isOn: $simulateAlarm)
-                    .toggleStyle(.switch)
-                    .controlSize(.mini)
-                    .font(.caption2)
-                    .tint(.red)
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
-            .background(Color(red: 0.04, green: 0.04, blue: 0.05))
+            // Extracted Simulator Control Dock
+            SimulatorControlDockView(
+                profiles: profileStore.profiles,
+                scenarios: scenarioStore.scenarios,
+                selectedProfile: currentProfile,
+                selectedScenario: currentScenario,
+                playbackEngine: playbackEngine,
+                simulateAlarm: $simulateAlarm,
+                onSelectProfile: selectProfile,
+                onSelectScenario: selectScenario
+            )
         }
         .onAppear {
-            if selectedProfileID.isEmpty {
-                if let first = profileStore.profiles.first {
-                    selectedProfileID = first.id
-                    autoSelectMatchingScenario()
-                    currentStageBaseline = StageBaseline(startTime: 0.0, startWeight: 0.0)
-                    stageBaselines = [0: currentStageBaseline]
-                    setupStage(stageIndex: 0)
-                }
+            setupPlaybackHooks()
+        }
+    }
+    
+    // MARK: - Playback Engine Wiring
+    
+    private func setupPlaybackHooks() {
+        playbackEngine.onTick = { [self] sample, scenario in
+            self.renderSample(sample: sample, in: scenario, allowAdvance: true)
+        }
+        
+        playbackEngine.onStepBackward = { [self] sample, scenario in
+            if self.activeStageIndex > 0 && sample.timestamp < self.currentStageBaseline.startTime {
+                self.activeStageIndex -= 1
+                self.currentStageBaseline = self.stageBaselines[self.activeStageIndex] ?? StageBaseline(startTime: 0.0, startWeight: 0.0)
             }
-        }
-    }
-    
-    // MARK: - Speed Formatting
-    
-    private var speedLabel: String {
-        "\(Int(playbackSpeedMultiplier * 100))%"
-    }
-    
-    private func cycleSpeed() {
-        if let idx = availableSpeeds.firstIndex(of: playbackSpeedMultiplier) {
-            let next = (idx + 1) % availableSpeeds.count
-            playbackSpeedMultiplier = availableSpeeds[next]
-        } else {
-            playbackSpeedMultiplier = 1.0
-        }
-    }
-    
-    // MARK: - Playback Engine Controls
-    
-    private func togglePlayback() {
-        if isPlaying {
-            stopPlayback()
-        } else {
-            startPlayback()
-        }
-    }
-    
-    private func startPlayback() {
-        guard let scenario = currentScenario, !scenario.samples.isEmpty else { return }
-        isPlaying = true
-        
-        playbackTask = Task { @MainActor in
-            while !Task.isCancelled && isPlaying {
-                guard currentSampleIndex < scenario.samples.count else {
-                    stopPlayback()
-                    break
-                }
-                
-                let sample = scenario.samples[currentSampleIndex]
-                renderSampleAtCurrentIndex(sample: sample, in: scenario)
-                
-                currentSampleIndex += 1
-                
-                let delayMs = UInt64(100.0 / playbackSpeedMultiplier)
-                try? await Task.sleep(nanoseconds: delayMs * 1_000_000)
-            }
-        }
-    }
-    
-    private func stepForward() {
-        guard let scenario = currentScenario, currentSampleIndex < scenario.samples.count - 1 else { return }
-        if isPlaying { stopPlayback() }
-        currentSampleIndex += 1
-        let sample = scenario.samples[currentSampleIndex]
-        renderSampleAtCurrentIndex(sample: sample, in: scenario)
-    }
-    
-    private func stepBackward() {
-        guard let scenario = currentScenario, currentSampleIndex > 0 else { return }
-        if isPlaying { stopPlayback() }
-        currentSampleIndex -= 1
-        let sample = scenario.samples[currentSampleIndex]
-        
-        // When stepping backwards into a preceding stage's time window, restore its stage and baseline
-        if activeStageIndex > 0 && sample.timestamp < currentStageBaseline.startTime {
-            activeStageIndex -= 1
-            currentStageBaseline = stageBaselines[activeStageIndex] ?? StageBaseline(startTime: 0.0, startWeight: 0.0)
+            self.renderSample(sample: sample, in: scenario, allowAdvance: false)
         }
         
-        renderSampleAtCurrentIndex(sample: sample, in: scenario, allowAdvance: false)
+        playbackEngine.onReset = { [self] in
+            self.activeStageIndex = 0
+            self.currentStageBaseline = StageBaseline(startTime: 0.0, startWeight: 0.0)
+            self.stageBaselines = [0: self.currentStageBaseline]
+            self.currentElapsedTime = 0.0
+            self.currentStageTime = 0.0
+            self.currentActualWeight = 0.0
+            self.setupInitialStage(stageIndex: 0)
+        }
     }
     
-    private func stopPlayback() {
-        isPlaying = false
-        playbackTask?.cancel()
-        playbackTask = nil
-    }
-    
-    private func resetPlayback() {
-        stopPlayback()
-        currentSampleIndex = 0
-        activeStageIndex = 0
-        currentStageBaseline = StageBaseline(startTime: 0.0, startWeight: 0.0)
-        stageBaselines = [0: currentStageBaseline]
-        setupStage(stageIndex: 0)
-    }
-    
-    private func selectProfileAndScenario(_ profile: Profile) {
-        stopPlayback()
+    private func selectProfile(_ profile: Profile) {
+        playbackEngine.stop()
         selectedProfileID = profile.id
         activeStageIndex = 0
-        currentSampleIndex = 0
         currentStageBaseline = StageBaseline(startTime: 0.0, startWeight: 0.0)
         stageBaselines = [0: currentStageBaseline]
-        if currentScenario?.profileId != profile.id {
-            selectedScenarioID = scenarioStore.scenarios(for: profile.id).first?.id ?? ""
-        }
-        setupStage(stageIndex: 0)
+        currentElapsedTime = 0.0
+        currentStageTime = 0.0
+        currentActualWeight = 0.0
+        setupInitialStage(stageIndex: 0)
     }
     
-    private func jumpToStage(_ index: Int) {
-        guard let scenario = currentScenario, let profile = currentProfile, profile.stages.indices.contains(index) else { return }
-        activeStageIndex = index
-        if let targetSampleIndex = scenario.samples.firstIndex(where: { $0.stageIndex == index }) {
-            currentSampleIndex = targetSampleIndex
-            let sample = scenario.samples[currentSampleIndex]
-            currentStageBaseline = StageBaseline(
-                startTime: sample.timestamp,
-                startWeight: sample.weight
-            )
-            stageBaselines[index] = currentStageBaseline
-            renderSampleAtCurrentIndex(sample: sample, in: scenario, allowAdvance: false)
-        } else {
-            currentStageBaseline = StageBaseline(startTime: 0.0, startWeight: 0.0)
-            stageBaselines[index] = currentStageBaseline
-            setupStage(stageIndex: index)
+    private func selectScenario(_ scenario: ShotRecord) {
+        selectedScenarioID = scenario.id
+        playbackEngine.load(scenario: scenario)
+        if currentProfile != nil {
+            setupInitialStage(stageIndex: 0)
         }
     }
     
-    private func autoSelectMatchingScenario() {
-        if let matched = availableScenariosForProfile.first {
-            selectedScenarioID = matched.id
-        }
-    }
+    // MARK: - Telemetry Tick Evaluation
     
-    // MARK: - Simulation Tick Execution (Active Engine-Driven Simulation)
-    
-    private func renderSampleAtCurrentIndex(sample: ShotSample, in scenario: ShotRecord, allowAdvance: Bool = true) {
-        guard let profile = currentProfile else { return }
-        guard let stage = currentStage else { return }
+    private func renderSample(sample: ShotSample, in scenario: ShotRecord, allowAdvance: Bool) {
+        guard let profile = currentProfile, let stage = currentStage else { return }
         
-        // 1. Synthesize MachineFrame from live sample
+        // 1. Synthesize MachineFrame from mock sample
         let machineFrame = MachineFrame(
             timestamp: sample.timestamp,
             state: .extracting,
@@ -345,55 +177,53 @@ struct BaristaHUDSimulatorView: View {
             ]
         )
         
-        // 2. Delegate evaluation to ProfileExecutionEngine
-        var result = engine.evaluate(
+        // 2. Evaluate against domain engine
+        var result = executionEngine.evaluate(
             stage: stage,
             stageIndex: activeStageIndex,
             totalStages: profile.stages.count,
             frame: machineFrame,
             baseline: currentStageBaseline,
-            finalWeightTarget: profile.finalWeight
+            finalWeightTarget: resolvedTargetWeight
         )
         
-        // 3. Active Engine-Driven Stage Transition
-        // Transitions are triggered when shouldAdvanceStage == true, not by passively following sample.stageIndex
+        // 3. Engine-driven stage progression
         if allowAdvance && result.shouldAdvanceStage {
             if activeStageIndex + 1 < profile.stages.count {
-                // Advance active stage
                 activeStageIndex += 1
-                // Reset stage baseline with current sample's timestamp and weight
                 currentStageBaseline = StageBaseline(
                     startTime: sample.timestamp,
                     startWeight: sample.weight
                 )
                 stageBaselines[activeStageIndex] = currentStageBaseline
                 
-                // Re-evaluate immediate guidance for the newly activated stage
                 if let nextStage = currentStage {
-                    result = engine.evaluate(
+                    result = executionEngine.evaluate(
                         stage: nextStage,
                         stageIndex: activeStageIndex,
                         totalStages: profile.stages.count,
                         frame: machineFrame,
                         baseline: currentStageBaseline,
-                        finalWeightTarget: profile.finalWeight
+                        finalWeightTarget: resolvedTargetWeight
                     )
                 }
-            } else if isPlaying {
-                // Final stage finished
-                stopPlayback()
+            } else if playbackEngine.isPlaying {
+                playbackEngine.stop()
             }
         }
         
-        // 4. Update UI Display State
+        // 4. Update HUD presentation state
         self.frame = result.guidanceFrame
         self.planCurve = result.planCurve
         self.exitTriggerItems = result.exitTriggerItems
+        self.currentElapsedTime = sample.timestamp
+        self.currentStageTime = max(0.0, sample.timestamp - currentStageBaseline.startTime)
+        self.currentActualWeight = sample.weight
         
-        // 5. Rebuild Stage Telemetry Trail for current engine-driven stage baseline
+        // 5. Slice telemetry trail for current stage
         let stageStartTime = currentStageBaseline.startTime
         let stageSamples = scenario.samples.enumerated().filter { idx, s in
-            s.timestamp >= (stageStartTime - 0.001) && idx <= currentSampleIndex
+            s.timestamp >= (stageStartTime - 0.001) && idx <= playbackEngine.currentSampleIndex
         }
         
         let activeStage = currentStage ?? stage
@@ -407,7 +237,7 @@ struct BaristaHUDSimulatorView: View {
             return ActualPoint(x: max(0.0, s.timestamp - stageStartTime), y: metricVal)
         }
         
-        // 6. Update Carousel Pills
+        // 6. Update stage pills
         self.stagePills = profile.stages.enumerated().map { index, s in
             let icon: String
             switch s.type {
@@ -422,27 +252,36 @@ struct BaristaHUDSimulatorView: View {
     
     // MARK: - Initial Stage Setup
     
-    private func setupStage(stageIndex: Int) {
-        guard let profile = currentProfile, profile.stages.indices.contains(stageIndex) else { return }
-        let stage = profile.stages[stageIndex]
+    private func setupInitialStage(stageIndex: Int) {
+        guard let profile = currentProfile, profile.stages.indices.contains(stageIndex) else {
+            self.actualHistory = []
+            self.frame = Self.emptyFrame
+            self.planCurve = []
+            self.exitTriggerItems = []
+            self.stagePills = []
+            return
+        }
         
+        let stage = profile.stages[stageIndex]
         currentStageBaseline = StageBaseline(startTime: 0.0, startWeight: 0.0)
         let initialFrame = MachineFrame(timestamp: 0.0, state: .shotReady, readings: [:])
         
-        // Delegate initial plan & triggers to ProfileExecutionEngine
-        let result = engine.evaluate(
+        let result = executionEngine.evaluate(
             stage: stage,
             stageIndex: stageIndex,
             totalStages: profile.stages.count,
             frame: initialFrame,
             baseline: currentStageBaseline,
-            finalWeightTarget: profile.finalWeight
+            finalWeightTarget: resolvedTargetWeight
         )
         
         self.actualHistory = []
         self.frame = result.guidanceFrame
         self.planCurve = result.planCurve
         self.exitTriggerItems = result.exitTriggerItems
+        self.currentElapsedTime = 0.0
+        self.currentStageTime = 0.0
+        self.currentActualWeight = 0.0
         
         self.stagePills = profile.stages.enumerated().map { index, s in
             let icon: String

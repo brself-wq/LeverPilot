@@ -97,6 +97,11 @@ public struct BaristaHUDView: View {
     let nominalDuration: Double
     let isAlarmActive: Bool
     
+    // Explicit telemetry overrides with fallback to frame
+    let elapsedTime: Double?
+    let stageTime: Double?
+    let actualWeight: Double?
+    
     @State private var alarmFlashPhase: Bool = false
     
     public init(
@@ -108,7 +113,10 @@ public struct BaristaHUDView: View {
         domainLabel: String = "TIME",
         finalWeightTarget: Double = 40.0,
         nominalDuration: Double = 32.0,
-        isAlarmActive: Bool = false
+        isAlarmActive: Bool = false,
+        elapsedTime: Double? = nil,
+        stageTime: Double? = nil,
+        actualWeight: Double? = nil
     ) {
         self.frame = frame
         self.planCurve = planCurve
@@ -119,6 +127,22 @@ public struct BaristaHUDView: View {
         self.finalWeightTarget = finalWeightTarget
         self.nominalDuration = nominalDuration
         self.isAlarmActive = isAlarmActive
+        self.elapsedTime = elapsedTime
+        self.stageTime = stageTime
+        self.actualWeight = actualWeight
+    }
+    
+    // Resolved Telemetry
+    private var displayElapsedTime: Double {
+        elapsedTime ?? frame.elapsedTime
+    }
+    
+    private var displayStageTime: Double {
+        stageTime ?? frame.stageTime
+    }
+    
+    private var displayActualWeight: Double {
+        actualWeight ?? frame.actualWeight
     }
     
     // 4-Channel Canonical Color Palette
@@ -126,7 +150,7 @@ public struct BaristaHUDView: View {
         switch metric {
         case .pressure: return Color(red: 0.15, green: 0.68, blue: 0.38) // Forest Green
         case .flow:     return Color(red: 0.0, green: 0.68, blue: 0.94)  // Cyan / Blue
-        case .power:    return Color(red: 1.0, green: 0.48, blue: 0.0)   // Electric Orange (80's Espresso)
+        case .power:    return Color(red: 1.0, green: 0.48, blue: 0.0)   // Electric Orange
         case .weight:   return Color(red: 0.90, green: 0.68, blue: 0.28) // Crema Caramel
         case .time:     return Color(red: 0.65, green: 0.72, blue: 0.85) // Slate Silver
         default:        return Color.secondary
@@ -200,38 +224,44 @@ public struct BaristaHUDView: View {
     @ViewBuilder
     private var topRailView: some View {
         HStack(spacing: 10) {
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 6) {
-                    ForEach(stagePills) { pill in
-                        StagePill(
-                            stageNumber: pill.stageNumber,
-                            title: pill.title,
-                            icon: pill.icon,
-                            state: pill.state
-                        )
-                        
-                        if pill.stageNumber < stagePills.count {
-                            Image(systemName: "chevron.right")
-                                .font(.system(size: 8))
-                                .foregroundStyle(.tertiary)
+            if stagePills.isEmpty {
+                Text("STANDBY - NO ACTIVE PROFILE")
+                    .font(.system(size: 10, weight: .bold, design: .monospaced))
+                    .foregroundStyle(.tertiary)
+                    .padding(.vertical, 6)
+            } else {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 6) {
+                        ForEach(stagePills) { pill in
+                            StagePill(
+                                stageNumber: pill.stageNumber,
+                                title: pill.title,
+                                icon: pill.icon,
+                                state: pill.state
+                            )
+                            
+                            if pill.stageNumber < stagePills.count {
+                                Image(systemName: "chevron.right")
+                                    .font(.system(size: 8))
+                                    .foregroundStyle(.tertiary)
+                            }
                         }
                     }
+                    .padding(.horizontal, 2)
                 }
-                .padding(.horizontal, 2)
             }
-            
             Spacer()
         }
         .padding(.horizontal, 12)
     }
     
-    // MARK: - 2. Left Cockpit: The Complete Instrument Cluster
+    // MARK: - 2. Left Cockpit: Instrument Cluster
     
     @ViewBuilder
     private var leftCockpitView: some View {
         VStack(alignment: .leading, spacing: 10) {
             
-            // Macro Shot Status: Full-Width Clock (Total + Stage) & Cup Yield
+            // Macro Shot Status: Clocks & Weight Yield
             HStack(spacing: 8) {
                 // Time Card
                 VStack(alignment: .leading, spacing: 2) {
@@ -239,11 +269,11 @@ public struct BaristaHUDView: View {
                         Image(systemName: "timer")
                             .font(.system(size: 9))
                             .foregroundStyle(.secondary)
-                        Text(String(format: "%04.1fs", frame.elapsedTime))
+                        Text(String(format: "%04.1fs", displayElapsedTime))
                             .font(.system(size: 13, weight: .bold, design: .monospaced))
                             .foregroundStyle(.primary)
                     }
-                    Text("Stage: \(String(format: "%.1fs", frame.stageTime))")
+                    Text("Stage: \(String(format: "%.1fs", displayStageTime))")
                         .font(.system(size: 9, weight: .medium, design: .monospaced))
                         .foregroundStyle(.secondary)
                 }
@@ -255,11 +285,11 @@ public struct BaristaHUDView: View {
                         Image(systemName: "scalemass.fill")
                             .font(.system(size: 9))
                             .foregroundStyle(.secondary)
-                        Text(String(format: "%.1fg", frame.actualWeight))
+                        Text(String(format: "%.1fg", displayActualWeight))
                             .font(.system(size: 13, weight: .bold, design: .monospaced))
                             .foregroundStyle(Color(red: 0.90, green: 0.68, blue: 0.28))
                     }
-                    Text("Target: \(String(format: "%.1fg", finalWeightTarget))")
+                    Text(finalWeightTarget > 0 ? "Target: \(String(format: "%.1fg", finalWeightTarget))" : "Target: --")
                         .font(.system(size: 9, weight: .medium, design: .monospaced))
                         .foregroundStyle(.secondary)
                 }
@@ -321,7 +351,7 @@ public struct BaristaHUDView: View {
             
             Divider().background(Color.white.opacity(0.08))
             
-            // LIMIT: Cleanly labeled and styled
+            // LIMIT
             if let limit = frame.activeLimit {
                 let limitColor = color(for: limit.metric)
                 let limitIcon = limit.metric == .pressure ? "gauge.with.dots.needle.bottom.50percent" : "water.waves"
@@ -475,42 +505,52 @@ public struct BaristaHUDView: View {
                 }
             }
             
-            HStack(spacing: 12) {
-                ForEach(exitTriggerItems) { item in
-                    let itemColor = color(for: item.sensorKey)
-                    VStack(alignment: .leading, spacing: 3) {
-                        HStack {
-                            Image(systemName: item.icon)
-                                .font(.system(size: 9))
-                                .foregroundStyle(item.isLeading ? itemColor : .secondary)
-                            Text(item.label)
-                                .font(.system(size: 10, weight: item.isLeading ? .bold : .medium))
-                                .foregroundStyle(item.isLeading ? .primary : .secondary)
-                            Spacer()
-                            Text("\(item.currentString) / \(item.targetString)")
-                                .font(.system(size: 9, design: .monospaced))
-                                .foregroundStyle(.tertiary)
-                        }
-                        
-                        GeometryReader { geo in
-                            let ratio = CGFloat(item.progress)
-                            ZStack(alignment: .leading) {
-                                RoundedRectangle(cornerRadius: 3)
-                                    .fill(Color.white.opacity(0.08))
-                                RoundedRectangle(cornerRadius: 3)
-                                    .fill(item.isLeading ? itemColor : Color.white.opacity(0.3))
-                                    .frame(width: geo.size.width * ratio)
+            if exitTriggerItems.isEmpty {
+                HStack {
+                    Text("No exit triggers active")
+                        .font(.system(size: 10))
+                        .foregroundStyle(.tertiary)
+                    Spacer()
+                }
+                .padding(8)
+            } else {
+                HStack(spacing: 12) {
+                    ForEach(exitTriggerItems) { item in
+                        let itemColor = color(for: item.sensorKey)
+                        VStack(alignment: .leading, spacing: 3) {
+                            HStack {
+                                Image(systemName: item.icon)
+                                    .font(.system(size: 9))
+                                    .foregroundStyle(item.isLeading ? itemColor : .secondary)
+                                Text(item.label)
+                                    .font(.system(size: 10, weight: item.isLeading ? .bold : .medium))
+                                    .foregroundStyle(item.isLeading ? .primary : .secondary)
+                                Spacer()
+                                Text("\(item.currentString) / \(item.targetString)")
+                                    .font(.system(size: 9, design: .monospaced))
+                                    .foregroundStyle(.tertiary)
                             }
+                            
+                            GeometryReader { geo in
+                                let ratio = CGFloat(item.progress)
+                                ZStack(alignment: .leading) {
+                                    RoundedRectangle(cornerRadius: 3)
+                                        .fill(Color.white.opacity(0.08))
+                                    RoundedRectangle(cornerRadius: 3)
+                                        .fill(item.isLeading ? itemColor : Color.white.opacity(0.3))
+                                        .frame(width: geo.size.width * ratio)
+                                }
+                            }
+                            .frame(height: 5)
                         }
-                        .frame(height: 5)
+                        .padding(8)
+                        .background(Color.white.opacity(item.isLeading ? 0.05 : 0.02))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 6)
+                                .stroke(item.isLeading ? themeColor.opacity(0.4) : Color.clear, lineWidth: 1)
+                        )
+                        .cornerRadius(6)
                     }
-                    .padding(8)
-                    .background(Color.white.opacity(item.isLeading ? 0.05 : 0.02))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 6)
-                            .stroke(item.isLeading ? themeColor.opacity(0.4) : Color.clear, lineWidth: 1)
-                    )
-                    .cornerRadius(6)
                 }
             }
         }

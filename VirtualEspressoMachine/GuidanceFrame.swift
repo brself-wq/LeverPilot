@@ -23,7 +23,7 @@ public nonisolated struct GuardrailStatus: Sendable, Equatable {
 /// An immutable, universal evaluation snapshot at a discrete tick along the shot timeline.
 public nonisolated struct GuidanceFrame: Sendable {
     // 1. Stage Info (for the Carousel)
-    public let stageIndex: Int               // e.g. 0, 1, 2
+    public let stageIndex: Int              // e.g. 0, 1, 2
     public let totalStages: Int             // e.g. 3
     public let stageName: String            // "pre soak", "bloom", "extraction"
     
