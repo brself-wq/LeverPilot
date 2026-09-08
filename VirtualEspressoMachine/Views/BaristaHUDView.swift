@@ -84,6 +84,21 @@ extension GuidanceFrame {
     var activeLimit: GuardrailStatus? { guardrail }
 }
 
+// MARK: - Canonical Color Palette Extension
+
+extension SensorKey {
+    var themeColor: Color {
+        switch self {
+        case .pressure: return Color(red: 0.15, green: 0.68, blue: 0.38) // Forest Green
+        case .flow:     return Color(red: 0.0, green: 0.68, blue: 0.94)  // Cyan / Blue
+        case .power:    return Color(red: 1.0, green: 0.48, blue: 0.0)   // Electric Orange
+        case .weight:   return Color(red: 0.90, green: 0.68, blue: 0.28) // Crema Caramel
+        case .time:     return Color(red: 0.65, green: 0.72, blue: 0.85) // Slate Silver
+        default:        return Color.secondary
+        }
+    }
+}
+
 // MARK: - Releasable Barista HUD Presentation View
 
 public struct BaristaHUDView: View {
@@ -145,40 +160,6 @@ public struct BaristaHUDView: View {
         actualWeight ?? frame.actualWeight
     }
     
-    // 4-Channel Canonical Color Palette
-    private func color(for metric: SensorKey) -> Color {
-        switch metric {
-        case .pressure: return Color(red: 0.15, green: 0.68, blue: 0.38) // Forest Green
-        case .flow:     return Color(red: 0.0, green: 0.68, blue: 0.94)  // Cyan / Blue
-        case .power:    return Color(red: 1.0, green: 0.48, blue: 0.0)   // Electric Orange
-        case .weight:   return Color(red: 0.90, green: 0.68, blue: 0.28) // Crema Caramel
-        case .time:     return Color(red: 0.65, green: 0.72, blue: 0.85) // Slate Silver
-        default:        return Color.secondary
-        }
-    }
-    
-    private var themeColor: Color {
-        color(for: frame.activeMetric)
-    }
-    
-    private var themeIcon: String {
-        switch frame.activeMetric {
-        case .pressure: return "gauge.with.dots.needle.bottom.50percent"
-        case .flow:     return "water.waves"
-        case .power:    return "bolt.fill"
-        default:        return "chart.xyaxis.line"
-        }
-    }
-    
-    private var unitString: String {
-        switch frame.activeMetric {
-        case .pressure: return "bar"
-        case .flow:     return "mL/s"
-        case .power:    return "%"
-        default:        return ""
-        }
-    }
-    
     public var body: some View {
         ZStack {
             Color(red: 0.06, green: 0.06, blue: 0.08)
@@ -188,12 +169,28 @@ public struct BaristaHUDView: View {
                 topRailView
                 
                 HStack(spacing: 10) {
-                    leftCockpitView
-                        .frame(width: 280)
+                    LeftCockpitView(
+                        frame: frame,
+                        displayElapsedTime: displayElapsedTime,
+                        displayStageTime: displayStageTime,
+                        displayActualWeight: displayActualWeight,
+                        finalWeightTarget: finalWeightTarget,
+                        isAlarmActive: isAlarmActive
+                    )
+                    .frame(width: 280)
                     
                     VStack(spacing: 8) {
-                        stageDynamicsChartView
-                        exitTriggersView
+                        StageDynamicsChartView(
+                            planCurve: planCurve,
+                            actualHistory: actualHistory,
+                            domainLabel: domainLabel,
+                            activeMetric: frame.activeMetric
+                        )
+                        
+                        ExitTriggersPanelView(
+                            exitTriggerItems: exitTriggerItems,
+                            activeMetric: frame.activeMetric
+                        )
                     }
                 }
                 .padding(.horizontal, 12)
@@ -219,7 +216,7 @@ public struct BaristaHUDView: View {
         }
     }
     
-    // MARK: - 1. Top Rail: Recipe Stages & Macro Context
+    // MARK: - Top Rail: Recipe Stages & Macro Context
     
     @ViewBuilder
     private var topRailView: some View {
@@ -254,361 +251,9 @@ public struct BaristaHUDView: View {
         }
         .padding(.horizontal, 12)
     }
-    
-    // MARK: - 2. Left Cockpit: Instrument Cluster
-    
-    @ViewBuilder
-    private var leftCockpitView: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            
-            // Macro Shot Status: Clocks & Weight Yield
-            HStack(spacing: 8) {
-                // Time Card
-                VStack(alignment: .leading, spacing: 2) {
-                    HStack(spacing: 4) {
-                        Image(systemName: "timer")
-                            .font(.system(size: 9))
-                            .foregroundStyle(.secondary)
-                        Text(String(format: "%04.1fs", displayElapsedTime))
-                            .font(.system(size: 13, weight: .bold, design: .monospaced))
-                            .foregroundStyle(.primary)
-                    }
-                    Text("Stage: \(String(format: "%.1fs", displayStageTime))")
-                        .font(.system(size: 9, weight: .medium, design: .monospaced))
-                        .foregroundStyle(.secondary)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                
-                // Weight Card
-                VStack(alignment: .trailing, spacing: 2) {
-                    HStack(spacing: 4) {
-                        Image(systemName: "scalemass.fill")
-                            .font(.system(size: 9))
-                            .foregroundStyle(.secondary)
-                        Text(String(format: "%.1fg", displayActualWeight))
-                            .font(.system(size: 13, weight: .bold, design: .monospaced))
-                            .foregroundStyle(Color(red: 0.90, green: 0.68, blue: 0.28))
-                    }
-                    Text(finalWeightTarget > 0 ? "Target: \(String(format: "%.1fg", finalWeightTarget))" : "Target: --")
-                        .font(.system(size: 9, weight: .medium, design: .monospaced))
-                        .foregroundStyle(.secondary)
-                }
-                .frame(maxWidth: .infinity, alignment: .trailing)
-            }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 6)
-            .background(Color.white.opacity(0.04))
-            .cornerRadius(8)
-            
-            Divider().background(Color.white.opacity(0.06))
-            
-            // Active Stage Maneuver: Title + Mode Badge
-            HStack {
-                Text(frame.stageName.uppercased())
-                    .font(.caption2)
-                    .fontWeight(.black)
-                    .foregroundStyle(.secondary)
-                Spacer()
-                HStack(spacing: 4) {
-                    Image(systemName: themeIcon)
-                    Text(frame.activeMetric.description.capitalized)
-                }
-                .font(.system(size: 11, weight: .bold))
-                .padding(.horizontal, 8)
-                .padding(.vertical, 3)
-                .background(themeColor.opacity(0.18))
-                .foregroundStyle(themeColor)
-                .clipShape(Capsule())
-            }
-            
-            // Big Actual Reading
-            HStack(alignment: .firstTextBaseline, spacing: 4) {
-                Text(String(format: "%.1f", frame.actualValue))
-                    .font(.system(size: 58, weight: .black, design: .monospaced))
-                    .foregroundStyle(themeColor)
-                Text(unitString)
-                    .font(.title3)
-                    .fontWeight(.bold)
-                    .foregroundStyle(.secondary)
-            }
-            .padding(.vertical, -4)
-            
-            // Target Setpoint & Delta Cue
-            HStack(alignment: .center) {
-                HStack(spacing: 4) {
-                    Text("Target")
-                        .font(.system(size: 10, weight: .medium))
-                        .foregroundStyle(.tertiary)
-                    Text(String(format: "%.1f", frame.targetValue))
-                        .font(.system(.body, design: .monospaced, weight: .bold))
-                        .foregroundStyle(.primary)
-                }
-                
-                Spacer()
-                
-                DeltaBadge(delta: frame.delta, metric: frame.activeMetric, unit: unitString)
-            }
-            
-            Divider().background(Color.white.opacity(0.08))
-            
-            // LIMIT
-            if let limit = frame.activeLimit {
-                let limitColor = color(for: limit.metric)
-                let limitIcon = limit.metric == .pressure ? "gauge.with.dots.needle.bottom.50percent" : "water.waves"
-                
-                VStack(alignment: .leading, spacing: 5) {
-                    HStack {
-                        Image(systemName: isAlarmActive ? "exclamationmark.triangle.fill" : limitIcon)
-                            .font(.system(size: 10))
-                            .foregroundStyle(isAlarmActive ? Color.red : limitColor)
-                        
-                        Text(isAlarmActive ? "LIMIT BREACHED!" : "LIMIT")
-                            .font(.system(size: 9, weight: .black))
-                            .foregroundStyle(isAlarmActive ? Color.red : .secondary)
-                        
-                        Spacer()
-                        
-                        Text("\(limit.metric.description.capitalized) <= \(String(format: "%.1f", limit.limitValue))")
-                            .font(.system(size: 10, weight: .bold, design: .monospaced))
-                            .foregroundStyle(isAlarmActive ? Color.red : limitColor)
-                    }
-                    
-                    GeometryReader { geo in
-                        let ratio = CGFloat(min(1.0, limit.actualValue / limit.limitValue))
-                        ZStack(alignment: .leading) {
-                            RoundedRectangle(cornerRadius: 2)
-                                .fill(Color.white.opacity(0.08))
-                            RoundedRectangle(cornerRadius: 2)
-                                .fill(isAlarmActive ? Color.red : (ratio > 0.8 ? Color.orange : limitColor.opacity(0.85)))
-                                .frame(width: geo.size.width * ratio)
-                        }
-                    }
-                    .frame(height: 4)
-                }
-                .padding(.top, 2)
-            } else {
-                Text("No limit active")
-                    .font(.system(size: 10))
-                    .foregroundStyle(.tertiary)
-                    .padding(.top, 2)
-            }
-        }
-        .padding(14)
-        .background(Color.white.opacity(0.04))
-        .cornerRadius(12)
-    }
-    
-    // MARK: - 3. Stage Dynamics Chart
-    
-    @ViewBuilder
-    private var stageDynamicsChartView: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 6) {
-                Text("OVER: \(domainLabel.uppercased())")
-                    .font(.system(size: 8, weight: .heavy))
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .background(themeColor.opacity(0.15))
-                    .foregroundStyle(themeColor)
-                    .clipShape(Capsule())
-                
-                Spacer()
-                
-                HStack(spacing: 12) {
-                    HStack(spacing: 4) {
-                        Text("╌╌")
-                            .fontWeight(.black)
-                            .foregroundStyle(themeColor.opacity(0.6))
-                        Text("Plan (Target)")
-                            .font(.system(size: 10))
-                            .foregroundStyle(.secondary)
-                    }
-                    HStack(spacing: 4) {
-                        Text("──")
-                            .fontWeight(.black)
-                            .foregroundStyle(themeColor)
-                        Text("Actual Pull")
-                            .font(.system(size: 10))
-                            .foregroundStyle(.secondary)
-                    }
-                }
-            }
-            
-            Chart {
-                ForEach(planCurve) { pt in
-                    LineMark(
-                        x: .value("Domain", pt.x),
-                        y: .value("Value", pt.y),
-                        series: .value("Stream", "Plan")
-                    )
-                    .foregroundStyle(themeColor.opacity(0.55))
-                    .lineStyle(StrokeStyle(lineWidth: 2.5, dash: [7, 5]))
-                }
-                
-                ForEach(actualHistory) { pt in
-                    LineMark(
-                        x: .value("Domain", pt.x),
-                        y: .value("Value", pt.y),
-                        series: .value("Stream", "Actual")
-                    )
-                    .foregroundStyle(themeColor)
-                    .lineStyle(StrokeStyle(lineWidth: 3.5))
-                }
-                
-                if let current = actualHistory.last {
-                    PointMark(
-                        x: .value("Domain", current.x),
-                        y: .value("Value", current.y)
-                    )
-                    .symbolSize(80)
-                    .foregroundStyle(Color.white)
-                }
-            }
-            .chartYAxis {
-                AxisMarks(position: .trailing) { _ in
-                    AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5, dash: [2, 2]))
-                        .foregroundStyle(Color.white.opacity(0.1))
-                    AxisValueLabel()
-                }
-            }
-            .chartXAxis {
-                AxisMarks { value in
-                    AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5, dash: [2, 2]))
-                        .foregroundStyle(Color.white.opacity(0.1))
-                    if let val = value.as(Double.self) {
-                        let unit = domainLabel.lowercased() == "weight" ? "g" : "s"
-                        AxisValueLabel("\(Int(val))\(unit)")
-                    }
-                }
-            }
-        }
-        .padding(12)
-        .background(Color.white.opacity(0.04))
-        .cornerRadius(12)
-    }
-    
-    // MARK: - 4. Exit Triggers Panel
-    
-    @ViewBuilder
-    private var exitTriggersView: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack {
-                Text(exitTriggerItems.first?.label == "Final Weight Cutoff" ? "FINAL WEIGHT CUTOFF" : "EXIT TRIGGERS")
-                    .font(.system(size: 9, weight: .black))
-                    .foregroundStyle(.secondary)
-                Spacer()
-                if let leading = exitTriggerItems.first(where: { $0.isLeading }) {
-                    let leadingColor = color(for: leading.sensorKey)
-                    Text("\(leading.label.uppercased()) LEADING (\(Int(leading.progress * 100))%)")
-                        .font(.system(size: 9, weight: .black))
-                        .foregroundStyle(leadingColor)
-                }
-            }
-            
-            if exitTriggerItems.isEmpty {
-                HStack {
-                    Text("No exit triggers active")
-                        .font(.system(size: 10))
-                        .foregroundStyle(.tertiary)
-                    Spacer()
-                }
-                .padding(8)
-            } else {
-                HStack(spacing: 12) {
-                    ForEach(exitTriggerItems) { item in
-                        let itemColor = color(for: item.sensorKey)
-                        VStack(alignment: .leading, spacing: 3) {
-                            HStack {
-                                Image(systemName: item.icon)
-                                    .font(.system(size: 9))
-                                    .foregroundStyle(item.isLeading ? itemColor : .secondary)
-                                Text(item.label)
-                                    .font(.system(size: 10, weight: item.isLeading ? .bold : .medium))
-                                    .foregroundStyle(item.isLeading ? .primary : .secondary)
-                                Spacer()
-                                Text("\(item.currentString) / \(item.targetString)")
-                                    .font(.system(size: 9, design: .monospaced))
-                                    .foregroundStyle(.tertiary)
-                            }
-                            
-                            GeometryReader { geo in
-                                let ratio = CGFloat(item.progress)
-                                ZStack(alignment: .leading) {
-                                    RoundedRectangle(cornerRadius: 3)
-                                        .fill(Color.white.opacity(0.08))
-                                    RoundedRectangle(cornerRadius: 3)
-                                        .fill(item.isLeading ? itemColor : Color.white.opacity(0.3))
-                                        .frame(width: geo.size.width * ratio)
-                                }
-                            }
-                            .frame(height: 5)
-                        }
-                        .padding(8)
-                        .background(Color.white.opacity(item.isLeading ? 0.05 : 0.02))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 6)
-                                .stroke(item.isLeading ? themeColor.opacity(0.4) : Color.clear, lineWidth: 1)
-                        )
-                        .cornerRadius(6)
-                    }
-                }
-            }
-        }
-        .padding(10)
-        .background(Color.white.opacity(0.04))
-        .cornerRadius(10)
-    }
 }
 
-// MARK: - Subviews: DeltaBadge & StagePill
-
-struct DeltaBadge: View {
-    let delta: Double
-    let metric: SensorKey
-    let unit: String
-    
-    private var deadband: Double {
-        metric == .pressure ? 0.4 : 0.3
-    }
-    
-    private var isOver: Bool { delta > deadband }
-    private var isUnder: Bool { delta < -deadband }
-    
-    var body: some View {
-        HStack(spacing: 5) {
-            if isOver {
-                Image(systemName: "arrow.down")
-                    .font(.system(size: 9, weight: .black))
-                    .foregroundStyle(Color(red: 0.95, green: 0.40, blue: 0.25))
-                Text(String(format: "+%.1f", delta))
-                    .font(.system(.subheadline, design: .monospaced, weight: .bold))
-                Text("EASE OFF")
-                    .font(.system(size: 9, weight: .heavy))
-                    .foregroundStyle(Color(red: 0.95, green: 0.40, blue: 0.25))
-            } else if isUnder {
-                Image(systemName: "arrow.up")
-                    .font(.system(size: 9, weight: .black))
-                    .foregroundStyle(Color(red: 0.98, green: 0.68, blue: 0.15))
-                Text(String(format: "%.1f", delta))
-                    .font(.system(.subheadline, design: .monospaced, weight: .bold))
-                Text("PULL HARDER")
-                    .font(.system(size: 9, weight: .heavy))
-                    .foregroundStyle(Color(red: 0.98, green: 0.68, blue: 0.15))
-            } else {
-                Image(systemName: "checkmark")
-                    .font(.system(size: 9, weight: .black))
-                    .foregroundStyle(.white)
-                Text("ON TARGET")
-                    .font(.system(size: 10, weight: .bold))
-                    .foregroundStyle(.white)
-            }
-        }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 3)
-        .background(Color.white.opacity(0.06))
-        .cornerRadius(6)
-    }
-}
+// MARK: - StagePill
 
 struct StagePill: View {
     let stageNumber: Int
