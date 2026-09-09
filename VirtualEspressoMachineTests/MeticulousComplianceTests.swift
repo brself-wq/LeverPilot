@@ -23,18 +23,18 @@ final class MeticulousComplianceTests: XCTestCase {
     
     // MARK: - 1. Global final_weight Cutoff Precedence
     
-    func testGlobalFinalWeight_TriggersAdvance_EvenWhenStageTriggersPending() throws {
+    func testGlobalFinalWeight_DoesNotAdvanceStage_WhenStageTriggersPending() {
         // -----------------------------------------------------------------------------------------
-        // ARCHITECTURAL DILEMMA (DEFERRED):
-        // Is `final_weight` an exit trigger for an individual stage, or a Shot Termination invariant?
-        // If an intermediate stage (e.g. Preinfusion) channels and hits 40g, returning
-        // `shouldAdvanceStage = true` causes the coordinator to advance into Stage 2 (9 bar Infusion),
-        // flooding an already completed cup!
-        // Decision pending: Handle at the Machine Coordinator level (MachineState = .shotEnded)
-        // vs. emitting an explicit `isShotComplete` flag from the Engine.
+        // ARCHITECTURAL DECISION & FIRMWARE PARITY:
+        // In Meticulous firmware (and control kernel architectures), abort, piston stall, and target
+        // weight reached operate as external interrupts/exceptions halting the shot, NOT intra-stage
+        // transition triggers.
+        // For a manual lever machine (Flair 58), advancing stage upon hitting weight in preinfusion
+        // would erroneously trigger full 9-bar infusion into an already filled cup.
+        // ProfileExecutionEngine is a pure stage evaluator and does NOT advance stage when explicit
+        // stage triggers are pending. Macro shot completion is strictly owned by the coordinator
+        // (PlaybackEngine / sensor supervisor transitioning to .shotEnded).
         // -----------------------------------------------------------------------------------------
-        throw XCTSkip("Skipped pending decision: Global final_weight is a Coordinator Shot Terminator, not a stage transition.")
-        
         let stage = Stage(
             name: "Infusion",
             key: "stage_infusion",
@@ -45,8 +45,9 @@ final class MeticulousComplianceTests: XCTestCase {
             ]
         )
         
+        // Frame reflects target weight reached (40.5g >= 40.0g), but time trigger is only at 20s / 60s
         let frame = MachineFrame(timestamp: 20.0, state: .extracting, readings: [.pressure: 9.0, .weight: 40.5])
-        let baseline = StageBaseline(startTime: 0.0, startWeight: 0.0)
+        let baseline = StageBaseline(startTime: 0.0, startWeight: 0.0, entryPressure: 9.0)
         
         let result = engine.evaluate(
             stage: stage,
@@ -57,22 +58,19 @@ final class MeticulousComplianceTests: XCTestCase {
             finalWeightTarget: 40.0
         )
         
-        XCTAssertTrue(result.shouldAdvanceStage)
+        // Time trigger is pending; engine must NOT prematurely advance stage
+        XCTAssertFalse(
+            result.shouldAdvanceStage,
+            "ProfileExecutionEngine must not advance stage on global final_weight; shot termination is supervised by coordinator."
+        )
+        
+        // Yield progress accurately reports 100% cup completion for HUD presentation
+        XCTAssertEqual(result.guidanceFrame.yieldProgress, 1.0, accuracy: 0.001)
     }
     
     // MARK: - 2. Decay / Descending Triggers (<=)
     
-    func testDecayTrigger_ProgressIsNotComplete_WhenAboveTarget() throws {
-        // -----------------------------------------------------------------------------------------
-        // ARCHITECTURAL DILEMMA (DEFERRED):
-        // The Meticulous schema specifies boolean triggers (comparison: "<="), but percentage progress
-        // is our custom Barista HUD racetrack construct.
-        // The engine's current formula (`currentVal / targetVal`) assumes ascending metrics, clamping
-        // 8.0 bar / 4.0 bar to 100%. To compute honest 0-100% decay progress, `StageBaseline` must
-        // track the stage's entry/peak pressure (currently it only stores startTime & startWeight).
-        // -----------------------------------------------------------------------------------------
-        throw XCTSkip("Skipped pending decision: StageBaseline must track entry/peak pressure to compute honest decay progress.")
-        
+    func testDecayTrigger_ProgressIsNotComplete_WhenAboveTarget() {
         let stage = Stage(
             name: "Pressure Decline",
             key: "stage_decline",
@@ -83,8 +81,9 @@ final class MeticulousComplianceTests: XCTestCase {
             ]
         )
         
+        // Pressure entered at 9.0 bar, currently at 8.0 bar, aiming to decay down to <= 4.0 bar
         let frame = MachineFrame(timestamp: 5.0, state: .extracting, readings: [.pressure: 8.0, .weight: 15.0])
-        let baseline = StageBaseline(startTime: 0.0, startWeight: 10.0)
+        let baseline = StageBaseline(startTime: 0.0, startWeight: 10.0, entryPressure: 9.0)
         
         let result = engine.evaluate(
             stage: stage,
@@ -95,8 +94,11 @@ final class MeticulousComplianceTests: XCTestCase {
             finalWeightTarget: 40.0
         )
         
-        XCTAssertFalse(result.shouldAdvanceStage)
+        XCTAssertFalse(result.shouldAdvanceStage, "Decay trigger must not trip when pressure (8.0 bar) > 4.0 bar.")
         let triggerItem = result.exitTriggerItems.first(where: { $0.sensorKey == .pressure })
+        
+        // (8.0 - 9.0) / (4.0 - 9.0) = -1.0 / -5.0 = 20% progress
+        XCTAssertEqual(triggerItem?.progress ?? 0.0, 0.20, accuracy: 0.01)
         XCTAssertLessThan(triggerItem?.progress ?? 0.0, 1.0)
     }
     
@@ -112,7 +114,7 @@ final class MeticulousComplianceTests: XCTestCase {
         )
         
         let frame = MachineFrame(timestamp: 15.0, state: .extracting, readings: [.pressure: 3.8, .weight: 28.0])
-        let baseline = StageBaseline(startTime: 0.0, startWeight: 10.0)
+        let baseline = StageBaseline(startTime: 0.0, startWeight: 10.0, entryPressure: 9.0)
         
         let result = engine.evaluate(
             stage: stage,
@@ -124,19 +126,13 @@ final class MeticulousComplianceTests: XCTestCase {
         )
         
         XCTAssertTrue(result.shouldAdvanceStage, "Decay trigger must trip when pressure (3.8 bar) <= 4.0 bar.")
+        let triggerItem = result.exitTriggerItems.first(where: { $0.sensorKey == .pressure })
+        XCTAssertEqual(triggerItem?.progress ?? 0.0, 1.0, accuracy: 0.001)
     }
     
     // MARK: - 3. Step Interpolation ("none") vs Linear Lerp
     
-    func testStepInterpolation_HoldsPreviousKnot_WithoutLerping() throws {
-        // -----------------------------------------------------------------------------------------
-        // ARCHITECTURAL DILEMMA (DEFERRED):
-        // `ProfileExecutionEngine.evaluateTarget` currently defaults to linear lerp across all stages.
-        // It needs a clean update to support piecewise-constant hold for `dynamics.interpolation == .none`.
-        // Deferred until engine modification session.
-        // -----------------------------------------------------------------------------------------
-        throw XCTSkip("Skipped pending implementation: ProfileExecutionEngine step interpolation support.")
-        
+    func testStepInterpolation_HoldsPreviousKnot_WithoutLerping() {
         let stage = Stage(
             name: "Step Stage",
             key: "stage_step",
@@ -149,6 +145,8 @@ final class MeticulousComplianceTests: XCTestCase {
             exitTriggers: [ExitTrigger(type: .time, value: 15.0, relative: true)]
         )
         
+        // At t = 5.0 (halfway between knot 0 at 2.0 bar and knot 10 at 8.0 bar):
+        // Linear lerp would output 5.0 bar; step interpolation (.none) must hold 2.0 bar.
         let frame = MachineFrame(timestamp: 5.0, state: .extracting, readings: [.pressure: 2.0, .weight: 0.0])
         let baseline = StageBaseline(startTime: 0.0, startWeight: 0.0)
         
@@ -161,7 +159,12 @@ final class MeticulousComplianceTests: XCTestCase {
             finalWeightTarget: 40.0
         )
         
-        XCTAssertEqual(result.guidanceFrame.targetValue, 2.0, accuracy: 0.001)
+        XCTAssertEqual(
+            result.guidanceFrame.targetValue,
+            2.0,
+            accuracy: 0.001,
+            "Step interpolation must hold setpoint constant at 2.0 bar prior to knot transition."
+        )
     }
     
     // MARK: - 4. Overrun Flatline Clamping

@@ -8,17 +8,26 @@
 import Foundation
 import MeticulousProfile
 
-// MARK: - Stage Baseline (Tracking relative offsets)
+// MARK: - Stage Baseline (Tracking relative offsets & entry sensor readings)
 
 /// Captures the machine state at the exact moment a stage begins.
-/// Used to calculate relative time and relative weight offsets.
+/// Used to calculate relative time, relative weight offsets, and decay trigger progress baselines.
 public nonisolated struct StageBaseline: Sendable, Equatable {
     public let startTime: TimeInterval
     public let startWeight: Double
+    public let entryPressure: Double
+    public let entryFlow: Double
     
-    public init(startTime: TimeInterval = 0.0, startWeight: Double = 0.0) {
+    public init(
+        startTime: TimeInterval = 0.0,
+        startWeight: Double = 0.0,
+        entryPressure: Double = 0.0,
+        entryFlow: Double = 0.0
+    ) {
         self.startTime = startTime
         self.startWeight = startWeight
+        self.entryPressure = entryPressure
+        self.entryFlow = entryFlow
     }
 }
 
@@ -82,14 +91,22 @@ public nonisolated struct ProfileExecutionEngine: Sendable {
         case .pistonPosition: domainValue = frame[.pistonPosition] ?? 0.0
         }
         
-        // 4. Calculate Stage Horizon & Plan Curve (With Infinite Right Flatline Rule)
+        // 4. Calculate Stage Horizon & Plan Curve (With Infinite Right Flatline Rule & Step Mode Support)
         let maxKnotX = rawKnots.map(\.x).max() ?? 0.0
         let timeTriggerVal = stage.exitTriggers?.first(where: { $0.type == .time })?.value.numericValue ?? 0.0
         let stageHorizon = max(maxKnotX, timeTriggerVal, 10.0, domainValue)
-        let planCurve = generatePlanCurve(knots: rawKnots, horizon: stageHorizon)
+        let planCurve = generatePlanCurve(
+            knots: rawKnots,
+            horizon: stageHorizon,
+            interpolation: stage.dynamics.interpolation
+        )
         
-        // 5. Interpolate Commanded Target Setpoint
-        let targetValue = evaluateTarget(at: domainValue, knots: rawKnots)
+        // 5. Interpolate Commanded Target Setpoint (Step vs. Lerp)
+        let targetValue = evaluateTarget(
+            at: domainValue,
+            knots: rawKnots,
+            interpolation: stage.dynamics.interpolation
+        )
         let actualValue = frame[activeMetric] ?? 0.0
         let delta = actualValue - targetValue
         
@@ -100,6 +117,7 @@ public nonisolated struct ProfileExecutionEngine: Sendable {
         let (triggerItems, shouldAdvance) = evaluateExitTriggers(
             stage: stage,
             frame: frame,
+            baseline: baseline,
             localTime: localTime,
             localWeight: localWeight,
             finalWeightTarget: finalWeightTarget
@@ -132,12 +150,32 @@ public nonisolated struct ProfileExecutionEngine: Sendable {
     
     // MARK: - Trajectory & Interpolation Math
     
-    private func generatePlanCurve(knots: [(x: Double, y: Double)], horizon: Double) -> [PlanPoint] {
+    private func generatePlanCurve(
+        knots: [(x: Double, y: Double)],
+        horizon: Double,
+        interpolation: DynamicsInterpolationType = .linear
+    ) -> [PlanPoint] {
         if knots.isEmpty {
             return [PlanPoint(x: 0, y: 0), PlanPoint(x: horizon, y: 0)]
         } else if knots.count == 1 {
             let y = knots[0].y
             return [PlanPoint(x: 0, y: y), PlanPoint(x: horizon, y: y)]
+        } else if interpolation == DynamicsInterpolationType.none {
+            // Piecewise-constant step curve rendering for HUD chart
+            var points: [PlanPoint] = []
+            for i in 0..<(knots.count - 1) {
+                let p0 = knots[i]
+                let p1 = knots[i + 1]
+                points.append(PlanPoint(x: p0.x, y: p0.y))
+                points.append(PlanPoint(x: p1.x, y: p0.y))
+            }
+            if let last = knots.last {
+                points.append(PlanPoint(x: last.x, y: last.y))
+                if last.x < horizon {
+                    points.append(PlanPoint(x: horizon, y: last.y))
+                }
+            }
+            return points
         } else {
             var points = knots.map { PlanPoint(x: $0.x, y: $0.y) }
             // Infinite flatline hold past last defined knot
@@ -148,7 +186,11 @@ public nonisolated struct ProfileExecutionEngine: Sendable {
         }
     }
     
-    private func evaluateTarget(at x: Double, knots: [(x: Double, y: Double)]) -> Double {
+    private func evaluateTarget(
+        at x: Double,
+        knots: [(x: Double, y: Double)],
+        interpolation: DynamicsInterpolationType = .linear
+    ) -> Double {
         guard let first = knots.first else { return 0.0 }
         if knots.count == 1 || x <= first.x { return first.y }
         if let last = knots.last, x >= last.x { return last.y } // Flatline hold!
@@ -157,12 +199,17 @@ public nonisolated struct ProfileExecutionEngine: Sendable {
             let p0 = knots[i]
             let p1 = knots[i + 1]
             if x >= p0.x && x <= p1.x {
-                guard p1.x > p0.x else { return p0.y }
-                let ratio = (x - p0.x) / (p1.x - p0.x)
-                return p0.y + ratio * (p1.y - p0.y)
+                if interpolation == DynamicsInterpolationType.none {
+                    // Zero-order hold: maintain setpoint of interval start without lerping
+                    return p0.y
+                } else {
+                    guard p1.x > p0.x else { return p0.y }
+                    let ratio = (x - p0.x) / (p1.x - p0.x)
+                    return p0.y + ratio * (p1.y - p0.y)
+                }
             }
         }
-        return first.y
+        return knots.last?.y ?? first.y
     }
     
     // MARK: - Limits & Exit Trigger Evaluation
@@ -183,6 +230,7 @@ public nonisolated struct ProfileExecutionEngine: Sendable {
     private func evaluateExitTriggers(
         stage: Stage,
         frame: MachineFrame,
+        baseline: StageBaseline,
         localTime: Double,
         localWeight: Double,
         finalWeightTarget: Double
@@ -195,6 +243,7 @@ public nonisolated struct ProfileExecutionEngine: Sendable {
             for trigger in triggers {
                 let targetVal = trigger.value.numericValue ?? 0.0
                 let currentVal: Double
+                let startVal: Double
                 let sensorKey: SensorKey
                 let icon: String
                 let unit: String
@@ -206,38 +255,58 @@ public nonisolated struct ProfileExecutionEngine: Sendable {
                     sensorKey = .time
                     icon = "clock.fill"
                     unit = "s"
-                    // Meticulous Firmware Semantics: Stage time triggers define stage duration.
-                    // The firmware evaluates elapsed time from when this stage activated (localTime).
-                    // We ignore `trigger.relative` because Meticulous profile serializers default
-                    // it to `false` in JSON, but the physical machine firmware always measures from stage entry.
                     currentVal = localTime
+                    startVal = 0.0
                     
                 case .weight:
                     sensorKey = .weight
                     icon = "scalemass.fill"
                     unit = "g"
-                    // Weight respects relative:
-                    // false -> total scale weight (cup yield target, e.g. 36g)
-                    // true  -> yield added during this stage (e.g. +15g)
-                    currentVal = isRelative ? localWeight : (frame[.weight] ?? 0.0)
+                    if isRelative {
+                        currentVal = localWeight
+                        startVal = 0.0
+                    } else {
+                        currentVal = frame[.weight] ?? 0.0
+                        startVal = baseline.startWeight
+                    }
                     
                 case .pressure:
                     sensorKey = .pressure
                     icon = "gauge.with.dots.needle.bottom.50percent"
                     unit = "bar"
                     currentVal = frame[.pressure] ?? 0.0
+                    if isRelative {
+                        startVal = 0.0
+                    } else if trigger.resolvedComparison == .lessThanOrEqual {
+                        // Decay trigger: baseline is stage entry pressure, fallback to initial knot setpoint
+                        startVal = baseline.entryPressure > 0
+                            ? baseline.entryPressure
+                            : (stage.dynamics.points.first?.y.numericValue ?? currentVal)
+                    } else {
+                        startVal = baseline.entryPressure
+                    }
                     
                 case .flow:
                     sensorKey = .flow
                     icon = "water.waves"
                     unit = "mL/s"
                     currentVal = frame[.flow] ?? 0.0
+                    if isRelative {
+                        startVal = 0.0
+                    } else if trigger.resolvedComparison == .lessThanOrEqual {
+                        startVal = baseline.entryFlow > 0
+                            ? baseline.entryFlow
+                            : (stage.dynamics.points.first?.y.numericValue ?? currentVal)
+                    } else {
+                        startVal = baseline.entryFlow
+                    }
                     
                 default:
                     sensorKey = .power
                     icon = "bolt.fill"
                     unit = "%"
                     currentVal = frame[.power] ?? 100.0
+                    startVal = 0.0
                 }
                 
                 // Check satisfaction (>= or <=)
@@ -249,7 +318,20 @@ public nonisolated struct ProfileExecutionEngine: Sendable {
                     shouldAdvance = true
                 }
                 
-                let progress = targetVal > 0 ? min(1.0, currentVal / targetVal) : (isSatisfied ? 1.0 : 0.0)
+                // Continuous progress calculation for HUD racetrack (unified ramp & decay math)
+                let progress: Double
+                if isSatisfied {
+                    progress = 1.0
+                } else {
+                    let denominator = targetVal - startVal
+                    if abs(denominator) < 0.0001 {
+                        progress = 0.0
+                    } else {
+                        let ratio = (currentVal - startVal) / denominator
+                        progress = min(1.0, max(0.0, ratio))
+                    }
+                }
+                
                 items.append(ExitTriggerProgressItem(
                     sensorKey: sensorKey,
                     icon: icon,
@@ -277,7 +359,7 @@ public nonisolated struct ProfileExecutionEngine: Sendable {
                 }
             }
         } else {
-            // Universal Final Weight Cutoff (When stage has no triggers)
+            // Universal Final Weight Cutoff (When stage has no explicit triggers)
             let currentWeight = frame[.weight] ?? 0.0
             let progress = finalWeightTarget > 0 ? min(1.0, currentWeight / finalWeightTarget) : 0.0
             let isSatisfied = currentWeight >= finalWeightTarget
