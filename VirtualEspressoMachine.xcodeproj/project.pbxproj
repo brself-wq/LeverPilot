@@ -47,6 +47,11 @@
 			path = VirtualEspressoMachine;
 			sourceTree = "<group>";
 		};
+		B57F2CCE3052D86A009DBA78 /* meticulous */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = meticulous;
+			sourceTree = "<group>";
+		};
 		B5996438304F42DF00341BC9 /* VirtualEspressoMachineTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = VirtualEspressoMachineTests;
@@ -88,6 +93,7 @@
 		B57F2C743052D2B1009DBA78 /* Docs */ = {
 			isa = PBXGroup;
 			children = (
+				B57F2CCE3052D86A009DBA78 /* meticulous */,
 				B57F2C703052D2B1009DBA78 /* ADR */,
 				B57F2C713052D2B1009DBA78 /* ARCHITECTURE.md */,
 				B57F2C723052D2B1009DBA78 /* COMPLIANCE_OEPF.md */,
@@ -165,6 +171,7 @@
 			);
 			fileSystemSynchronizedGroups = (
 				B5514B22304DB5D800494F6F /* VirtualEspressoMachine */,
+				B57F2CCE3052D86A009DBA78 /* meticulous */,
 			);
 			name = VirtualEspressoMachine;
 			packageProductDependencies = (
