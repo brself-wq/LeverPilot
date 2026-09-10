@@ -7,13 +7,6 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		B57F2C753052D2B1009DBA78 /* ADR-003-OEPFSpecCompliance.md in Resources */ = {isa = PBXBuildFile; fileRef = B57F2C6E3052D2B1009DBA78 /* ADR-003-OEPFSpecCompliance.md */; };
-		B57F2C763052D2B1009DBA78 /* ADR-001-ProfileValueSemantics.md in Resources */ = {isa = PBXBuildFile; fileRef = B57F2C6C3052D2B1009DBA78 /* ADR-001-ProfileValueSemantics.md */; };
-		B57F2C773052D2B1009DBA78 /* ADR-004-SignalConditioning-LeverPhysics.md in Resources */ = {isa = PBXBuildFile; fileRef = B57F2C6F3052D2B1009DBA78 /* ADR-004-SignalConditioning-LeverPhysics.md */; };
-		B57F2C783052D2B1009DBA78 /* GLOSSARY.md in Resources */ = {isa = PBXBuildFile; fileRef = B57F2C733052D2B1009DBA78 /* GLOSSARY.md */; };
-		B57F2C793052D2B1009DBA78 /* COMPLIANCE_OEPF.md in Resources */ = {isa = PBXBuildFile; fileRef = B57F2C723052D2B1009DBA78 /* COMPLIANCE_OEPF.md */; };
-		B57F2C7A3052D2B1009DBA78 /* ARCHITECTURE.md in Resources */ = {isa = PBXBuildFile; fileRef = B57F2C713052D2B1009DBA78 /* ARCHITECTURE.md */; };
-		B57F2C7B3052D2B1009DBA78 /* ADR-002-TelemetryStreaming.md in Resources */ = {isa = PBXBuildFile; fileRef = B57F2C6D3052D2B1009DBA78 /* ADR-002-TelemetryStreaming.md */; };
 		B5996445304F462100341BC9 /* MeticulousProfile in Frameworks */ = {isa = PBXBuildFile; productRef = B5996444304F462100341BC9 /* MeticulousProfile */; };
 		B5B10100304A37E900F70661 /* MeticulousProfile in Frameworks */ = {isa = PBXBuildFile; productRef = B5B100FF304A37E900F70661 /* MeticulousProfile */; };
 /* End PBXBuildFile section */
@@ -41,6 +34,19 @@
 		B5B100DE304A370300F70661 /* VirtualEspressoMachine.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = VirtualEspressoMachine.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		B57F9D403052F9850057BAF1 /* Exceptions for "meticulous" folder in "VirtualEspressoMachine" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				"espresso-profile-schema/example_profile.json",
+				"espresso-profile-schema/README.md",
+				"espresso-profile-schema/rfc.md",
+				"espresso-profile-schema/schema.json",
+			);
+			target = B5B100DD304A370300F70661 /* VirtualEspressoMachine */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		B5514B22304DB5D800494F6F /* VirtualEspressoMachine */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
@@ -49,6 +55,9 @@
 		};
 		B57F2CCE3052D86A009DBA78 /* meticulous */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				B57F9D403052F9850057BAF1 /* Exceptions for "meticulous" folder in "VirtualEspressoMachine" target */,
+			);
 			path = meticulous;
 			sourceTree = "<group>";
 		};
@@ -235,13 +244,6 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				B57F2C753052D2B1009DBA78 /* ADR-003-OEPFSpecCompliance.md in Resources */,
-				B57F2C763052D2B1009DBA78 /* ADR-001-ProfileValueSemantics.md in Resources */,
-				B57F2C773052D2B1009DBA78 /* ADR-004-SignalConditioning-LeverPhysics.md in Resources */,
-				B57F2C783052D2B1009DBA78 /* GLOSSARY.md in Resources */,
-				B57F2C793052D2B1009DBA78 /* COMPLIANCE_OEPF.md in Resources */,
-				B57F2C7A3052D2B1009DBA78 /* ARCHITECTURE.md in Resources */,
-				B57F2C7B3052D2B1009DBA78 /* ADR-002-TelemetryStreaming.md in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
