@@ -7,6 +7,13 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		B57F2C753052D2B1009DBA78 /* ADR-003-OEPFSpecCompliance.md in Resources */ = {isa = PBXBuildFile; fileRef = B57F2C6E3052D2B1009DBA78 /* ADR-003-OEPFSpecCompliance.md */; };
+		B57F2C763052D2B1009DBA78 /* ADR-001-ProfileValueSemantics.md in Resources */ = {isa = PBXBuildFile; fileRef = B57F2C6C3052D2B1009DBA78 /* ADR-001-ProfileValueSemantics.md */; };
+		B57F2C773052D2B1009DBA78 /* ADR-004-SignalConditioning-LeverPhysics.md in Resources */ = {isa = PBXBuildFile; fileRef = B57F2C6F3052D2B1009DBA78 /* ADR-004-SignalConditioning-LeverPhysics.md */; };
+		B57F2C783052D2B1009DBA78 /* GLOSSARY.md in Resources */ = {isa = PBXBuildFile; fileRef = B57F2C733052D2B1009DBA78 /* GLOSSARY.md */; };
+		B57F2C793052D2B1009DBA78 /* COMPLIANCE_OEPF.md in Resources */ = {isa = PBXBuildFile; fileRef = B57F2C723052D2B1009DBA78 /* COMPLIANCE_OEPF.md */; };
+		B57F2C7A3052D2B1009DBA78 /* ARCHITECTURE.md in Resources */ = {isa = PBXBuildFile; fileRef = B57F2C713052D2B1009DBA78 /* ARCHITECTURE.md */; };
+		B57F2C7B3052D2B1009DBA78 /* ADR-002-TelemetryStreaming.md in Resources */ = {isa = PBXBuildFile; fileRef = B57F2C6D3052D2B1009DBA78 /* ADR-002-TelemetryStreaming.md */; };
 		B5996445304F462100341BC9 /* MeticulousProfile in Frameworks */ = {isa = PBXBuildFile; productRef = B5996444304F462100341BC9 /* MeticulousProfile */; };
 		B5B10100304A37E900F70661 /* MeticulousProfile in Frameworks */ = {isa = PBXBuildFile; productRef = B5B100FF304A37E900F70661 /* MeticulousProfile */; };
 /* End PBXBuildFile section */
@@ -22,6 +29,13 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		B57F2C6C3052D2B1009DBA78 /* ADR-001-ProfileValueSemantics.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "ADR-001-ProfileValueSemantics.md"; sourceTree = "<group>"; };
+		B57F2C6D3052D2B1009DBA78 /* ADR-002-TelemetryStreaming.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "ADR-002-TelemetryStreaming.md"; sourceTree = "<group>"; };
+		B57F2C6E3052D2B1009DBA78 /* ADR-003-OEPFSpecCompliance.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "ADR-003-OEPFSpecCompliance.md"; sourceTree = "<group>"; };
+		B57F2C6F3052D2B1009DBA78 /* ADR-004-SignalConditioning-LeverPhysics.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "ADR-004-SignalConditioning-LeverPhysics.md"; sourceTree = "<group>"; };
+		B57F2C713052D2B1009DBA78 /* ARCHITECTURE.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = ARCHITECTURE.md; sourceTree = "<group>"; };
+		B57F2C723052D2B1009DBA78 /* COMPLIANCE_OEPF.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = COMPLIANCE_OEPF.md; sourceTree = "<group>"; };
+		B57F2C733052D2B1009DBA78 /* GLOSSARY.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = GLOSSARY.md; sourceTree = "<group>"; };
 		B5996437304F42DF00341BC9 /* VirtualEspressoMachineTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = VirtualEspressoMachineTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		B5996446304F4B9200341BC9 /* VirtualEspressoMachine.xctestplan */ = {isa = PBXFileReference; lastKnownFileType = text; path = VirtualEspressoMachine.xctestplan; sourceTree = "<group>"; };
 		B5B100DE304A370300F70661 /* VirtualEspressoMachine.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = VirtualEspressoMachine.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -60,6 +74,28 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		B57F2C703052D2B1009DBA78 /* ADR */ = {
+			isa = PBXGroup;
+			children = (
+				B57F2C6C3052D2B1009DBA78 /* ADR-001-ProfileValueSemantics.md */,
+				B57F2C6D3052D2B1009DBA78 /* ADR-002-TelemetryStreaming.md */,
+				B57F2C6E3052D2B1009DBA78 /* ADR-003-OEPFSpecCompliance.md */,
+				B57F2C6F3052D2B1009DBA78 /* ADR-004-SignalConditioning-LeverPhysics.md */,
+			);
+			path = ADR;
+			sourceTree = "<group>";
+		};
+		B57F2C743052D2B1009DBA78 /* Docs */ = {
+			isa = PBXGroup;
+			children = (
+				B57F2C703052D2B1009DBA78 /* ADR */,
+				B57F2C713052D2B1009DBA78 /* ARCHITECTURE.md */,
+				B57F2C723052D2B1009DBA78 /* COMPLIANCE_OEPF.md */,
+				B57F2C733052D2B1009DBA78 /* GLOSSARY.md */,
+			);
+			path = Docs;
+			sourceTree = "<group>";
+		};
 		B5996443304F462100341BC9 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
@@ -71,6 +107,7 @@
 			isa = PBXGroup;
 			children = (
 				B5996446304F4B9200341BC9 /* VirtualEspressoMachine.xctestplan */,
+				B57F2C743052D2B1009DBA78 /* Docs */,
 				B5996438304F42DF00341BC9 /* VirtualEspressoMachineTests */,
 				B5B100DF304A370300F70661 /* Products */,
 				B5514B22304DB5D800494F6F /* VirtualEspressoMachine */,
@@ -191,6 +228,13 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				B57F2C753052D2B1009DBA78 /* ADR-003-OEPFSpecCompliance.md in Resources */,
+				B57F2C763052D2B1009DBA78 /* ADR-001-ProfileValueSemantics.md in Resources */,
+				B57F2C773052D2B1009DBA78 /* ADR-004-SignalConditioning-LeverPhysics.md in Resources */,
+				B57F2C783052D2B1009DBA78 /* GLOSSARY.md in Resources */,
+				B57F2C793052D2B1009DBA78 /* COMPLIANCE_OEPF.md in Resources */,
+				B57F2C7A3052D2B1009DBA78 /* ARCHITECTURE.md in Resources */,
+				B57F2C7B3052D2B1009DBA78 /* ADR-002-TelemetryStreaming.md in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
