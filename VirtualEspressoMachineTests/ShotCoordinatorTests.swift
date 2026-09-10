@@ -1,8 +1,6 @@
 //
 //  ShotCoordinatorTests.swift
-//  VirtualEspressoMachine
-//
-//  Created by Ben Self on 9/10/26.
+//  VirtualEspressoMachineTests
 //
 
 import XCTest
@@ -71,8 +69,8 @@ final class ShotCoordinatorTests: XCTestCase {
     
     // MARK: - Initial & Profile Selection
     
-    func test_initialState_isReady() {
-        XCTAssertEqual(coordinator.state, .ready)
+    func test_initialState_isIdle() {
+        XCTAssertEqual(coordinator.state, .idle)
         XCTAssertEqual(coordinator.activeStageIndex, 0)
         XCTAssertNil(coordinator.activeProfile)
         XCTAssertFalse(coordinator.isAlarmActive)
@@ -81,7 +79,7 @@ final class ShotCoordinatorTests: XCTestCase {
     func test_selectProfile_configuresInitialStateAndPills() {
         coordinator.selectProfile(twoStageProfile)
         
-        XCTAssertEqual(coordinator.state, .profileSelected)
+        XCTAssertEqual(coordinator.state, .armed)
         XCTAssertEqual(coordinator.activeStageIndex, 0)
         XCTAssertEqual(coordinator.stagePills.count, 2)
         XCTAssertEqual(coordinator.stagePills[0].state, .active)
@@ -91,24 +89,23 @@ final class ShotCoordinatorTests: XCTestCase {
     
     // MARK: - Auto-Start Transition
     
-    func test_autoStart_transitionsFromShotReadyToExtractingOnPressure() {
+    func test_autoStart_transitionsFromArmedToExtractingOnPressure() {
         coordinator.selectProfile(twoStageProfile)
-        coordinator.setToShotReady()
-        XCTAssertEqual(coordinator.state, .shotReady)
+        XCTAssertEqual(coordinator.state, .armed)
         
-        // Sub-threshold pressure (< 0.5 bar) -> stays in shotReady
+        // Sub-threshold pressure (< 0.5 bar) -> stays armed
         let lowPressureFrame = MachineFrame(
             timestamp: 0.0,
-            state: .shotReady,
+            state: .armed,
             readings: [.pressure: 0.3, .flow: 0.0, .weight: 0.0]
         )
         coordinator.processTelemetryFrame(lowPressureFrame)
-        XCTAssertEqual(coordinator.state, .shotReady)
+        XCTAssertEqual(coordinator.state, .armed)
         
         // Threshold crossed (>= 0.5 bar) -> transitions to extracting
         let pullFrame = MachineFrame(
             timestamp: 0.1,
-            state: .shotReady,
+            state: .armed,
             readings: [.pressure: 0.8, .flow: 0.0, .weight: 0.0]
         )
         coordinator.processTelemetryFrame(pullFrame)
@@ -119,7 +116,6 @@ final class ShotCoordinatorTests: XCTestCase {
     
     func test_multiStageExtraction_advancesStagesAndEndsShot() {
         coordinator.selectProfile(twoStageProfile)
-        coordinator.setToShotReady()
         coordinator.startExtraction()
         
         // 1. Tick during Pre-infusion (t = 1.0s, trigger is 2.0s)
@@ -174,7 +170,6 @@ final class ShotCoordinatorTests: XCTestCase {
     
     func test_guardrailBreach_activatesAlarm() {
         coordinator.selectProfile(twoStageProfile)
-        coordinator.setToShotReady()
         coordinator.startExtraction()
         
         // Limit on Stage 0 is 4.0 bar. Frame has 4.5 bar -> breach!

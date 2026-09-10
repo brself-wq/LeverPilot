@@ -2,8 +2,6 @@
 //  ShotCoordinator.swift
 //  VirtualEspressoMachine
 //
-//  Created by Ben Self on 9/10/26.
-//
 
 import Foundation
 import Observation
@@ -14,8 +12,8 @@ import MeticulousProfile
 public final class ShotCoordinator {
     
     // MARK: - Machine Lifecycle State
-    public private(set) var state: MachineState = .ready
-    public private(set) var currentFrame: MachineFrame = MachineFrame(state: .ready)
+    public private(set) var state: MachineState = .idle
+    public private(set) var currentFrame: MachineFrame = MachineFrame(state: .idle)
     
     // MARK: - Active Profile & Recipe Execution
     public private(set) var activeProfile: Profile? = nil
@@ -70,7 +68,7 @@ public final class ShotCoordinator {
     
     public func selectProfile(_ profile: Profile) {
         self.activeProfile = profile
-        self.state = .profileSelected
+        self.state = .armed // Immediately arm the digital twin observer
         resetExecutionState()
     }
     
@@ -89,13 +87,13 @@ public final class ShotCoordinator {
     
     // MARK: - Machine State Transitions
     
-    public func setToShotReady() {
-        guard state == .profileSelected || state == .ready else { return }
-        state = .shotReady
+    public func arm() {
+        guard state == .idle || state == .shotEnded || state == .purging else { return }
+        state = .armed
     }
     
     public func startExtraction() {
-        guard state == .shotReady else { return }
+        guard state == .armed || state == .idle else { return }
         state = .extracting
     }
     
@@ -103,8 +101,16 @@ public final class ShotCoordinator {
         state = .shotEnded
     }
     
+    public func purge() {
+        state = .purging
+    }
+    
+    public func triggerError() {
+        state = .error
+    }
+    
     public func abort() {
-        state = .ready
+        state = .idle
         resetExecutionState()
     }
     
@@ -137,8 +143,8 @@ public final class ShotCoordinator {
         let currentFlow = frame[.flow] ?? 0.0
         let currentWeight = frame[.weight] ?? 0.0
         
-        // Auto-Start heuristic: pressure >= 0.5 bar transitions from .shotReady to .extracting
-        if state == .shotReady && currentPressure >= 0.5 {
+        // Auto-Start: Lever pull (pressure >= 0.5 bar), scale drip (weight >= 0.5g), or incoming extraction frames
+        if state == .armed && (currentPressure >= 0.5 || currentWeight >= 0.5 || frame.state == .extracting) {
             state = .extracting
         }
         
@@ -237,7 +243,7 @@ public final class ShotCoordinator {
         }
         
         let stage = profile.stages[stageIndex]
-        let initialFrame = MachineFrame(timestamp: 0.0, state: .shotReady, readings: [:])
+        let initialFrame = MachineFrame(timestamp: 0.0, state: .armed, readings: [:])
         
         let result = executionEngine.evaluate(
             stage: stage,

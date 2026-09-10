@@ -2,30 +2,29 @@
 //  MachineState.swift
 //  VirtualEspressoMachine
 //
-//  Created by Ben Self on 9/2/26.
-//
 
 import Foundation
 
-/// The macro workflow states of the espresso machine and barista session.
-public enum MachineState: String, Codable, Sendable, CaseIterable {
-    /// Machine preheated and idle; ready for bean prep or profile selection
-    case ready
+/// Formal finite state machine (FSM) representing the operational lifecycle
+/// of the espresso machine and digital twin copilot.
+public enum MachineState: String, Sendable, Codable, CaseIterable {
+    /// Machine idle; at rest, no profile armed
+    case idle
     
-    /// Profile chosen and armed in the runner
-    case profileSelected
+    /// Profile loaded; telemetry observer armed and waiting for physical lever pull
+    case armed
     
-    /// Portafilter locked, water chamber filled, cup placed; ready for extraction
-    case shotReady
-    
-    /// Active extraction underway; Profile Runner is actively driving the HUD
+    /// Active extraction underway; real-time OEPF curve steering is driving the HUD
     case extracting
     
-    /// Extraction completed (lever at rest, cutoff reached, or yield met)
+    /// Extraction completed (lever at rest, cutoff reached, or yield target met)
     case shotEnded
     
-    /// Purging water, knocking puck, preparing for the next shot
-    case cleaning
+    /// Chamber purging / wastewater expulsion routine
+    case purging
+    
+    /// Safety cutoff, stall, sensor disconnection, or fatal profile failure
+    case error
     
     /// Quick convenience check
     public var isExtracting: Bool { self == .extracting }

@@ -29,6 +29,7 @@
 		B57F2C713052D2B1009DBA78 /* ARCHITECTURE.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = ARCHITECTURE.md; sourceTree = "<group>"; };
 		B57F2C723052D2B1009DBA78 /* COMPLIANCE_OEPF.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = COMPLIANCE_OEPF.md; sourceTree = "<group>"; };
 		B57F2C733052D2B1009DBA78 /* GLOSSARY.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = GLOSSARY.md; sourceTree = "<group>"; };
+		B57F9DAC30532AC10057BAF1 /* ADR-005-FiniteStateMachine.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "ADR-005-FiniteStateMachine.md"; sourceTree = "<group>"; };
 		B5996437304F42DF00341BC9 /* VirtualEspressoMachineTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = VirtualEspressoMachineTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		B5996446304F4B9200341BC9 /* VirtualEspressoMachine.xctestplan */ = {isa = PBXFileReference; lastKnownFileType = text; path = VirtualEspressoMachine.xctestplan; sourceTree = "<group>"; };
 		B5B100DE304A370300F70661 /* VirtualEspressoMachine.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = VirtualEspressoMachine.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -95,6 +96,7 @@
 				B57F2C6D3052D2B1009DBA78 /* ADR-002-TelemetryStreaming.md */,
 				B57F2C6E3052D2B1009DBA78 /* ADR-003-OEPFSpecCompliance.md */,
 				B57F2C6F3052D2B1009DBA78 /* ADR-004-SignalConditioning-LeverPhysics.md */,
+				B57F9DAC30532AC10057BAF1 /* ADR-005-FiniteStateMachine.md */,
 			);
 			path = ADR;
 			sourceTree = "<group>";
