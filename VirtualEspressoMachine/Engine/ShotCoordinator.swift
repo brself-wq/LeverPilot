@@ -131,7 +131,7 @@ public final class ShotCoordinator {
     
     // MARK: - Frame Processing & Progression
     
-    public func processTelemetryFrame(_ frame: MachineFrame) {
+    public func processTelemetryFrame(_ frame: MachineFrame, allowAdvance: Bool = true) {
         self.currentFrame = frame
         let currentPressure = frame[.pressure] ?? 0.0
         let currentFlow = frame[.flow] ?? 0.0
@@ -157,7 +157,7 @@ public final class ShotCoordinator {
         )
         
         // 2. Evaluate stage progression
-        if result.shouldAdvanceStage {
+        if allowAdvance && result.shouldAdvanceStage {
             if activeStageIndex + 1 < profile.stages.count {
                 activeStageIndex += 1
                 currentStageBaseline = StageBaseline(
@@ -209,12 +209,27 @@ public final class ShotCoordinator {
         updateStagePills(for: profile, activeIndex: activeStageIndex)
     }
     
+    // MARK: - Rehearsal / Stepping Backward
+    
+    public func stepBackward(to frame: MachineFrame) {
+        if activeStageIndex > 0 && frame.timestamp < currentStageBaseline.startTime {
+            activeStageIndex -= 1
+            currentStageBaseline = stageBaselines[activeStageIndex] ?? StageBaseline()
+        }
+        
+        let stageStart = currentStageBaseline.startTime
+        let currentX = max(0.0, frame.timestamp - stageStart)
+        actualHistory.removeAll { $0.x > currentX }
+        
+        processTelemetryFrame(frame, allowAdvance: false)
+    }
+    
     // MARK: - Helpers
     
     private func setupInitialStage(stageIndex: Int) {
         guard let profile = activeProfile, profile.stages.indices.contains(stageIndex) else {
             self.actualHistory = []
-            self.guidanceFrame = Self.emptyGuidanceFrame
+            self.guidanceFrame = ShotCoordinator.emptyGuidanceFrame
             self.planCurve = []
             self.exitTriggerItems = []
             self.stagePills = []
