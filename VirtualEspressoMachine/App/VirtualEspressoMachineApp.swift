@@ -16,6 +16,7 @@ struct VirtualEspressoMachineApp: App {
     @State private var bleManager = EspressoBLEManager()
     @State private var coordinator = ShotCoordinator()
     @State private var bleProvider: BLETelemetryProvider?
+    @State private var showAbortConfirmation: Bool = false
     
     // MARK: - View-Driven Navigation State
     @State private var activeExtractionProfile: Profile? = nil
@@ -56,19 +57,28 @@ struct VirtualEspressoMachineApp: App {
                         }
                     }
                     .overlay(alignment: .topTrailing) {
-                        Button(action: abortShot) {
-                            HStack(spacing: 6) {
-                                Image(systemName: "xmark.circle.fill")
-                                Text("ABORT")
-                                    .font(.system(size: 11, weight: .bold, design: .monospaced))
-                            }
-                            .foregroundStyle(.red)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 8)
-                            .background(Color.white.opacity(0.1), in: Capsule())
+                        Button(action: { showAbortConfirmation = true }) {
+                            Image(systemName: "xmark")
+                                .font(.system(size: 11, weight: .bold))
+                                .foregroundStyle(.secondary.opacity(0.7))
+                                .frame(width: 20, height: 20)
+                                .background(Color.white.opacity(0.06), in: Circle())
+                                .contentShape(Circle())
                         }
                         .buttonStyle(.plain)
-                        .padding(16)
+                        .padding(14)
+                        .confirmationDialog(
+                            "Abort Extraction?",
+                            isPresented: $showAbortConfirmation,
+                            titleVisibility: .visible
+                        ) {
+                            Button("Abort Shot", role: .destructive) {
+                                abortShot()
+                            }
+                            Button("Resume Extraction", role: .cancel) {}
+                        } message: {
+                            Text("Active extraction will be stopped and in-flight telemetry discarded.")
+                        }
                     }
                     .transition(.opacity)
                     .zIndex(10)
