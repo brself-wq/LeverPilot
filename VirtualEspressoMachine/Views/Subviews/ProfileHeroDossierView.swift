@@ -2,14 +2,6 @@
 //  ProfileHeroDossierView.swift
 //  VirtualEspressoMachine
 //
-//  Created by Ben Self on 9/10/26.
-//
-
-
-//
-//  ProfileHeroDossierView.swift
-//  VirtualEspressoMachine
-//
 
 import SwiftUI
 import MeticulousProfile
@@ -19,22 +11,33 @@ public struct ProfileHeroDossierView: View {
     let accentColor: Color
     let dose: Double
     let onCustomize: () -> Void
+    var onOpenSettings: (() -> Void)? = nil
     
     public init(
         profile: Profile,
         accentColor: Color,
         dose: Double = 18.0,
-        onCustomize: @escaping () -> Void
+        onCustomize: @escaping () -> Void,
+        onOpenSettings: (() -> Void)? = nil
     ) {
         self.profile = profile
         self.accentColor = accentColor
         self.dose = dose
         self.onCustomize = onCustomize
+        self.onOpenSettings = onOpenSettings
+    }
+    
+    private var tweakButtonLabel: String {
+        if profile.variables.isEmpty {
+            return "Tweak"
+        } else {
+            return "Tweak (\(profile.variables.count))"
+        }
     }
     
     public var body: some View {
         ZStack {
-            // LAYER 1: Dead-center Artwork Image (Framed in Accent Color)
+            // LAYER 1: Dead-center Artwork Image (Pure visual, non-interactive)
             artworkJacket
                 .frame(width: 220, height: 220)
                 .clipShape(RoundedRectangle(cornerRadius: 16))
@@ -43,16 +46,26 @@ public struct ProfileHeroDossierView: View {
                         .strokeBorder(accentColor, lineWidth: 3)
                 )
                 .shadow(color: accentColor.opacity(0.35), radius: 16, y: 0)
+                .allowsHitTesting(false) // Prevents shadow/frame from intercepting button taps
             
-            // LAYER 2: Perimeter Content (Top Info & Bottom Controls)
+            // LAYER 2: Interactive Perimeter Content
             VStack {
-                // Top: Clean Header (No Stage Type Pill)
+                // Top: Header & Settings
                 HStack(alignment: .top) {
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("METICULOUS OEPF")
-                            .font(.system(size: 8, weight: .heavy, design: .monospaced))
-                            .foregroundStyle(.tertiary)
+                        if let onOpenSettings {
+                            Button(action: onOpenSettings) {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "gearshape.fill")
+                                        .font(.system(size: 9))
+                                    Text("SETTINGS")
+                                        .font(.system(size: 8, weight: .heavy, design: .monospaced))
+                                }
+                                .foregroundStyle(.secondary)
+                            }
+                            .buttonStyle(.plain)
                             .padding(.bottom, 2)
+                        }
                         
                         Text(profile.name)
                             .font(.system(size: 26, weight: .black))
@@ -63,11 +76,14 @@ public struct ProfileHeroDossierView: View {
                             .font(.system(size: 13, weight: .medium))
                             .foregroundStyle(.secondary)
                         
-                        Text(profile.display?.shortDescription ?? profile.display?.description ?? "Manual lever extraction profile.")
-                            .font(.system(size: 11))
-                            .foregroundStyle(.secondary)
-                            .lineLimit(2)
-                            .frame(maxWidth: 380, alignment: .leading)
+                        if let description = profile.display?.shortDescription ?? profile.display?.description,
+                           !description.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                            Text(description)
+                                .font(.system(size: 11))
+                                .foregroundStyle(.secondary)
+                                .lineLimit(2)
+                                .frame(maxWidth: 380, alignment: .leading)
+                        }
                     }
                     
                     Spacer()
@@ -75,22 +91,23 @@ public struct ProfileHeroDossierView: View {
                 
                 Spacer()
                 
-                // Bottom: Dose, Target Yield, Water Temp + Tweak Action
+                // Bottom: Specs & Tweak Button (ALWAYS visible & clickable)
                 HStack(spacing: 12) {
                     specCard(icon: "cup.and.saucer.fill", title: "Dose", val: String(format: "%.1fg", dose))
-                    specCard(icon: "scalemass.fill", title: "Target Yield", val: String(format: "%.1fg", profile.finalWeight))
-                    specCard(icon: "thermometer.medium", title: "Water Temp", val: String(format: "%.0f°C", profile.temperature))
+                    specCard(icon: "scalemass.fill", title: "Final Weight", val: String(format: "%.1fg", profile.finalWeight))
+                    specCard(icon: "thermometer.medium", title: "Temperature", val: String(format: "%.0f°C", profile.temperature))
                     
                     Spacer()
                     
                     Button(action: onCustomize) {
-                        HStack(spacing: 4) {
+                        HStack(spacing: 5) {
                             Image(systemName: "slider.horizontal.3")
-                            Text(profile.variables.isEmpty ? "Tweak" : "Tweak (\(profile.variables.count))")
+                            Text(tweakButtonLabel)
                         }
                         .font(.system(size: 11, weight: .bold))
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 7)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 8)
+                        .contentShape(Rectangle())
                     }
                     .buttonStyle(.bordered)
                     .tint(accentColor)

@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		B55B26DC3054331600C1DBE2 /* EspressoBLE in Frameworks */ = {isa = PBXBuildFile; productRef = B55B26DB3054331600C1DBE2 /* EspressoBLE */; };
 		B5996445304F462100341BC9 /* MeticulousProfile in Frameworks */ = {isa = PBXBuildFile; productRef = B5996444304F462100341BC9 /* MeticulousProfile */; };
 		B5B10100304A37E900F70661 /* MeticulousProfile in Frameworks */ = {isa = PBXBuildFile; productRef = B5B100FF304A37E900F70661 /* MeticulousProfile */; };
 /* End PBXBuildFile section */
@@ -82,6 +83,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				B55B26DC3054331600C1DBE2 /* EspressoBLE in Frameworks */,
 				B5B10100304A37E900F70661 /* MeticulousProfile in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -187,6 +189,7 @@
 			name = VirtualEspressoMachine;
 			packageProductDependencies = (
 				B5B100FF304A37E900F70661 /* MeticulousProfile */,
+				B55B26DB3054331600C1DBE2 /* EspressoBLE */,
 			);
 			productName = VirtualEspressoMachine;
 			productReference = B5B100DE304A370300F70661 /* VirtualEspressoMachine.app */;
@@ -222,6 +225,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				B5B100FE304A37E900F70661 /* XCLocalSwiftPackageReference "../MeticulousProfile" */,
+				B57F9F5C30542FED0057BAF1 /* XCLocalSwiftPackageReference "../EspressoBLE" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = B5B100DF304A370300F70661 /* Products */;
@@ -571,6 +575,10 @@
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
+		B57F9F5C30542FED0057BAF1 /* XCLocalSwiftPackageReference "../EspressoBLE" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = ../EspressoBLE;
+		};
 		B5B100FE304A37E900F70661 /* XCLocalSwiftPackageReference "../MeticulousProfile" */ = {
 			isa = XCLocalSwiftPackageReference;
 			relativePath = ../MeticulousProfile;
@@ -578,6 +586,11 @@
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		B55B26DB3054331600C1DBE2 /* EspressoBLE */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = B57F9F5C30542FED0057BAF1 /* XCLocalSwiftPackageReference "../EspressoBLE" */;
+			productName = EspressoBLE;
+		};
 		B5996444304F462100341BC9 /* MeticulousProfile */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = B5B100FE304A37E900F70661 /* XCLocalSwiftPackageReference "../MeticulousProfile" */;

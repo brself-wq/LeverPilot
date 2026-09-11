@@ -11,7 +11,7 @@ public struct ProfileVariableOverridesView: View {
     let onApply: (Profile) -> Void
     let onCancel: () -> Void
     
-    // Ephemeral Macro Targets
+    // Ephemeral Targets
     @State private var targetYield: Double
     @State private var targetTemperature: Double
     @State private var doseWeight: Double
@@ -83,12 +83,12 @@ public struct ProfileVariableOverridesView: View {
                     .background(Color.white.opacity(0.03))
                     .cornerRadius(8)
                     
-                    // Section 1: Macro Shot Targets (Dose -> Yield -> Temp)
-                    macroTargetsSection
+                    // Section 1: Targets (Dose -> Target Weight -> Temperature)
+                    targetsSection
                     
-                    // Section 2: Recipe Profile Variables (If present)
+                    // Section 2: Parameters (If present)
                     if !originalProfile.variables.isEmpty {
-                        profileVariablesSection
+                        parametersSection
                     }
                 }
                 .padding(24)
@@ -110,14 +110,9 @@ public struct ProfileVariableOverridesView: View {
     
     private var headerBar: some View {
         HStack {
-            VStack(alignment: .leading, spacing: 2) {
-                Text("SHOT PREPARATION")
-                    .font(.system(size: 9, weight: .black, design: .monospaced))
-                    .foregroundStyle(.secondary)
-                Text(originalProfile.name)
-                    .font(.title3.weight(.black))
-                    .foregroundStyle(.white)
-            }
+            Text(originalProfile.name)
+                .font(.title3.weight(.black))
+                .foregroundStyle(.white)
             
             Spacer()
             
@@ -139,19 +134,19 @@ public struct ProfileVariableOverridesView: View {
         }
     }
     
-    // MARK: - Macro Targets Section (Dose -> Yield -> Temp)
+    // MARK: - Targets Section
     
-    private var macroTargetsSection: some View {
+    private var targetsSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("MACRO TARGETS")
+            Text("TARGETS")
                 .font(.system(size: 10, weight: .heavy, design: .monospaced))
                 .foregroundStyle(.secondary)
             
             VStack(spacing: 10) {
-                // 1. Ground Dose
+                // 1. Dose
                 TargetRowStepper(
                     icon: "cup.and.saucer.fill",
-                    label: "Ground Dose",
+                    label: "Dose",
                     unit: "g",
                     value: $doseWeight,
                     step: 0.5,
@@ -160,10 +155,10 @@ public struct ProfileVariableOverridesView: View {
                     subtitle: "Reference ground coffee dose in portafilter"
                 )
                 
-                // 2. Target Yield (g) + Ratio Preview
+                // 2. Target Weight
                 TargetRowStepper(
                     icon: "scalemass.fill",
-                    label: "Target Yield",
+                    label: "Target Weight",
                     unit: "g",
                     value: $targetYield,
                     step: 0.5,
@@ -172,10 +167,10 @@ public struct ProfileVariableOverridesView: View {
                     subtitle: String(format: "Ratio 1:%.1f (based on %.1fg dose)", targetYield / max(1.0, doseWeight), doseWeight)
                 )
                 
-                // 3. Water Temp
+                // 3. Temperature
                 TargetRowStepper(
                     icon: "thermometer.medium",
-                    label: "Target Temp",
+                    label: "Temperature",
                     unit: "°C",
                     value: $targetTemperature,
                     step: 1.0,
@@ -187,16 +182,16 @@ public struct ProfileVariableOverridesView: View {
         }
     }
     
-    // MARK: - Profile Variables Section
+    // MARK: - Parameters Section
     
-    private var profileVariablesSection: some View {
+    private var parametersSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text("RECIPE PARAMETERS")
+                Text("PARAMETERS")
                     .font(.system(size: 10, weight: .heavy, design: .monospaced))
                     .foregroundStyle(.secondary)
                 Spacer()
-                Text("\(originalProfile.variables.count) CUSTOM VARIABLES")
+                Text("\(originalProfile.variables.count) VARIABLES")
                     .font(.system(size: 9, weight: .bold, design: .monospaced))
                     .foregroundStyle(accentColor)
             }
@@ -280,7 +275,7 @@ public struct ProfileVariableOverridesView: View {
     }
 }
 
-// MARK: - Macro Target Stepper Row
+// MARK: - Target Stepper Row
 
 private struct TargetRowStepper: View {
     let icon: String
@@ -507,7 +502,6 @@ private struct EditableNumericField: View {
             .focused($isFocused)
             .onAppear {
                 syncTextFromValue()
-                // Prevent system from auto-selecting the first field on sheet launch
                 DispatchQueue.main.async {
                     isFocused = false
                 }

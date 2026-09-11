@@ -5,14 +5,19 @@
 
 import SwiftUI
 import MeticulousProfile
+import EspressoBLE
 
-// MARK: - App-side Conformance (Does not touch MeticulousProfile library)
+// MARK: - App-side Conformance
 extension Profile: @retroactive Identifiable {}
 
 public struct ProfileConsoleView: View {
     let profiles: [Profile]
     let onSelectProfile: (Profile) -> Void
     let onCustomizeProfile: ((Profile) -> Void)?
+    
+    // BLE Manager & Sheet State
+    @State private var bleManager: EspressoBLEManager
+    @State private var isShowingHardwareSettings: Bool = false
     
     @AppStorage("lastSelectedProfileID") private var lastSelectedProfileID: String = ""
     
@@ -26,10 +31,12 @@ public struct ProfileConsoleView: View {
     
     public init(
         profiles: [Profile],
+        bleManager: EspressoBLEManager = EspressoBLEManager(),
         onSelectProfile: @escaping (Profile) -> Void,
         onCustomizeProfile: ((Profile) -> Void)? = nil
     ) {
         self.profiles = profiles
+        self._bleManager = State(initialValue: bleManager)
         self.onSelectProfile = onSelectProfile
         self.onCustomizeProfile = onCustomizeProfile
     }
@@ -53,9 +60,7 @@ public struct ProfileConsoleView: View {
         Color(hex: activeProfile?.display?.accentColor)
     }
     
-    // MARK: - Stubbed Dose Store Lookup
     private func doseWeight(for profile: Profile) -> Double {
-        // Placeholder for future ProfileStore / DoseStore lookup
         return 18.0
     }
     
@@ -68,21 +73,28 @@ public struct ProfileConsoleView: View {
                 emptyCatalogView
             } else {
                 VStack(spacing: 0) {
-                    // 1. Top Bar: Search & Index Readout
+                    // 1. Top Bar: Quick Dock, Search & Index Readout
                     consoleTopBar
                         .padding(.horizontal, 28)
                         .padding(.top, 14)
                     
                     Spacer(minLength: 12)
                     
-                    // 2. Extracted Centered Hero Dossier
+                    // 2. Centered Hero Dossier with Wired Settings Button
                     if let profile = activeProfile {
                         ProfileHeroDossierView(
                             profile: profile,
                             accentColor: accentColor,
                             dose: doseWeight(for: profile),
                             onCustomize: {
-                                profileToCustomize = profile
+                                if let onCustomizeProfile {
+                                    onCustomizeProfile(profile)
+                                } else {
+                                    profileToCustomize = profile
+                                }
+                            },
+                            onOpenSettings: {
+                                isShowingHardwareSettings = true
                             }
                         )
                         .padding(.horizontal, 28)
@@ -96,7 +108,7 @@ public struct ProfileConsoleView: View {
                     
                     Spacer(minLength: 16)
                     
-                    // 3. Extracted Hardware Rotary Encoder Deck
+                    // 3. Hardware Rotary Encoder Deck
                     RotaryEncoderDeck(
                         knobAngle: knobRotation,
                         accentColor: accentColor,
@@ -132,6 +144,7 @@ public struct ProfileConsoleView: View {
             .frame(width: 0, height: 0)
             .opacity(0)
         }
+        // Tweak Modal
         .sheet(item: $profileToCustomize) { profile in
             ProfileVariableOverridesView(
                 profile: profile,
@@ -144,6 +157,10 @@ public struct ProfileConsoleView: View {
                     profileToCustomize = nil
                 }
             )
+        }
+        // Hardware & Sensors Settings Modal
+        .sheet(isPresented: $isShowingHardwareSettings) {
+            HardwareSettingsSheet(bleManager: bleManager)
         }
         .onAppear {
             restoreLastSelection()
@@ -196,6 +213,9 @@ public struct ProfileConsoleView: View {
     
     private var consoleTopBar: some View {
         HStack(spacing: 16) {
+            // Live Scale/Pressure telemetry & quick tare
+            QuickHardwareDockView(bleManager: bleManager)
+            
             Spacer()
             
             HStack(spacing: 8) {
