@@ -2,122 +2,156 @@
 //  ScenarioStore.swift
 //  VirtualEspressoMachine
 //
-//  Created by Ben Self on 9/5/26.
-//
 
 import Foundation
 import Observation
 
-/// Manages and loads mock extraction scenarios (ShotRecord fixtures) used for simulation and unit testing.
+// MARK: - Ergonomic Domain Alias
+public typealias ShotRecordStore = ScenarioStore
+
 @Observable
 @MainActor
 public final class ScenarioStore {
+    public enum StorageMode: Sendable {
+        case disk(directory: URL? = nil)
+        case inMemory
+    }
     
-    /// All available test scenarios loaded from disk or bundle
     public var scenarios: [ShotRecord] = []
+    private let mode: StorageMode
+    private let fileManager = FileManager.default
+    private let shotLogsDirectory: URL?
     
-    public init(bundle: Bundle = .main) {
-        loadBundledScenarios(from: bundle)
-    }
-    
-    /// Retrieve all scenarios linked to a specific Meticulous profile ID
-    public func scenarios(for profileId: String) -> [ShotRecord] {
-        scenarios.filter { $0.profileId == profileId }
-    }
-    
-    // MARK: - Bundle Loading & Keyframe Expansion
-    
-    public func loadBundledScenarios(from bundle: Bundle = .main) {
-        guard let urls = bundle.urls(forResourcesWithExtension: "json", subdirectory: nil) else {
-            return
-        }
+    public init(mode: StorageMode = .disk(), bundle: Bundle = .main) {
+        self.mode = mode
         
+        switch mode {
+        case .disk(let customURL):
+            if let customURL {
+                self.shotLogsDirectory = customURL
+            } else {
+                let appSupport = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+                self.shotLogsDirectory = appSupport
+                    .appendingPathComponent("VirtualEspressoMachine", isDirectory: true)
+                    .appendingPathComponent("ShotLogs", isDirectory: true)
+            }
+            ensureDirectoryExists()
+            loadAllScenarios(bundle: bundle)
+            
+        case .inMemory:
+            self.shotLogsDirectory = nil
+            loadBundledOnly(bundle: bundle)
+        }
+    }
+    
+    public func recordCompletedShot(_ shot: ShotRecord) throws {
+        scenarios.insert(shot, at: 0)
+        
+        guard case .disk = mode, let dir = shotLogsDirectory else { return }
+        
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withYear, .withMonth, .withDay, .withTime, .withDashSeparatorInDate]
+        let dateString = formatter.string(from: shot.timestamp).replacingOccurrences(of: ":", with: "-")
+        let filename = "shot_\(dateString)_\(shot.id.prefix(8)).json"
+        let fileURL = dir.appendingPathComponent(filename)
+        
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        encoder.dateEncodingStrategy = .iso8601
+        
+        let data = try encoder.encode(shot)
+        try data.write(to: fileURL, options: .atomic)
+    }
+    
+    public func clearAllHistory() throws {
+        scenarios.removeAll()
+        guard case .disk = mode, let dir = shotLogsDirectory else { return }
+        if fileManager.fileExists(atPath: dir.path) {
+            try fileManager.removeItem(at: dir)
+            ensureDirectoryExists()
+        }
+    }
+    
+    public func deleteShot(withID id: String) throws {
+        scenarios.removeAll(where: { $0.id == id })
+        guard case .disk = mode, let dir = shotLogsDirectory else { return }
+        if let fileURLs = try? fileManager.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil) {
+            for url in fileURLs where url.lastPathComponent.contains(id.prefix(8)) {
+                try fileManager.removeItem(at: url)
+            }
+        }
+    }
+    
+    public func loadAllScenarios(bundle: Bundle = .main) {
         var loaded: [ShotRecord] = []
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
         
-        for url in urls {
-            if let data = try? Data(contentsOf: url),
-               let rawRecord = try? decoder.decode(ShotRecord.self, from: data) {
-                
-                // Automatically expand sparse hand-authored keyframes into smooth 10 Hz ticks!
-                let continuousSamples = Self.expandKeyframesTo10Hz(samples: rawRecord.samples)
-                
-                let record = ShotRecord(
-                    id: rawRecord.id,
-                    profileId: rawRecord.profileId,
-                    profileName: rawRecord.profileName,
-                    profileSnapshot: rawRecord.profileSnapshot,
-                    timestamp: rawRecord.timestamp,
-                    duration: rawRecord.duration,
-                    finalWeight: rawRecord.finalWeight,
-                    doseWeight: rawRecord.doseWeight,
-                    targetWeight: rawRecord.targetWeight,
-                    brewTemperature: rawRecord.brewTemperature,
-                    grinderModel: rawRecord.grinderModel,
-                    grindSetting: rawRecord.grindSetting,
-                    beanRoaster: rawRecord.beanRoaster,
-                    beanName: rawRecord.beanName,
-                    tastingNotes: rawRecord.tastingNotes,
-                    isAborted: rawRecord.isAborted,
-                    samples: continuousSamples
-                )
-                loaded.append(record)
-            }
-        }
-        
-        if !loaded.isEmpty {
-            self.scenarios = loaded.sorted { ($0.tastingNotes ?? $0.id) < ($1.tastingNotes ?? $1.id) }
-        }
-    }
-    
-    // MARK: - Keyframe Interpolator (Fixed Math)
-    
-    /// Takes sparse hand-authored samples (e.g. points at 0s, 5s, 11s) and fills in
-    /// smooth linear 10 Hz (100ms) ticks so hand-authored JSON files can be ultra-compact.
-    public static func expandKeyframesTo10Hz(samples: [ShotSample]) -> [ShotSample] {
-        guard samples.count > 1 else { return samples }
-        var continuous: [ShotSample] = []
-        
-        for i in 0..<(samples.count - 1) {
-            let s0 = samples[i]
-            let s1 = samples[i + 1]
-            let dt = s1.timestamp - s0.timestamp
-            
-            // If already at 10 Hz cadence (dt <= 0.15s), keep as is
-            if dt <= 0.15 {
-                continuous.append(s0)
-            } else {
-                // Interpolate 100ms ticks between s0 and s1
-                let steps = max(1, Int((dt / 0.1).rounded()))
-                for step in 0..<steps {
-                    let progress = Double(step) / Double(steps)
-                    
-                    // Fixed: Clean elapsed calculation with proper rounding
-                    let rawTime = s0.timestamp + (progress * dt)
-                    let t = (rawTime * 10).rounded() / 10
-                    
-                    let p = s0.pressure + progress * (s1.pressure - s0.pressure)
-                    let f = s0.flow + progress * (s1.flow - s0.flow)
-                    let w = s0.weight + progress * (s1.weight - s0.weight)
-                    
-                    continuous.append(ShotSample(
-                        timestamp: t,
-                        pressure: p,
-                        flow: f,
-                        weight: w,
-                        targetPressure: s0.targetPressure,
-                        targetFlow: s0.targetFlow,
-                        stageIndex: s0.stageIndex
-                    ))
+        // 1. Bundle Scenarios
+        if let urls = bundle.urls(forResourcesWithExtension: "json", subdirectory: nil) {
+            for url in urls {
+                if let data = try? Data(contentsOf: url),
+                   let raw = try? decoder.decode(ShotRecord.self, from: data) {
+                    let continuous = Self.expandKeyframesTo10Hz(samples: raw.samples)
+                    loaded.append(raw.updatingSamples(continuous))
                 }
             }
         }
         
-        if let last = samples.last {
-            continuous.append(last)
+        // 2. User Shot Logs from Application Support
+        if case .disk = mode, let dir = shotLogsDirectory,
+           let logURLs = try? fileManager.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil) {
+            for url in logURLs where url.pathExtension.lowercased() == "json" {
+                if let data = try? Data(contentsOf: url),
+                   let raw = try? decoder.decode(ShotRecord.self, from: data) {
+                    loaded.append(raw)
+                }
+            }
         }
         
+        self.scenarios = loaded.sorted { $0.timestamp > $1.timestamp }
+    }
+    
+    private func loadBundledOnly(bundle: Bundle) {
+        loadAllScenarios(bundle: bundle)
+    }
+    
+    private func ensureDirectoryExists() {
+        guard let dir = shotLogsDirectory else { return }
+        if !fileManager.fileExists(atPath: dir.path) {
+            try? fileManager.createDirectory(at: dir, withIntermediateDirectories: true)
+        }
+    }
+    
+    public static func expandKeyframesTo10Hz(samples: [ShotSample]) -> [ShotSample] {
+        guard samples.count > 1 else { return samples }
+        var continuous: [ShotSample] = []
+        for i in 0..<(samples.count - 1) {
+            let s0 = samples[i]
+            let s1 = samples[i + 1]
+            let dt = s1.timestamp - s0.timestamp
+            if dt <= 0.15 {
+                continuous.append(s0)
+            } else {
+                let steps = max(1, Int((dt / 0.1).rounded()))
+                for step in 0..<steps {
+                    let progress = Double(step) / Double(steps)
+                    let rawTime = s0.timestamp + (progress * dt)
+                    let t = (rawTime * 10).rounded() / 10
+                    let p = s0.pressure + progress * (s1.pressure - s0.pressure)
+                    let f = s0.flow + progress * (s1.flow - s0.flow)
+                    let w = s0.weight + progress * (s1.weight - s0.weight)
+                    continuous.append(ShotSample(timestamp: t, pressure: p, flow: f, weight: w, targetPressure: s0.targetPressure, targetFlow: s0.targetFlow, stageIndex: s0.stageIndex))
+                }
+            }
+        }
+        if let last = samples.last { continuous.append(last) }
         return continuous
+    }
+}
+
+private extension ShotRecord {
+    func updatingSamples(_ newSamples: [ShotSample]) -> ShotRecord {
+        ShotRecord(id: self.id, profileId: self.profileId, profileName: self.profileName, profileSnapshot: self.profileSnapshot, timestamp: self.timestamp, duration: self.duration, finalWeight: self.finalWeight, doseWeight: self.doseWeight, targetWeight: self.targetWeight, brewTemperature: self.brewTemperature, grinderModel: self.grinderModel, grindSetting: self.grindSetting, beanRoaster: self.beanRoaster, beanName: self.beanName, tastingNotes: self.tastingNotes, isAborted: self.isAborted, samples: newSamples)
     }
 }

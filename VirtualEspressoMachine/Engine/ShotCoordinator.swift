@@ -11,12 +11,20 @@ import MeticulousProfile
 @MainActor
 public final class ShotCoordinator {
     
-    // MARK: - Machine Lifecycle State
+    // MARK: - Machine Operational State
     public private(set) var state: MachineState = .idle
     public private(set) var currentFrame: MachineFrame = MachineFrame(state: .idle)
     
-    // MARK: - Active Profile & Recipe Execution
+    // MARK: - Profile Management (In-Memory Session vs Previous)
+    /// The active in-memory profile driving the HUD & Engine (may contain session variable overrides)
     public private(set) var activeProfile: Profile? = nil
+    public private(set) var previousProfile: Profile? = nil
+    
+    // MARK: - Shot Telemetry Accumulation & Output
+    public private(set) var completedShotRecord: ShotRecord? = nil
+    private var capturedSamples: [ShotSample] = []
+    
+    // MARK: - Active Stage Execution
     public private(set) var activeStageIndex: Int = 0
     public private(set) var currentStageBaseline: StageBaseline = StageBaseline()
     public private(set) var stageBaselines: [Int: StageBaseline] = [0: StageBaseline()]
@@ -28,11 +36,15 @@ public final class ShotCoordinator {
     public private(set) var exitTriggerItems: [ExitTriggerProgressItem] = []
     public private(set) var stagePills: [StagePillItem] = []
     
-    // MARK: - Live Telemetry Clocks
+    // MARK: - Clocks & Real-time Telemetry
     public private(set) var elapsedTime: Double = 0.0
     public private(set) var stageTime: Double = 0.0
     public private(set) var actualWeight: Double = 0.0
     public var isAlarmActive: Bool = false
+    
+    // MARK: - Configuration & Watchdogs
+    public var machineConfig: MachineConfig = .flair58Default
+    private var deadFlowStartTime: TimeInterval? = nil
     
     // MARK: - Internal Dependencies
     private let executionEngine = ProfileExecutionEngine()
@@ -64,12 +76,31 @@ public final class ShotCoordinator {
         return activeProfile != nil ? 36.0 : 0.0
     }
     
-    // MARK: - Profile Selection & Setup
+    // MARK: - Profile Arming & Lifecycle
     
-    public func selectProfile(_ profile: Profile) {
-        self.activeProfile = profile
-        self.state = .armed // Immediately arm the digital twin observer
+    /// Arms a profile for execution.
+    /// Can accept a canonical template from ProfileStore or a session copy modified by ProfileVariableOverridesView.
+    public func arm(with profile: Profile, store: ProfileStore? = nil) {
+        if let current = activeProfile, current.id != profile.id {
+            self.previousProfile = current
+        }
+        
+        // Resolve dynamic $variables if store is provided
+        let executableProfile: Profile
+        if let store {
+            executableProfile = (try? store.resolveForExecution(profile)) ?? profile
+        } else {
+            executableProfile = profile
+        }
+        
+        self.activeProfile = executableProfile
+        self.state = .armed
         resetExecutionState()
+    }
+    
+    /// Backwards compatibility for existing views
+    public func selectProfile(_ profile: Profile) {
+        arm(with: profile)
     }
     
     public func resetExecutionState() {
@@ -81,16 +112,14 @@ public final class ShotCoordinator {
         self.actualWeight = 0.0
         self.actualHistory = []
         self.isAlarmActive = false
+        self.completedShotRecord = nil
+        self.capturedSamples.removeAll()
+        self.deadFlowStartTime = nil
         
         setupInitialStage(stageIndex: 0)
     }
     
     // MARK: - Machine State Transitions
-    
-    public func arm() {
-        guard state == .idle || state == .shotEnded || state == .purging else { return }
-        state = .armed
-    }
     
     public func startExtraction() {
         guard state == .armed || state == .idle else { return }
@@ -98,15 +127,23 @@ public final class ShotCoordinator {
     }
     
     public func endExtraction() {
+        guard state == .extracting else { return }
         state = .shotEnded
-    }
-    
-    public func purge() {
-        state = .purging
-    }
-    
-    public func triggerError() {
-        state = .error
+        
+        // Freeze in-flight telemetry and the exact in-memory profile into a permanent record
+        if let profile = activeProfile {
+            self.completedShotRecord = ShotRecord(
+                profileId: profile.id,
+                profileName: profile.name,
+                profileSnapshot: profile.sanitizedForHistory(),
+                timestamp: Date(),
+                duration: elapsedTime,
+                finalWeight: actualWeight,
+                targetWeight: resolvedTargetWeight,
+                brewTemperature: profile.temperature,
+                samples: capturedSamples
+            )
+        }
     }
     
     public func abort() {
@@ -114,7 +151,7 @@ public final class ShotCoordinator {
         resetExecutionState()
     }
     
-    // MARK: - Telemetry Binding & Loop
+    // MARK: - Telemetry Binding
     
     public func attach(telemetryProvider: any TelemetryProvider) {
         self.telemetryProvider = telemetryProvider
@@ -135,7 +172,7 @@ public final class ShotCoordinator {
         self.telemetryProvider = nil
     }
     
-    // MARK: - Frame Processing & Progression
+    // MARK: - Frame Processing & Watchdogs
     
     public func processTelemetryFrame(_ frame: MachineFrame, allowAdvance: Bool = true) {
         self.currentFrame = frame
@@ -143,7 +180,7 @@ public final class ShotCoordinator {
         let currentFlow = frame[.flow] ?? 0.0
         let currentWeight = frame[.weight] ?? 0.0
         
-        // Auto-Start: Lever pull (pressure >= 0.5 bar), scale drip (weight >= 0.5g), or incoming extraction frames
+        // 1. Auto-Start: Triggered by 0.5 bar lever pull, 0.5g drip, or external extraction state
         if state == .armed && (currentPressure >= 0.5 || currentWeight >= 0.5 || frame.state == .extracting) {
             state = .extracting
         }
@@ -152,7 +189,34 @@ public final class ShotCoordinator {
             return
         }
         
-        // 1. Evaluate against stateless execution engine
+        // 2. Continuous Full-Shot Telemetry Accumulation
+        let sample = ShotSample(
+            timestamp: frame.timestamp,
+            pressure: currentPressure,
+            flow: currentFlow,
+            weight: currentWeight,
+            targetPressure: stage.type == .pressure ? guidanceFrame.targetValue : nil,
+            targetFlow: stage.type == .flow ? guidanceFrame.targetValue : nil,
+            stageIndex: activeStageIndex
+        )
+        capturedSamples.append(sample)
+        
+        // 3. Auto-Stop Dead-Flow Watchdog
+        // Checks preconditions: weight >= 5.0g and flow dropped below cutoff
+        if currentWeight >= 5.0 && currentFlow <= machineConfig.autoStop.cutoffRule.threshold {
+            if let start = deadFlowStartTime {
+                if (frame.timestamp - start) >= machineConfig.autoStop.sustainDuration {
+                    endExtraction()
+                    return
+                }
+            } else {
+                deadFlowStartTime = frame.timestamp
+            }
+        } else {
+            deadFlowStartTime = nil
+        }
+        
+        // 4. Evaluate Stage Dynamics with Execution Engine
         var result = executionEngine.evaluate(
             stage: stage,
             stageIndex: activeStageIndex,
@@ -162,7 +226,7 @@ public final class ShotCoordinator {
             finalWeightTarget: resolvedTargetWeight
         )
         
-        // 2. Evaluate stage progression
+        // 5. Evaluate Stage Progression
         if allowAdvance && result.shouldAdvanceStage {
             if activeStageIndex + 1 < profile.stages.count {
                 activeStageIndex += 1
@@ -173,7 +237,7 @@ public final class ShotCoordinator {
                     entryFlow: currentFlow
                 )
                 stageBaselines[activeStageIndex] = currentStageBaseline
-                actualHistory.removeAll()
+                actualHistory.removeAll() // Cleared for active stage chart display
                 
                 if let nextStage = currentStage {
                     result = executionEngine.evaluate(
@@ -188,10 +252,11 @@ public final class ShotCoordinator {
             } else {
                 // Reached end of final stage
                 endExtraction()
+                return
             }
         }
         
-        // 3. Update Surface Presentation State
+        // 6. Update Guidance Surface Buffers
         self.guidanceFrame = result.guidanceFrame
         self.planCurve = result.planCurve
         self.exitTriggerItems = result.exitTriggerItems
@@ -200,7 +265,7 @@ public final class ShotCoordinator {
         self.actualWeight = currentWeight
         self.isAlarmActive = result.guidanceFrame.guardrail?.isBreached ?? false
         
-        // 4. Append historical telemetry point for active stage
+        // 7. Append Historical Point for Active Stage Chart
         let activeStage = currentStage ?? stage
         let metricVal: Double
         switch activeStage.type {
@@ -211,7 +276,7 @@ public final class ShotCoordinator {
         let pointX = max(0.0, frame.timestamp - currentStageBaseline.startTime)
         self.actualHistory.append(ActualPoint(x: pointX, y: metricVal))
         
-        // 5. Update Stage Pills
+        // 8. Update Stage Navigation Pills
         updateStagePills(for: profile, activeIndex: activeStageIndex)
     }
     
@@ -226,6 +291,9 @@ public final class ShotCoordinator {
         let stageStart = currentStageBaseline.startTime
         let currentX = max(0.0, frame.timestamp - stageStart)
         actualHistory.removeAll { $0.x > currentX }
+        
+        // Trim accumulated samples to current scrubber timestamp
+        capturedSamples.removeAll { $0.timestamp > frame.timestamp }
         
         processTelemetryFrame(frame, allowAdvance: false)
     }
