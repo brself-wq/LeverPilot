@@ -13,7 +13,7 @@ struct VirtualEspressoMachineApp: App {
     // MARK: - App-Level Shared Singletons
     @State private var profileStore = ProfileStore()
     @State private var scenarioStore = ScenarioStore()
-    @State private var bleManager = EspressoBLEManager()
+    @State private var bleManager = EspressoBLEManager(savedDevices: loadSavedBLEDevices())
     @State private var coordinator = ShotCoordinator()
     @State private var playbackEngine = PlaybackEngine()
     @State private var bleProvider: BLETelemetryProvider?
@@ -22,7 +22,7 @@ struct VirtualEspressoMachineApp: App {
     // MARK: - Navigation State
     @State private var activeExtractionProfile: Profile? = nil
     @State private var completedRecordForDebrief: ShotRecord? = nil
-
+    
     var body: some Scene {
         WindowGroup {
             ZStack {
@@ -64,7 +64,7 @@ struct VirtualEspressoMachineApp: App {
                     // HUD-Only Flight Controls: STOP Trigger + Abort Button
                     .overlay(alignment: .topTrailing) {
                         HStack(spacing: 10) {
-                            #if DEBUG
+#if DEBUG
                             Button(action: simulateFlowStop) {
                                 HStack(spacing: 4) {
                                     Image(systemName: "stop.fill")
@@ -75,7 +75,7 @@ struct VirtualEspressoMachineApp: App {
                             .buttonStyle(.borderedProminent)
                             .tint(.red.opacity(0.85))
                             .controlSize(.small)
-                            #endif
+#endif
                             
                             Button(action: { showAbortConfirmation = true }) {
                                 Image(systemName: "xmark")
@@ -212,4 +212,15 @@ struct VirtualEspressoMachineApp: App {
         coordinator.processTelemetryFrame(frame, allowAdvance: true)
     }
     #endif
+    
+    private static func loadSavedBLEDevices() -> [BLEDeviceRole: UUID] {
+        var saved: [BLEDeviceRole: UUID] = [:]
+        for role in BLEDeviceRole.allCases {
+            if let raw = UserDefaults.standard.string(forKey: "ble.device.\(role.rawValue)"),
+               let uuid = UUID(uuidString: raw) {
+                saved[role] = uuid
+            }
+        }
+        return saved
+    }
 }

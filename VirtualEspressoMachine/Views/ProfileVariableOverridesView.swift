@@ -227,7 +227,7 @@ public struct ProfileVariableOverridesView: View {
                 HStack(spacing: 6) {
                     Image(systemName: "checkmark")
                         .font(.system(size: 11, weight: .black))
-                    Text("Apply to Session")
+                    Text("Apply")
                         .font(.system(size: 12, weight: .bold))
                 }
                 .frame(minWidth: 140)

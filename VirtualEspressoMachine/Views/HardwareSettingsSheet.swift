@@ -27,7 +27,7 @@ public struct HardwareSettingsSheet: View {
             // Content
             ScrollView {
                 VStack(spacing: 24) {
-                    // 1. Active Hardware Slots
+                    // 1. Paired Hardware Slots
                     activeSlotsSection
                     
                     // 2. Discovered Devices & Pairing
@@ -38,6 +38,20 @@ public struct HardwareSettingsSheet: View {
         }
         .frame(minWidth: 620, minHeight: 520)
         .background(Color(red: 0.05, green: 0.05, blue: 0.06))
+        // Wi-Fi Style: Auto-scan when opened, stop when closed
+        .onAppear {
+            if bleManager.isBluetoothReady {
+                bleManager.startScanning()
+            }
+        }
+        .onDisappear {
+            bleManager.stopScanning()
+        }
+        .onChange(of: bleManager.isBluetoothReady) { _, ready in
+            if ready {
+                bleManager.startScanning()
+            }
+        }
     }
     
     // MARK: - Header
@@ -45,65 +59,62 @@ public struct HardwareSettingsSheet: View {
     private var headerBar: some View {
         HStack {
             VStack(alignment: .leading, spacing: 2) {
-                Text("HARDWARE DOCK")
-                    .font(.system(size: 9, weight: .black, design: .monospaced))
-                    .foregroundStyle(.secondary)
-                Text("Bluetooth Peripherals")
+                Text("Bluetooth Devices")
                     .font(.title3.weight(.black))
                     .foregroundStyle(.white)
             }
             
             Spacer()
             
-            // Scan Toggle
+            // Refresh / Search Indicator
             Button(action: toggleScan) {
                 HStack(spacing: 6) {
                     if bleManager.isScanning {
                         ProgressView()
                             .controlSize(.mini)
                             .tint(.white)
-                        Text("Scanning...")
+                        Text("Searching...")
                     } else {
                         Image(systemName: "arrow.clockwise")
-                        Text("Scan Devices")
+                        Text("Refresh")
                     }
                 }
                 .font(.system(size: 11, weight: .bold))
                 .padding(.horizontal, 12)
                 .padding(.vertical, 6)
             }
-            .buttonStyle(.borderedProminent)
-            .tint(bleManager.isScanning ? .orange : .blue)
+            .buttonStyle(.bordered)
+            .tint(.secondary)
             .disabled(!bleManager.isBluetoothReady)
             
             Button("Done") {
                 dismiss()
             }
-            .buttonStyle(.bordered)
+            .buttonStyle(.borderedProminent)
             .controlSize(.regular)
             .padding(.leading, 8)
         }
     }
     
-    // MARK: - Active Slots (Scale & Pressure)
+    // MARK: - Paired Slots (Scale & Pressure Gauge)
     
     private var activeSlotsSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("ACTIVE CONNECTIONS")
+            Text("PAIRED DEVICES")
                 .font(.system(size: 10, weight: .heavy, design: .monospaced))
                 .foregroundStyle(.secondary)
             
             HStack(spacing: 14) {
-                // Slot: Scale
                 deviceSlotCard(
                     role: .scale,
+                    title: "SCALE",
                     icon: "scalemass.fill",
                     slot: bleManager.slots[.scale]
                 )
                 
-                // Slot: Pressure
                 deviceSlotCard(
                     role: .pressure,
+                    title: "PRESSURE GAUGE",
                     icon: "gauge.with.dots.needle.bottom.50percent",
                     slot: bleManager.slots[.pressure]
                 )
@@ -112,8 +123,9 @@ public struct HardwareSettingsSheet: View {
     }
     
     @ViewBuilder
-    private func deviceSlotCard(role: BLEDeviceRole, icon: String, slot: ActiveDeviceSlot?) -> some View {
+    private func deviceSlotCard(role: BLEDeviceRole, title: String, icon: String, slot: ActiveDeviceSlot?) -> some View {
         let isConnected = slot?.isConnected == true
+        let isPaired = slot?.id != nil
         let themeColor: Color = role == .scale ? Color(red: 0.90, green: 0.68, blue: 0.28) : Color(red: 0.15, green: 0.68, blue: 0.38)
         
         VStack(alignment: .leading, spacing: 12) {
@@ -123,7 +135,7 @@ public struct HardwareSettingsSheet: View {
                     Image(systemName: icon)
                         .font(.system(size: 12))
                         .foregroundStyle(themeColor)
-                    Text(role.rawValue.uppercased())
+                    Text(title)
                         .font(.system(size: 10, weight: .black, design: .monospaced))
                         .foregroundStyle(.white)
                 }
@@ -133,11 +145,11 @@ public struct HardwareSettingsSheet: View {
                 // Status Pill
                 HStack(spacing: 4) {
                     Circle()
-                        .fill(isConnected ? Color.green : Color.red.opacity(0.7))
+                        .fill(isConnected ? Color.green : (isPaired ? Color.orange : Color.red.opacity(0.7)))
                         .frame(width: 6, height: 6)
-                    Text(isConnected ? "CONNECTED" : "OFFLINE")
+                    Text(isConnected ? "CONNECTED" : (isPaired ? "SEARCHING..." : "UNPAIRED"))
                         .font(.system(size: 8, weight: .heavy, design: .monospaced))
-                        .foregroundStyle(isConnected ? .green : .secondary)
+                        .foregroundStyle(isConnected ? .green : (isPaired ? .orange : .secondary))
                 }
                 .padding(.horizontal, 6)
                 .padding(.vertical, 3)
@@ -145,14 +157,13 @@ public struct HardwareSettingsSheet: View {
                 .cornerRadius(4)
             }
             
-            // Device Name & Telemetry
             if isConnected, let slot = slot {
+                // Live Connected State
                 VStack(alignment: .leading, spacing: 4) {
                     Text(slot.name ?? "Connected Device")
                         .font(.system(size: 14, weight: .bold))
                         .foregroundStyle(.white)
                     
-                    // Live Reading
                     if role == .scale, let weight = slot.lastReading?.weightGrams {
                         Text(String(format: "%.1f g", weight))
                             .font(.system(size: 28, weight: .black, design: .monospaced))
@@ -193,7 +204,6 @@ public struct HardwareSettingsSheet: View {
                 
                 Divider().background(Color.white.opacity(0.06))
                 
-                // Slot Actions
                 HStack {
                     if role == .scale {
                         Button(action: { bleManager.tareScale() }) {
@@ -216,14 +226,38 @@ public struct HardwareSettingsSheet: View {
                     .buttonStyle(.plain)
                     .foregroundStyle(.red.opacity(0.8))
                 }
+            } else if isPaired {
+                // Paired but Offline State
+                VStack(alignment: .leading, spacing: 6) {
+                    Spacer(minLength: 8)
+                    Text(slot?.name ?? "Saved Device")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(.white)
+                    Text("Looking for signal... Turn device on to connect.")
+                        .font(.system(size: 10))
+                        .foregroundStyle(.tertiary)
+                    Spacer(minLength: 8)
+                }
+                
+                Divider().background(Color.white.opacity(0.06))
+                
+                HStack {
+                    Spacer()
+                    Button("Forget", role: .destructive) {
+                        bleManager.forget(role: role)
+                    }
+                    .font(.system(size: 11, weight: .bold))
+                    .buttonStyle(.plain)
+                    .foregroundStyle(.red.opacity(0.8))
+                }
             } else {
-                // Empty / Disconnected state
+                // Unpaired State
                 VStack(spacing: 8) {
                     Spacer(minLength: 12)
-                    Text("No \(role.rawValue) Selected")
+                    Text("No \(role.rawValue) Paired")
                         .font(.system(size: 12, weight: .bold))
                         .foregroundStyle(.secondary)
-                    Text("Scan below to connect a device")
+                    Text("Select a discovered device below")
                         .font(.system(size: 10))
                         .foregroundStyle(.tertiary)
                     Spacer(minLength: 12)
@@ -246,7 +280,7 @@ public struct HardwareSettingsSheet: View {
     private var discoveredDevicesSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text("DISCOVERED PERIPHERALS")
+                Text("DISCOVERED DEVICES")
                     .font(.system(size: 10, weight: .heavy, design: .monospaced))
                     .foregroundStyle(.secondary)
                 Spacer()
@@ -258,13 +292,22 @@ public struct HardwareSettingsSheet: View {
             if bleManager.discoveredDevices.isEmpty {
                 HStack {
                     Spacer()
-                    VStack(spacing: 6) {
-                        Image(systemName: "antenna.radiowaves.left.and.right.slash")
-                            .font(.system(size: 24))
-                            .foregroundStyle(.tertiary)
-                        Text(bleManager.isScanning ? "Listening for Bookoo devices..." : "No devices found. Tap 'Scan Devices' above.")
-                            .font(.system(size: 11))
-                            .foregroundStyle(.secondary)
+                    VStack(spacing: 8) {
+                        if bleManager.isScanning {
+                            ProgressView()
+                                .controlSize(.regular)
+                                .tint(.secondary)
+                            Text("Searching for nearby devices...")
+                                .font(.system(size: 11))
+                                .foregroundStyle(.secondary)
+                        } else {
+                            Image(systemName: "antenna.radiowaves.left.and.right.slash")
+                                .font(.system(size: 24))
+                                .foregroundStyle(.tertiary)
+                            Text("No devices found. Ensure devices are turned on.")
+                                .font(.system(size: 11))
+                                .foregroundStyle(.secondary)
+                        }
                     }
                     .padding(.vertical, 32)
                     Spacer()
@@ -292,7 +335,7 @@ public struct HardwareSettingsSheet: View {
                 Text(device.name)
                     .font(.system(size: 12, weight: .bold))
                     .foregroundStyle(.white)
-                Text(device.role.rawValue)
+                Text(device.role == .scale ? "Scale" : "Pressure Gauge")
                     .font(.system(size: 9, design: .monospaced))
                     .foregroundStyle(.tertiary)
             }
