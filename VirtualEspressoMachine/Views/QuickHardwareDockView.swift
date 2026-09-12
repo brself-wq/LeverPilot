@@ -22,7 +22,7 @@ public struct QuickHardwareDockView: View {
             // 2. Pressure Quick Pill
             pressurePill
             
-            // 3. Hardware Manager Button
+            // 3. Hardware Manager Antenna Button (Sole trigger for pairing sheet)
             Button(action: { showingSettingsSheet = true }) {
                 Image(systemName: "antenna.radiowaves.left.and.right")
                     .font(.system(size: 11, weight: .bold))
@@ -59,7 +59,6 @@ public struct QuickHardwareDockView: View {
                     .font(.system(size: 11, weight: .bold, design: .monospaced))
                     .foregroundStyle(.white)
                 
-                // One-tap Tare directly on the bar
                 Button("TARE") {
                     bleManager.tareScale()
                 }
@@ -98,7 +97,7 @@ public struct QuickHardwareDockView: View {
                     .font(.system(size: 11, weight: .bold, design: .monospaced))
                     .foregroundStyle(.white)
             } else {
-                Text("NO TRANSDUCER")
+                Text("NO PRESSURE DEVICE")
                     .font(.system(size: 9, weight: .bold, design: .monospaced))
                     .foregroundStyle(.tertiary)
             }

@@ -11,33 +11,30 @@ public struct ProfileHeroDossierView: View {
     let accentColor: Color
     let dose: Double
     let onCustomize: () -> Void
-    var onOpenSettings: (() -> Void)? = nil
     
     public init(
         profile: Profile,
         accentColor: Color,
         dose: Double = 18.0,
-        onCustomize: @escaping () -> Void,
-        onOpenSettings: (() -> Void)? = nil
+        onCustomize: @escaping () -> Void
     ) {
         self.profile = profile
         self.accentColor = accentColor
         self.dose = dose
         self.onCustomize = onCustomize
-        self.onOpenSettings = onOpenSettings
     }
     
-    private var tweakButtonLabel: String {
+    private var configureButtonLabel: String {
         if profile.variables.isEmpty {
-            return "Tweak"
+            return "Configure"
         } else {
-            return "Tweak (\(profile.variables.count))"
+            return "Configure (\(profile.variables.count))"
         }
     }
     
     public var body: some View {
         ZStack {
-            // LAYER 1: Dead-center Artwork Image (Pure visual, non-interactive)
+            // LAYER 1: Artwork Jacket
             artworkJacket
                 .frame(width: 220, height: 220)
                 .clipShape(RoundedRectangle(cornerRadius: 16))
@@ -46,27 +43,13 @@ public struct ProfileHeroDossierView: View {
                         .strokeBorder(accentColor, lineWidth: 3)
                 )
                 .shadow(color: accentColor.opacity(0.35), radius: 16, y: 0)
-                .allowsHitTesting(false) // Prevents shadow/frame from intercepting button taps
+                .allowsHitTesting(false)
             
-            // LAYER 2: Interactive Perimeter Content
+            // LAYER 2: Interactive Content
             VStack {
-                // Top: Header & Settings
+                // Top: Header (Cleaned up, no settings cog)
                 HStack(alignment: .top) {
                     VStack(alignment: .leading, spacing: 4) {
-                        if let onOpenSettings {
-                            Button(action: onOpenSettings) {
-                                HStack(spacing: 4) {
-                                    Image(systemName: "gearshape.fill")
-                                        .font(.system(size: 9))
-                                    Text("SETTINGS")
-                                        .font(.system(size: 8, weight: .heavy, design: .monospaced))
-                                }
-                                .foregroundStyle(.secondary)
-                            }
-                            .buttonStyle(.plain)
-                            .padding(.bottom, 2)
-                        }
-                        
                         Text(profile.name)
                             .font(.system(size: 26, weight: .black))
                             .foregroundStyle(.white)
@@ -91,7 +74,7 @@ public struct ProfileHeroDossierView: View {
                 
                 Spacer()
                 
-                // Bottom: Specs & Tweak Button (ALWAYS visible & clickable)
+                // Bottom: Specs & Configure Button
                 HStack(spacing: 12) {
                     specCard(icon: "cup.and.saucer.fill", title: "Dose", val: String(format: "%.1fg", dose))
                     specCard(icon: "scalemass.fill", title: "Final Weight", val: String(format: "%.1fg", profile.finalWeight))
@@ -102,7 +85,7 @@ public struct ProfileHeroDossierView: View {
                     Button(action: onCustomize) {
                         HStack(spacing: 5) {
                             Image(systemName: "slider.horizontal.3")
-                            Text(tweakButtonLabel)
+                            Text(configureButtonLabel)
                         }
                         .font(.system(size: 11, weight: .bold))
                         .padding(.horizontal, 14)
