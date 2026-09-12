@@ -1,6 +1,6 @@
 //
 //  Color+Hex.swift
-//  BaristaPilot
+//  VirtualEspressoMachine
 //
 
 import SwiftUI

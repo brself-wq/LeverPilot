@@ -2,8 +2,6 @@
 //  BaristaHUDSimulatorView.swift
 //  VirtualEspressoMachine
 //
-//  Created by Ben Self on 9/6/26.
-//
 
 import SwiftUI
 import MeticulousProfile

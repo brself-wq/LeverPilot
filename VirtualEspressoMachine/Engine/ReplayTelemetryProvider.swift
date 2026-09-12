@@ -2,14 +2,6 @@
 //  ReplayTelemetryProvider.swift
 //  VirtualEspressoMachine
 //
-//  Created by Ben Self on 9/10/26.
-//
-
-
-//
-//  ReplayTelemetryProvider.swift
-//  VirtualEspressoMachine
-//
 
 import Foundation
 import MeticulousProfile

@@ -2,8 +2,6 @@
 //  ProfileExecutionEngine.swift
 //  VirtualEspressoMachine
 //
-//  Created by Ben Self on 9/6/26.
-//
 
 import Foundation
 import MeticulousProfile

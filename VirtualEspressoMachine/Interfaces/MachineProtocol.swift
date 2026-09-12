@@ -2,8 +2,6 @@
 //  MachineProtocol.swift
 //  VirtualEspressoMachine
 //
-//  Created by Ben Self on 9/2/26.
-//
 
 import Foundation
 import MeticulousProfile

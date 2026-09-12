@@ -2,14 +2,6 @@
 //  RotaryEncoderDeck.swift
 //  VirtualEspressoMachine
 //
-//  Created by Ben Self on 9/10/26.
-//
-
-
-//
-//  RotaryEncoderDeck.swift
-//  VirtualEspressoMachine
-//
 
 import SwiftUI
 

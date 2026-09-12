@@ -5,14 +5,6 @@
 //  Created by Ben Self on 9/7/26.
 //
 
-
-//
-//  SimulatorControlDockView.swift
-//  VirtualEspressoMachine
-//
-//  Created by Ben Self on 9/7/26.
-//
-
 import SwiftUI
 import MeticulousProfile
 

@@ -2,8 +2,6 @@
 //  PlaybackEngine.swift
 //  VirtualEspressoMachine
 //
-//  Created by Ben Self on 9/7/26.
-//
 
 import Foundation
 import Observation

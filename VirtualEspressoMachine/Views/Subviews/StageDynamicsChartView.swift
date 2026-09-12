@@ -2,14 +2,6 @@
 //  StageDynamicsChartView.swift
 //  VirtualEspressoMachine
 //
-//  Created by Ben Self on 9/8/26.
-//
-
-
-//
-//  StageDynamicsChartView.swift
-//  VirtualEspressoMachine
-//
 
 import SwiftUI
 import Charts

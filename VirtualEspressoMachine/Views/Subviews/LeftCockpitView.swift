@@ -2,14 +2,6 @@
 //  LeftCockpitView.swift
 //  VirtualEspressoMachine
 //
-//  Created by Ben Self on 9/8/26.
-//
-
-
-//
-//  LeftCockpitView.swift
-//  VirtualEspressoMachine
-//
 
 import SwiftUI
 import MeticulousProfile
