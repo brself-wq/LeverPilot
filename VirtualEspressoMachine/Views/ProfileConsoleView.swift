@@ -14,9 +14,7 @@ public struct ProfileConsoleView: View {
     let profiles: [Profile]
     let bleManager: EspressoBLEManager
     let scenarioStore: ScenarioStore
-    let onSelectProfile: (Profile) -> Void
-    let onSelectScenario: ((Profile, ShotRecord) -> Void)?
-    let onCustomizeProfile: ((Profile) -> Void)?
+    let onArm: (Profile, ShotRecord?) -> Void
     
     @AppStorage("lastSelectedProfileID") private var lastSelectedProfileID: String = ""
     
@@ -25,23 +23,30 @@ public struct ProfileConsoleView: View {
     @State private var dragAccumulator: Double = 0.0
     @State private var searchFilter: String = ""
     
+    // In-memory working copy isolated from ProfileStore
+    @State private var sessionProfile: Profile? = nil
+    @State private var sessionDose: Double = 18.0
+    
+    // Debug desk stimulation: primed scenario bypassing physical BLE
+    @State private var primedScenario: ShotRecord? = nil
+    
     // Active Configure Modal State
-    @State private var profileToCustomize: Profile?
+    @State private var isShowingOverridesSheet: Bool = false
+    
+    // Pre-Flight Diagnostic Alert State
+    @State private var isShowingPreFlightAlert: Bool = false
+    @State private var preFlightIssues: [PreFlightIssue] = []
     
     public init(
         profiles: [Profile],
         bleManager: EspressoBLEManager,
         scenarioStore: ScenarioStore,
-        onSelectProfile: @escaping (Profile) -> Void,
-        onSelectScenario: ((Profile, ShotRecord) -> Void)? = nil,
-        onCustomizeProfile: ((Profile) -> Void)? = nil
+        onArm: @escaping (Profile, ShotRecord?) -> Void
     ) {
         self.profiles = profiles
         self.bleManager = bleManager
         self.scenarioStore = scenarioStore
-        self.onSelectProfile = onSelectProfile
-        self.onSelectScenario = onSelectScenario
-        self.onCustomizeProfile = onCustomizeProfile
+        self.onArm = onArm
     }
     
     private var filteredProfiles: [Profile] {
@@ -53,18 +58,14 @@ public struct ProfileConsoleView: View {
         }
     }
     
-    private var activeProfile: Profile? {
+    private var catalogProfile: Profile? {
         guard !filteredProfiles.isEmpty else { return nil }
         let safeIndex = min(max(activeIndex, 0), filteredProfiles.count - 1)
         return filteredProfiles[safeIndex]
     }
     
     private var accentColor: Color {
-        Color(hex: activeProfile?.display?.accentColor)
-    }
-    
-    private func doseWeight(for profile: Profile) -> Double {
-        return 18.0
+        Color(hex: sessionProfile?.display?.accentColor)
     }
     
     public var body: some View {
@@ -76,25 +77,21 @@ public struct ProfileConsoleView: View {
                 emptyCatalogView
             } else {
                 VStack(spacing: 0) {
-                    // 1. Top Bar: Balanced Hardware/Debug (Left) vs Search/Count (Right)
+                    // 1. Top Bar: Hardware/Debug (Left) vs Search/Count (Right)
                     consoleTopBar
                         .padding(.horizontal, 28)
                         .padding(.top, 14)
                     
                     Spacer(minLength: 12)
                     
-                    // 2. Centered Hero Dossier
-                    if let profile = activeProfile {
+                    // 2. Centered Hero Dossier (Renders the in-memory session copy)
+                    if let profile = sessionProfile {
                         ProfileHeroDossierView(
                             profile: profile,
                             accentColor: accentColor,
-                            dose: doseWeight(for: profile),
+                            dose: sessionDose,
                             onCustomize: {
-                                if let onCustomizeProfile {
-                                    onCustomizeProfile(profile)
-                                } else {
-                                    profileToCustomize = profile
-                                }
+                                isShowingOverridesSheet = true
                             }
                         )
                         .padding(.horizontal, 28)
@@ -112,15 +109,10 @@ public struct ProfileConsoleView: View {
                     RotaryEncoderDeck(
                         knobAngle: knobRotation,
                         accentColor: accentColor,
-                        isDisabled: activeProfile == nil,
+                        isDisabled: sessionProfile == nil,
                         onTurnLeft: { stepProfile(by: -1) },
                         onTurnRight: { stepProfile(by: 1) },
-                        onPushCenter: {
-                            if let p = activeProfile {
-                                lastSelectedProfileID = p.id
-                                onSelectProfile(p)
-                            }
-                        },
+                        onPushCenter: handleCenterPush,
                         onDragKnob: handleKnobDrag
                     )
                     .padding(.bottom, 22)
@@ -133,37 +125,68 @@ public struct ProfileConsoleView: View {
                     .keyboardShortcut(.leftArrow, modifiers: [])
                 Button("") { stepProfile(by: 1) }
                     .keyboardShortcut(.rightArrow, modifiers: [])
-                Button("") {
-                    if let p = activeProfile {
-                        lastSelectedProfileID = p.id
-                        onSelectProfile(p)
-                    }
-                }
-                .keyboardShortcut(.defaultAction)
+                Button("") { handleCenterPush() }
+                    .keyboardShortcut(.defaultAction)
             }
             .frame(width: 0, height: 0)
             .opacity(0)
         }
-        // Configure Modal Sheet
-        .sheet(item: $profileToCustomize) { profile in
-            ProfileVariableOverridesView(
-                profile: profile,
-                initialDose: doseWeight(for: profile),
-                onApply: { modified in
-                    profileToCustomize = nil
-                    onSelectProfile(modified)
-                },
-                onCancel: {
-                    profileToCustomize = nil
-                }
-            )
+        // Configure Modal Sheet: Modifies sessionProfile directly
+        .sheet(isPresented: $isShowingOverridesSheet) {
+            if let profile = sessionProfile {
+                ProfileVariableOverridesView(
+                    profile: profile,
+                    initialDose: sessionDose,
+                    onApply: { modified in
+                        self.sessionProfile = modified
+                        self.sessionDose = modified.finalWeight > 0 ? sessionDose : 18.0
+                        self.isShowingOverridesSheet = false
+                    },
+                    onCancel: {
+                        self.isShowingOverridesSheet = false
+                    }
+                )
+            }
+        }
+        // Pre-Flight Diagnostic Checklist Alert
+        .alert("Cannot Arm Machine", isPresented: $isShowingPreFlightAlert) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(formattedPreFlightMessage)
         }
         .onAppear {
             restoreLastSelection()
+            syncSessionProfile()
         }
         .onChange(of: searchFilter) { _, _ in
             activeIndex = 0
+            syncSessionProfile()
         }
+    }
+    
+    // MARK: - Pre-Flight Arming Action
+    
+    private func handleCenterPush() {
+        guard let profile = sessionProfile else { return }
+        
+        let issues = PreFlightValidator.evaluate(
+            profile: profile,
+            bleManager: bleManager,
+            primedScenario: primedScenario
+        )
+        
+        if issues.isEmpty {
+            lastSelectedProfileID = profile.id
+            onArm(profile, primedScenario)
+        } else {
+            self.preFlightIssues = issues
+            self.isShowingPreFlightAlert = true
+        }
+    }
+    
+    private var formattedPreFlightMessage: String {
+        let bullets = preFlightIssues.map { "• \($0.description)" }.joined(separator: "\n")
+        return "The machine cannot transition to armed state until the following are resolved:\n\n\(bullets)"
     }
     
     // MARK: - Top Console Bar
@@ -218,53 +241,53 @@ public struct ProfileConsoleView: View {
         }
     }
     
-    // MARK: - DEBUG Bench Menu
+    // MARK: - DEBUG Bench Menu (Primes Telemetry, Never Bypasses Rotary Push)
     
     #if DEBUG
     private var debugBenchMenu: some View {
         Menu {
-            Section("Scenario Playback") {
-                if scenarioStore.scenarios.isEmpty {
-                    Text("No Mock Scenarios Loaded")
-                } else {
-                    ForEach(scenarioStore.scenarios, id: \.id) { scenario in
-                        Button {
-                            if let profile = activeProfile {
-                                onSelectScenario?(profile, scenario) ?? onSelectProfile(profile)
+            Section("Telemetry Source Override") {
+                Button {
+                    primedScenario = nil
+                } label: {
+                    HStack {
+                        Text("Live Bluetooth (Hardware)")
+                        if primedScenario == nil {
+                            Image(systemName: "checkmark")
+                        }
+                    }
+                }
+                
+                ForEach(scenarioStore.scenarios, id: \.id) { scenario in
+                    Button {
+                        primedScenario = scenario
+                    } label: {
+                        HStack {
+                            Text(scenario.id)
+                            if primedScenario?.id == scenario.id {
+                                Image(systemName: "checkmark")
                             }
-                        } label: {
-                            Label(scenario.id, systemImage: "doc.text")
                         }
                     }
                 }
             }
-            
-            Section("Manual Origin Trip") {
-                Button {
-                    if let profile = activeProfile {
-                        onSelectProfile(profile)
-                    }
-                } label: {
-                    Label("START: Launch Shot", systemImage: "play.fill")
-                }
-            }
         } label: {
             HStack(spacing: 5) {
-                Image(systemName: "ladybug.fill")
+                Image(systemName: primedScenario != nil ? "bolt.horizontal.fill" : "ladybug.fill")
                     .font(.system(size: 9))
-                Text("DEBUG")
+                Text(primedScenario != nil ? "SIM: \(primedScenario!.id.prefix(8))" : "DEBUG")
                     .font(.system(size: 9, weight: .black, design: .monospaced))
             }
-            .foregroundStyle(.orange)
+            .foregroundStyle(primedScenario != nil ? .cyan : .orange)
             .padding(.horizontal, 8)
             .padding(.vertical, 5)
-            .background(Color.orange.opacity(0.15))
+            .background((primedScenario != nil ? Color.cyan : Color.orange).opacity(0.15))
             .cornerRadius(6)
         }
     }
     #endif
     
-    // MARK: - Rotary Gestures & Helpers
+    // MARK: - Profile Navigation & Session Synchronization
     
     private func stepProfile(by delta: Int) {
         guard !filteredProfiles.isEmpty else { return }
@@ -272,9 +295,18 @@ public struct ProfileConsoleView: View {
             let next = (activeIndex + delta) % filteredProfiles.count
             activeIndex = next < 0 ? filteredProfiles.count - 1 : next
             knobRotation += Double(delta) * 30.0
-            if let p = activeProfile {
-                lastSelectedProfileID = p.id
-            }
+            syncSessionProfile()
+        }
+    }
+    
+    private func syncSessionProfile() {
+        if let current = catalogProfile {
+            // Defensive in-memory clone for this session
+            self.sessionProfile = current
+            self.sessionDose = 18.0
+            self.lastSelectedProfileID = current.id
+        } else {
+            self.sessionProfile = nil
         }
     }
     
@@ -299,7 +331,6 @@ public struct ProfileConsoleView: View {
             activeIndex = foundIndex
         } else {
             activeIndex = 0
-            lastSelectedProfileID = profiles[0].id
         }
     }
     

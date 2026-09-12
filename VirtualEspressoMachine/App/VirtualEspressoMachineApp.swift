@@ -31,13 +31,13 @@ struct VirtualEspressoMachineApp: App {
                     profiles: profileStore.profiles,
                     bleManager: bleManager,
                     scenarioStore: scenarioStore,
-                    onSelectProfile: { profile in
-                        launchShot(with: profile)
-                    },
-                    onSelectScenario: { profile, scenario in
-                        launchScenarioPlayback(profile: profile, scenario: scenario)
-                    },
-                    onCustomizeProfile: nil
+                    onArm: { sessionProfile, primedScenario in
+                        if let primedScenario {
+                            launchScenarioPlayback(profile: sessionProfile, scenario: primedScenario)
+                        } else {
+                            launchShot(with: sessionProfile)
+                        }
+                    }
                 )
                 
                 // 2. EXTRACTION LAYER: Cross-Platform HUD (Visible only in flight)
