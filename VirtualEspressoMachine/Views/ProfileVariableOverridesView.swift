@@ -8,7 +8,7 @@ import MeticulousProfile
 
 public struct ProfileVariableOverridesView: View {
     let originalProfile: Profile
-    let onApply: (Profile) -> Void
+    let onApply: (Profile, Double) -> Void
     let onCancel: () -> Void
     
     // Ephemeral Targets
@@ -26,6 +26,7 @@ public struct ProfileVariableOverridesView: View {
     private var hasChanges: Bool {
         if abs(targetYield - originalProfile.finalWeight) > 0.05 { return true }
         if abs(targetTemperature - originalProfile.temperature) > 0.05 { return true }
+        if abs(doseWeight - 18.0) > 0.05 { return true }
         for v in originalProfile.variables {
             if let current = variableValues[v.key], abs(current - v.value) > 0.05 {
                 return true
@@ -37,7 +38,7 @@ public struct ProfileVariableOverridesView: View {
     public init(
         profile: Profile,
         initialDose: Double = 18.0,
-        onApply: @escaping (Profile) -> Void,
+        onApply: @escaping (Profile, Double) -> Void,
         onCancel: @escaping () -> Void
     ) {
         self.originalProfile = profile
@@ -251,6 +252,7 @@ public struct ProfileVariableOverridesView: View {
     private func resetToDefaults() {
         targetYield = originalProfile.finalWeight
         targetTemperature = originalProfile.temperature
+        doseWeight = 18.0
         for v in originalProfile.variables {
             variableValues[v.key] = v.value
         }
@@ -271,7 +273,7 @@ public struct ProfileVariableOverridesView: View {
         }
         modified.variables = updatedVariables
         
-        onApply(modified)
+        onApply(modified, doseWeight)
     }
 }
 
@@ -456,7 +458,7 @@ private struct VariableRowControl: View {
     }
 }
 
-// MARK: - Keyboard-Editable Numeric Field (No Initial Focus)
+// MARK: - Keyboard-Editable Numeric Field
 
 private struct EditableNumericField: View {
     @Binding var value: Double
@@ -468,11 +470,7 @@ private struct EditableNumericField: View {
     @FocusState private var isFocused: Bool
     
     private var borderStrokeColor: Color {
-        if isFocused {
-            return accentColor.opacity(0.8)
-        } else {
-            return Color.white.opacity(0.1)
-        }
+        isFocused ? accentColor.opacity(0.8) : Color.white.opacity(0.1)
     }
     
     private var borderStrokeWidth: CGFloat {

@@ -137,9 +137,9 @@ public struct ProfileConsoleView: View {
                 ProfileVariableOverridesView(
                     profile: profile,
                     initialDose: sessionDose,
-                    onApply: { modified in
+                    onApply: { modified, newDose in
                         self.sessionProfile = modified
-                        self.sessionDose = modified.finalWeight > 0 ? sessionDose : 18.0
+                        self.sessionDose = newDose
                         self.isShowingOverridesSheet = false
                     },
                     onCancel: {
@@ -155,8 +155,10 @@ public struct ProfileConsoleView: View {
             Text(formattedPreFlightMessage)
         }
         .onAppear {
-            restoreLastSelection()
-            syncSessionProfile()
+            if sessionProfile == nil {
+                restoreLastSelection()
+                syncSessionProfile()
+            }
         }
         .onChange(of: searchFilter) { _, _ in
             activeIndex = 0
@@ -193,7 +195,6 @@ public struct ProfileConsoleView: View {
     
     private var consoleTopBar: some View {
         HStack(spacing: 12) {
-            // LEFT: Hardware Dock + DEBUG Bench
             QuickHardwareDockView(bleManager: bleManager)
             
             #if DEBUG
@@ -202,7 +203,6 @@ public struct ProfileConsoleView: View {
             
             Spacer()
             
-            // RIGHT: Search Bar + Index Readout
             HStack(spacing: 8) {
                 Image(systemName: "magnifyingglass")
                     .font(.system(size: 11))
@@ -241,7 +241,7 @@ public struct ProfileConsoleView: View {
         }
     }
     
-    // MARK: - DEBUG Bench Menu (Primes Telemetry, Never Bypasses Rotary Push)
+    // MARK: - DEBUG Bench Menu
     
     #if DEBUG
     private var debugBenchMenu: some View {
@@ -301,7 +301,6 @@ public struct ProfileConsoleView: View {
     
     private func syncSessionProfile() {
         if let current = catalogProfile {
-            // Defensive in-memory clone for this session
             self.sessionProfile = current
             self.sessionDose = 18.0
             self.lastSelectedProfileID = current.id

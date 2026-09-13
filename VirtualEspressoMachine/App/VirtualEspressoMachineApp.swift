@@ -61,45 +61,30 @@ struct VirtualEspressoMachineApp: App {
                             concludeShot()
                         }
                     }
-                    // HUD-Only Flight Controls: STOP Trigger + Abort Button
+                    // HUD Flight Controls: Clean Abort Trigger
                     .overlay(alignment: .topTrailing) {
-                        HStack(spacing: 10) {
-#if DEBUG
-                            Button(action: simulateFlowStop) {
-                                HStack(spacing: 4) {
-                                    Image(systemName: "stop.fill")
-                                    Text("CUTOFF (0 flow)")
-                                }
-                                .font(.system(size: 10, weight: .bold, design: .monospaced))
-                            }
-                            .buttonStyle(.borderedProminent)
-                            .tint(.red.opacity(0.85))
-                            .controlSize(.small)
-#endif
-                            
-                            Button(action: { showAbortConfirmation = true }) {
-                                Image(systemName: "xmark")
-                                    .font(.system(size: 11, weight: .bold))
-                                    .foregroundStyle(.secondary.opacity(0.7))
-                                    .frame(width: 24, height: 24)
-                                    .background(Color.white.opacity(0.08), in: Circle())
-                                    .contentShape(Circle())
-                            }
-                            .buttonStyle(.plain)
-                            .confirmationDialog(
-                                "Abort Extraction?",
-                                isPresented: $showAbortConfirmation,
-                                titleVisibility: .visible
-                            ) {
-                                Button("Abort Shot", role: .destructive) {
-                                    abortShot()
-                                }
-                                Button("Resume Extraction", role: .cancel) {}
-                            } message: {
-                                Text("Active extraction will be stopped and in-flight telemetry discarded.")
-                            }
+                        Button(action: { showAbortConfirmation = true }) {
+                            Image(systemName: "xmark")
+                                .font(.system(size: 11, weight: .bold))
+                                .foregroundStyle(.secondary.opacity(0.8))
+                                .frame(width: 26, height: 26)
+                                .background(Color.white.opacity(0.08), in: Circle())
+                                .contentShape(Circle())
                         }
+                        .buttonStyle(.plain)
                         .padding(14)
+                        .confirmationDialog(
+                            "Abort Extraction?",
+                            isPresented: $showAbortConfirmation,
+                            titleVisibility: .visible
+                        ) {
+                            Button("Abort Shot", role: .destructive) {
+                                abortShot()
+                            }
+                            Button("Resume Extraction", role: .cancel) {}
+                        } message: {
+                            Text("Active extraction will be stopped and in-flight telemetry discarded.")
+                        }
                     }
                     .transition(.opacity)
                     .zIndex(10)
@@ -194,24 +179,6 @@ struct VirtualEspressoMachineApp: App {
             activeExtractionProfile = nil
         }
     }
-    
-    // MARK: - Debug Stimulation Helpers
-    #if DEBUG
-    private func simulateFlowStop() {
-        let frame = MachineFrame(
-            timestamp: coordinator.elapsedTime,
-            state: .extracting,
-            readings: [
-                .pressure: 0.0,
-                .flow: 0.0,
-                .weight: coordinator.actualWeight,
-                .time: coordinator.elapsedTime,
-                .power: 0.0
-            ]
-        )
-        coordinator.processTelemetryFrame(frame, allowAdvance: true)
-    }
-    #endif
     
     private static func loadSavedBLEDevices() -> [BLEDeviceRole: UUID] {
         var saved: [BLEDeviceRole: UUID] = [:]

@@ -38,7 +38,6 @@ public struct HardwareSettingsSheet: View {
         }
         .frame(minWidth: 620, minHeight: 520)
         .background(Color(red: 0.05, green: 0.05, blue: 0.06))
-        // Wi-Fi Style: Auto-scan when opened, stop when closed
         .onAppear {
             if bleManager.isBluetoothReady {
                 bleManager.startScanning()
@@ -66,7 +65,6 @@ public struct HardwareSettingsSheet: View {
             
             Spacer()
             
-            // Refresh / Search Indicator
             Button(action: toggleScan) {
                 HStack(spacing: 6) {
                     if bleManager.isScanning {
@@ -96,7 +94,7 @@ public struct HardwareSettingsSheet: View {
         }
     }
     
-    // MARK: - Paired Slots (Scale & Pressure Gauge)
+    // MARK: - Paired Slots
     
     private var activeSlotsSection: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -129,7 +127,6 @@ public struct HardwareSettingsSheet: View {
         let themeColor: Color = role == .scale ? Color(red: 0.90, green: 0.68, blue: 0.28) : Color(red: 0.15, green: 0.68, blue: 0.38)
         
         VStack(alignment: .leading, spacing: 12) {
-            // Card Header
             HStack {
                 HStack(spacing: 6) {
                     Image(systemName: icon)
@@ -142,7 +139,6 @@ public struct HardwareSettingsSheet: View {
                 
                 Spacer()
                 
-                // Status Pill
                 HStack(spacing: 4) {
                     Circle()
                         .fill(isConnected ? Color.green : (isPaired ? Color.orange : Color.red.opacity(0.7)))
@@ -158,7 +154,6 @@ public struct HardwareSettingsSheet: View {
             }
             
             if isConnected, let slot = slot {
-                // Live Connected State
                 VStack(alignment: .leading, spacing: 4) {
                     Text(slot.name ?? "Connected Device")
                         .font(.system(size: 14, weight: .bold))
@@ -179,7 +174,6 @@ public struct HardwareSettingsSheet: View {
                     }
                 }
                 
-                // Metadata: Battery & RSSI
                 HStack(spacing: 12) {
                     if let battery = slot.smoothedBattery {
                         HStack(spacing: 4) {
@@ -221,13 +215,13 @@ public struct HardwareSettingsSheet: View {
                     
                     Button("Forget", role: .destructive) {
                         bleManager.forget(role: role)
+                        UserDefaults.standard.removeObject(forKey: "ble.device.\(role.rawValue)")
                     }
                     .font(.system(size: 11, weight: .bold))
                     .buttonStyle(.plain)
                     .foregroundStyle(.red.opacity(0.8))
                 }
             } else if isPaired {
-                // Paired but Offline State
                 VStack(alignment: .leading, spacing: 6) {
                     Spacer(minLength: 8)
                     Text(slot?.name ?? "Saved Device")
@@ -245,13 +239,13 @@ public struct HardwareSettingsSheet: View {
                     Spacer()
                     Button("Forget", role: .destructive) {
                         bleManager.forget(role: role)
+                        UserDefaults.standard.removeObject(forKey: "ble.device.\(role.rawValue)")
                     }
                     .font(.system(size: 11, weight: .bold))
                     .buttonStyle(.plain)
                     .foregroundStyle(.red.opacity(0.8))
                 }
             } else {
-                // Unpaired State
                 VStack(spacing: 8) {
                     Spacer(minLength: 12)
                     Text("No \(role.rawValue) Paired")
@@ -349,6 +343,7 @@ public struct HardwareSettingsSheet: View {
             
             Button("Connect") {
                 bleManager.select(device: device)
+                UserDefaults.standard.set(device.id.uuidString, forKey: "ble.device.\(device.role.rawValue)")
             }
             .buttonStyle(.bordered)
             .controlSize(.small)

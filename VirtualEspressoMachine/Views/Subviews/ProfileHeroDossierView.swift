@@ -47,7 +47,6 @@ public struct ProfileHeroDossierView: View {
             
             // LAYER 2: Interactive Content
             VStack {
-                // Top: Header (Cleaned up, no settings cog)
                 HStack(alignment: .top) {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(profile.name)
@@ -144,22 +143,23 @@ public struct ProfileHeroDossierView: View {
     }
     
     private func specCard(icon: String, title: String, val: String) -> some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 8) {
             Image(systemName: icon)
-                .font(.system(size: 10))
-                .foregroundStyle(accentColor)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(.white.opacity(0.9))
+            
             VStack(alignment: .leading, spacing: 1) {
                 Text(title.uppercased())
-                    .font(.system(size: 7, weight: .heavy, design: .monospaced))
-                    .foregroundStyle(.tertiary)
+                    .font(.system(size: 8, weight: .heavy, design: .monospaced))
+                    .foregroundStyle(.secondary)
                 Text(val)
-                    .font(.system(size: 12, weight: .bold, design: .monospaced))
-                    .foregroundStyle(.primary)
+                    .font(.system(size: 13, weight: .bold, design: .monospaced))
+                    .foregroundStyle(.white)
             }
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 6)
-        .background(Color.white.opacity(0.04))
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(Color.white.opacity(0.06))
         .cornerRadius(8)
     }
 }
