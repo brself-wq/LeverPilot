@@ -89,23 +89,23 @@ struct VirtualEspressoMachineApp: App {
                     .transition(.opacity)
                     .zIndex(10)
                 }
-            }
-            // 3. SHOT RECORD / SCORECARD LAYER
-            .sheet(item: $completedRecordForDebrief) { shotRecord in
-                ShotRecordView(
-                    record: shotRecord,
-                    onSave: { updatedRecord in
-                        do {
-                            let savedURL = try scenarioStore.recordCompletedShot(updatedRecord)
-                            print("💾 [PERSISTENCE SUCCESS] Wrote ShotRecord to disk at: \(savedURL)")
-                        } catch {
-                            print("❌ [PERSISTENCE ERROR] Failed to save ShotRecord: \(error)")
+                
+                // 3. POST-SHOT LAYER: Full-Screen Shot Record / History
+                if let shotRecord = completedRecordForDebrief {
+                    ShotRecordView(
+                        record: shotRecord,
+                        onSave: { updatedRecord in
+                            try? scenarioStore.recordCompletedShot(updatedRecord)
+                        },
+                        onDismiss: {
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                completedRecordForDebrief = nil
+                            }
                         }
-                    },
-                    onDismiss: {
-                        completedRecordForDebrief = nil
-                    }
-                )
+                    )
+                    .transition(.opacity)
+                    .zIndex(20)
+                }
             }
             .preferredColorScheme(.dark)
         }

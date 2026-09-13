@@ -19,10 +19,6 @@ public struct ProfileVariableOverridesView: View {
     // Ephemeral Profile Variables mapped by variable key
     @State private var variableValues: [String: Double]
     
-    private var accentColor: Color {
-        Color(hex: originalProfile.display?.accentColor)
-    }
-    
     private var hasChanges: Bool {
         if abs(targetYield - originalProfile.finalWeight) > 0.05 { return true }
         if abs(targetTemperature - originalProfile.temperature) > 0.05 { return true }
@@ -73,7 +69,7 @@ public struct ProfileVariableOverridesView: View {
                     HStack(spacing: 8) {
                         Image(systemName: "info.circle.fill")
                             .font(.system(size: 12))
-                            .foregroundStyle(accentColor)
+                            .foregroundStyle(.secondary)
                         Text("Overrides apply only to this shot session. Recipe on disk remains untouched.")
                             .font(.system(size: 11))
                             .foregroundStyle(.secondary)
@@ -152,7 +148,6 @@ public struct ProfileVariableOverridesView: View {
                     value: $doseWeight,
                     step: 0.5,
                     range: 7.0...30.0,
-                    accentColor: accentColor,
                     subtitle: "Reference ground coffee dose in portafilter"
                 )
                 
@@ -164,7 +159,6 @@ public struct ProfileVariableOverridesView: View {
                     value: $targetYield,
                     step: 0.5,
                     range: 10.0...120.0,
-                    accentColor: accentColor,
                     subtitle: String(format: "Ratio 1:%.1f (based on %.1fg dose)", targetYield / max(1.0, doseWeight), doseWeight)
                 )
                 
@@ -176,7 +170,6 @@ public struct ProfileVariableOverridesView: View {
                     value: $targetTemperature,
                     step: 1.0,
                     range: 75.0...100.0,
-                    accentColor: accentColor,
                     subtitle: "Machine kettle / chamber water temperature"
                 )
             }
@@ -194,7 +187,7 @@ public struct ProfileVariableOverridesView: View {
                 Spacer()
                 Text("\(originalProfile.variables.count) VARIABLES")
                     .font(.system(size: 9, weight: .bold, design: .monospaced))
-                    .foregroundStyle(accentColor)
+                    .foregroundStyle(.secondary)
             }
             
             VStack(spacing: 10) {
@@ -202,8 +195,7 @@ public struct ProfileVariableOverridesView: View {
                     if let binding = binding(for: variable.key) {
                         VariableRowControl(
                             variable: variable,
-                            value: binding,
-                            accentColor: accentColor
+                            value: binding
                         )
                     }
                 }
@@ -235,7 +227,7 @@ public struct ProfileVariableOverridesView: View {
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.regular)
-            .tint(accentColor)
+            .tint(.blue)
         }
     }
     
@@ -286,7 +278,6 @@ private struct TargetRowStepper: View {
     @Binding var value: Double
     let step: Double
     let range: ClosedRange<Double>
-    let accentColor: Color
     let subtitle: String
     
     var body: some View {
@@ -294,7 +285,7 @@ private struct TargetRowStepper: View {
             HStack(spacing: 10) {
                 Image(systemName: icon)
                     .font(.system(size: 13))
-                    .foregroundStyle(accentColor)
+                    .foregroundStyle(.secondary)
                     .frame(width: 22)
                 
                 VStack(alignment: .leading, spacing: 2) {
@@ -322,8 +313,7 @@ private struct TargetRowStepper: View {
                 EditableNumericField(
                     value: $value,
                     step: step,
-                    range: range,
-                    accentColor: .white
+                    range: range
                 )
                 
                 Text(unit)
@@ -370,7 +360,6 @@ private struct TargetRowStepper: View {
 private struct VariableRowControl: View {
     let variable: Variable
     @Binding var value: Double
-    let accentColor: Color
     
     private var config: (step: Double, range: ClosedRange<Double>, unit: String) {
         switch variable.type {
@@ -410,8 +399,7 @@ private struct VariableRowControl: View {
                     EditableNumericField(
                         value: $value,
                         step: config.step,
-                        range: config.range,
-                        accentColor: accentColor
+                        range: config.range
                     )
                     
                     Text(config.unit)
@@ -431,7 +419,7 @@ private struct VariableRowControl: View {
             }
             
             Slider(value: $value, in: config.range, step: config.step)
-                .tint(accentColor)
+                .tint(.white.opacity(0.8))
                 .controlSize(.small)
         }
         .padding(12)
@@ -464,13 +452,12 @@ private struct EditableNumericField: View {
     @Binding var value: Double
     let step: Double
     let range: ClosedRange<Double>
-    let accentColor: Color
     
     @State private var textInput: String = ""
     @FocusState private var isFocused: Bool
     
     private var borderStrokeColor: Color {
-        isFocused ? accentColor.opacity(0.8) : Color.white.opacity(0.1)
+        isFocused ? Color.white.opacity(0.5) : Color.white.opacity(0.1)
     }
     
     private var borderStrokeWidth: CGFloat {
@@ -485,7 +472,7 @@ private struct EditableNumericField: View {
         let field = TextField("", text: $textInput)
             .multilineTextAlignment(TextAlignment.center)
             .font(Font.system(size: 13, weight: .bold, design: .monospaced))
-            .foregroundStyle(accentColor)
+            .foregroundStyle(.white)
             .frame(minWidth: 46, maxWidth: 58)
             .padding(.horizontal, 4)
             .padding(.vertical, 3)

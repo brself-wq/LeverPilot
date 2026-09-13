@@ -68,22 +68,22 @@ public struct RotaryEncoderDeck: View {
                 
                 // Rotating Notch Position Indicator
                 Circle()
-                    .fill(accentColor)
+                    .fill(Color.white.opacity(0.85))
                     .frame(width: 7, height: 7)
                     .offset(y: -38)
                     .rotationEffect(.degrees(knobAngle))
                 
-                // Pure Hardware Center Push Button (NO TEXT)
+                // Pure Hardware Center Push Button (Neutral / High Contrast)
                 Button(action: onPushCenter) {
                     ZStack {
                         Circle()
-                            .fill(accentColor.opacity(0.2))
+                            .fill(Color.white.opacity(0.08))
                         Circle()
-                            .stroke(accentColor.opacity(0.7), lineWidth: 2)
+                            .stroke(Color.white.opacity(0.25), lineWidth: 1.5)
                             .frame(width: 52, height: 52)
                         Image(systemName: "power")
                             .font(.system(size: 18, weight: .black))
-                            .foregroundStyle(accentColor)
+                            .foregroundStyle(isDisabled ? Color.secondary : Color.white)
                     }
                     .frame(width: 60, height: 60)
                 }

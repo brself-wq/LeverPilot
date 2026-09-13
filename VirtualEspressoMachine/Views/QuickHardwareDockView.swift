@@ -58,16 +58,6 @@ public struct QuickHardwareDockView: View {
                 Text(String(format: "%.1fg", w))
                     .font(.system(size: 11, weight: .bold, design: .monospaced))
                     .foregroundStyle(.white)
-                
-                Button("TARE") {
-                    bleManager.tareScale()
-                }
-                .font(.system(size: 8, weight: .heavy, design: .monospaced))
-                .padding(.horizontal, 5)
-                .padding(.vertical, 2)
-                .background(Color.white.opacity(0.15))
-                .cornerRadius(4)
-                .buttonStyle(.plain)
             } else {
                 Text("NO SCALE")
                     .font(.system(size: 9, weight: .bold, design: .monospaced))

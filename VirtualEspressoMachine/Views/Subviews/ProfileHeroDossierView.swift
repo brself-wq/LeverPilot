@@ -92,7 +92,7 @@ public struct ProfileHeroDossierView: View {
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(.bordered)
-                    .tint(accentColor)
+                    .tint(.white.opacity(0.85))
                 }
             }
         }
