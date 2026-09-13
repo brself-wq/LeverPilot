@@ -273,7 +273,7 @@ public struct ShotRecordView: View {
             Button(action: copyVisualizerJSON) {
                 HStack(spacing: 6) {
                     Image(systemName: "doc.on.doc.fill")
-                    Text("Copy Visualizer JSON")
+                    Text("Export Beanconqueror JSON")
                 }
                 .font(.system(size: 12, weight: .bold))
                 .padding(.horizontal, 16)
