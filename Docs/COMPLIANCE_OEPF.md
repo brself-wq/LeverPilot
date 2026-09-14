@@ -6,7 +6,7 @@
 | OEPF Schema Field | Swift Domain Type | Parsing & Validation Behavior |
 | :--- | :--- | :--- |
 | `temperature` | `Double` | Setpoint water temperature in °C. |
-| `final_weight` | `Double` | Target cup yield in grams. Owned by Shot Coordinator supervisor. |
+| `final_weight` | `Double` | Target cup yield in grams. Supervised by Shot Coordinator. |
 | `variables` | `[Variable]` | Injected parameters referenced via `$variable_key`. Resolved before shot start. |
 | `stages[].dynamics.points` | `[Point]` | Normalized to `(x, y)` tuples. Subscripted matching TypeScript `[0], [1]`. |
 | `stages[].dynamics.over` | `DynamicsInterpolationOverType` | `.time`, `.weight`, `.pistonPosition`. |
@@ -36,6 +36,11 @@
   - `relative: true`: Evaluates against stage-local delta values ($t - t_0$ for time, $w - w_0$ for weight).
   - `relative: false` (Default): Evaluates against absolute total elapsed shot time ($t_{\text{shot}}$) or cumulative scale yield.
 * **Time Trigger Hazard**: Absolute time triggers (`relative: false`) measure from extraction initiation ($t = 0.0\text{s}$, valve close / auto-start trip). If an absolute time trigger is set shorter than the elapsed time of preceding stages, the stage exits immediately (0.0s duration). Recipe authors are advised to explicitly set `relative: true` for stage durations (e.g. blooms, soaks).
+
+### E. Profile Completion vs. Physical Extraction Lifetime
+* **OEPF Assumption**: Profile completion inherently halts physical machine flow (motor retracts).
+* **Flair 58 Lever Deviation**: On a manual lever, the human barista controls the hydraulic piston. Physical extraction may conclude *before* all profile stages complete (early blonde / channel cut) or *after* all stages have expired (lingering lever pull).
+* **Resolution**: Profile stage completion advances the digital twin's guidance state, but macro extraction termination is supervised by physical telemetry (the 2.0s dead-flow watchdog $\le 0.1\text{ g/s}$) and target weight cutoffs.
 
 ---
 

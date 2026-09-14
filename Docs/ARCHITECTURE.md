@@ -4,7 +4,7 @@
 **Target Platform:** iOS 17+, macOS 14+  
 **Language / Concurrency:** Swift 5.9 / Swift 6 (Strict Concurrency Checking)  
 **Status:** Accepted Architecture Blueprint  
-**Revision:** 1.1  
+**Revision:** 1.2  
 **Date:** September 2026  
 
 ---
@@ -33,7 +33,7 @@ The architecture enforces a strict unidirectional data flow. Higher layers obser
 ┌────────────────────────────────────┴────────────────────────────────────┐
 │ Layer 3: State & Orchestration │
 │ ShotCoordinator (Actor) │
-│ • Owns MachineState (.ready, .shotReady, .extracting, .shotEnded) │
+│ • Owns MachineState (.ready, .armed, .extracting, .shotEnded) │
 │ • Tracks activeStageIndex & StageBaselines │
 │ • Evaluates stage transitions & auto-start / auto-stop heuristics │
 │ • Routes frames to Pipeline A (Logger) and Pipeline B (Guidance) │
@@ -141,53 +141,59 @@ To prevent brief muscle tremors on a manual lever from prematurely tripping a de
 ## 5. Shot Lifecycle & Extraction Heuristics
 
 The `ShotCoordinator` supervises macro state transitions:
-[.ready] ──► Select Profile ──► [.profileSelected]
-│
-Arm System
-│
-▼
-[.shotReady]
-│
-Pressure >= 0.5 bar (Auto-Start)
-│
-▼
-[.extracting] ◄──┐
-│ │ Evaluate Stage Triggers
-Check Auto-Stop │ Advance Stage & Baseline
-or Weight Cutoff └───┘
-│
-▼
-[.shotEnded]
-│
-Clean / Reset
-│
-▼
-[.ready]
 code
 Code
-### 5.1. Auto-Start
-* When state is `.shotReady`, extraction begins (`.extracting`, $t = 0.0\text{s}$) when:
-  $$\text{Pressure} \ge 0.5\text{ bar}$$
-* Prevents scale vibrations, portafilter locking, or cup placement from triggering false extractions.
+[.idle] ──► Select Profile ──► [.armed] (BLE Tare & Timer Reset)
+                                      │
+                                      │ Pressure >= 0.5 bar (Auto-Start)
+                                      ▼
+                                 [.extracting] ◄──┐
+                                      │           │ Evaluate Stage Triggers
+                 Check Auto-Stop      │           │ Advance Stage & Baseline
+                 or Weight Cutoff     └───┬───────┘
+                                          ▼
+                                     [.shotEnded] (BLE Stop Timer)
+                                          │
+                                          │ Clean / Reset
+                                          ▼
+                                       [.idle]
+code
+Code
+### 5.1. Auto-Start (Pressure Exclusivity)
+* When state is `.armed`, extraction begins (`.extracting`, $t = 0.0\text{s}$) strictly when:
+  $$\text{Chamber Pressure} \ge 0.5\text{ bar}$$
+* Scale weight is intentionally excluded from auto-start evaluation. This prevents resting a cup on the scale, pouring kettle water into the brew chamber, or table vibrations from prematurely triggering the extraction clock.
 
 ### 5.2. First Drip Event
-* Recorded at the exact timestamp when:
+* Recorded as an informational metadata marker at the exact timestamp when:
   $$\text{Weight} \ge 0.5\text{g}$$
-* Displayed on the HUD to track pre-infusion puck saturation time.
+* Used to calculate and display pre-infusion puck saturation duration without modifying the main shot clock.
 
-### 5.3. Auto-Stop Safeguards
-To prevent premature termination during pre-infusion, auto-stop checks activate only when:
-1. $\text{Elapsed Time} \ge 5.0\text{s}$
-2. $\text{Cup Weight} \ge 5.0\text{g}$ OR $\text{Yield} \ge 1:1\text{ of dry dose}$
+### 5.3. Auto-Stop Safeguards (Beanconqueror Protocol)
+To prevent premature termination during long pre-infusion blooms or slow saturation, auto-stop checks activate only after passing dual time and yield preconditions:
+1. $\text{Elapsed Time} \ge 5.0\text{s}$, **AND**
+2. $\text{Cup Weight} \ge 5.0\text{g}$ OR $\text{Yield} \ge \text{Dose}$ (1:1 ratio)
 
 Once preconditions are satisfied, the shot transitions to `.shotEnded` if:
-$$\text{Smoothed Flow} \le 0.1\text{ g/s sustained for } 1.5\text{ seconds}$$
+$$\text{Smoothed Flow} \le 0.1\text{ g/s sustained continuously for } 2.0\text{ seconds}$$
 OR
 $$\text{Current Weight} \ge \text{Target Final Weight}$$
 
 ### 5.4. Post-Shot Tail Trimming
-Because confirmation of dead flow requires $1.5\text{s}$ of sustained low flow, the final recorded shot duration in `ShotRecord` subtracts this confirmation tail:
-$$\text{Duration}_{\text{final}} = \text{Duration}_{\text{actual}} - 1.5\text{s}$$
+Because confirmation of dead flow requires $2.0\text{s}$ of sustained low flow, the final recorded shot duration in `ShotRecord` subtracts this confirmation tail:
+$$\text{Duration}_{\text{final}} = \text{Duration}_{\text{actual}} - 2.0\text{s}$$
+
+### 5.5. Physical Lever Lifecycle vs. Profile Execution Boundary
+On automated robotic machines (like Meticulous), recipe profiles command actuators directly; reaching the final stage exit trigger physically stops the motor.
+
+On a manual lever (Flair 58), the profile acts as an in-flight flight director:
+1. **Early Terminations**: The barista may release the lever early (due to choking or channeling), which is cleanly caught by the 2.0s dead-flow watchdog or manual abort.
+2. **Extended Overrun Pulls**: If liquid is still flowing after the profile's final stage concludes, physical extraction continues. Future architecture will introduce an **Overrun / Free-Flow** state keeping the HUD active until the dead-flow watchdog or manual abort terminates the shot.
+
+### 5.6. Peripheral Hardware Timer Synchronization
+* On transition to `.armed`, the application issues hardware BLE commands to tare the scale and reset the onboard timer.
+* On transition to `.extracting`, the application triggers the scale's onboard timer start.
+* On transition to `.shotEnded` or `.idle` (abort), the scale's timer is stopped.
 
 ---
 
