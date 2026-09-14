@@ -19,6 +19,7 @@ public final class ShotCoordinator {
     /// The active in-memory profile driving the HUD & Engine (may contain session variable overrides)
     public private(set) var activeProfile: Profile? = nil
     public private(set) var previousProfile: Profile? = nil
+    public private(set) var activeDose: Double = 18.0
     
     // MARK: - Shot Telemetry Accumulation & Output
     public private(set) var completedShotRecord: ShotRecord? = nil
@@ -80,7 +81,7 @@ public final class ShotCoordinator {
     
     /// Arms a profile for execution.
     /// Can accept a canonical template from ProfileStore or a session copy modified by ProfileVariableOverridesView.
-    public func arm(with profile: Profile, store: ProfileStore? = nil) {
+    public func arm(with profile: Profile, dose: Double = 18.0, store: ProfileStore? = nil) {
         if let current = activeProfile, current.id != profile.id {
             self.previousProfile = current
         }
@@ -94,6 +95,7 @@ public final class ShotCoordinator {
         }
         
         self.activeProfile = executableProfile
+        self.activeDose = dose
         self.state = .armed
         resetExecutionState()
     }
@@ -139,6 +141,7 @@ public final class ShotCoordinator {
                 timestamp: Date(),
                 duration: elapsedTime,
                 finalWeight: actualWeight,
+                doseWeight: activeDose,
                 targetWeight: resolvedTargetWeight,
                 brewTemperature: profile.temperature,
                 samples: capturedSamples
@@ -180,8 +183,8 @@ public final class ShotCoordinator {
         let currentFlow = frame[.flow] ?? 0.0
         let currentWeight = frame[.weight] ?? 0.0
         
-        // 1. Auto-Start: Triggered by 0.5 bar lever pull, 0.5g drip, or external extraction state
-        if state == .armed && (currentPressure >= 0.5 || currentWeight >= 0.5 || frame.state == .extracting) {
+        // 1. Auto-Start: Triggered strictly by >= 0.5 bar lever pull or external extraction state
+        if state == .armed && (currentPressure >= 0.5 || frame.state == .extracting) {
             state = .extracting
         }
         
@@ -202,10 +205,13 @@ public final class ShotCoordinator {
         capturedSamples.append(sample)
         
         // 3. Auto-Stop Dead-Flow Watchdog
-        // Checks preconditions: weight >= 5.0g and flow dropped below cutoff
-        if currentWeight >= 5.0 && currentFlow <= machineConfig.autoStop.cutoffRule.threshold {
+        // Beanconqueror Heuristic: Requires elapsed time >= 5.0s AND (weight >= 5.0g OR weight >= dose)
+        let isPreconditionMet = frame.timestamp >= 5.0 && (currentWeight >= 5.0 || currentWeight >= activeDose)
+        
+        if isPreconditionMet && currentFlow <= machineConfig.autoStop.cutoffRule.threshold {
             if let start = deadFlowStartTime {
                 if (frame.timestamp - start) >= machineConfig.autoStop.sustainDuration {
+                    print("🛑 SHOT ENDED: BLE Dead-Flow Watchdog (Sustained dead flow for \(machineConfig.autoStop.sustainDuration)s at t=\(String(format: "%.1f", frame.timestamp))s, weight=\(String(format: "%.1f", currentWeight))g)")
                     endExtraction()
                     return
                 }
@@ -251,6 +257,7 @@ public final class ShotCoordinator {
                 }
             } else {
                 // Reached end of final stage
+                print("🏁 SHOT ENDED: Profile Reached Final Stage Exit Trigger (Stage \(activeStageIndex + 1)/\(profile.stages.count))")
                 endExtraction()
                 return
             }

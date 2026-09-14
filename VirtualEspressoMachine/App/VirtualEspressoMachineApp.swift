@@ -57,7 +57,9 @@ struct VirtualEspressoMachineApp: App {
                         actualWeight: coordinator.actualWeight
                     )
                     .onChange(of: coordinator.state) { _, newState in
-                        if newState == .shotEnded {
+                        if newState == .extracting {
+                            bleManager.startScaleTimer()
+                        } else if newState == .shotEnded {
                             concludeShot()
                         }
                     }
@@ -116,6 +118,10 @@ struct VirtualEspressoMachineApp: App {
     private func launchShot(with profile: Profile) {
         coordinator.arm(with: profile, store: profileStore)
         
+        // Zero physical scale and reset scale timer upon arming
+        bleManager.tareScale()
+        bleManager.resetScaleTimer()
+        
         let provider = BLETelemetryProvider(bleManager: bleManager)
         self.bleProvider = provider
         coordinator.attach(telemetryProvider: provider)
@@ -157,6 +163,7 @@ struct VirtualEspressoMachineApp: App {
     }
     
     private func concludeShot() {
+        bleManager.stopScaleTimer()
         playbackEngine.stop()
         bleProvider?.stop()
         coordinator.detachTelemetry()
@@ -170,6 +177,7 @@ struct VirtualEspressoMachineApp: App {
     }
     
     private func abortShot() {
+        bleManager.stopScaleTimer()
         playbackEngine.stop()
         bleProvider?.stop()
         coordinator.detachTelemetry()

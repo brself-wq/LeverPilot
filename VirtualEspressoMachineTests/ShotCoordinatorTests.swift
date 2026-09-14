@@ -87,7 +87,7 @@ final class ShotCoordinatorTests: XCTestCase {
         XCTAssertEqual(coordinator.guidanceFrame.stageName, "Pre-infusion")
     }
     
-    // MARK: - Auto-Start Transition
+    // MARK: - Auto-Start Transition (Pressure Exclusivity)
     
     func test_autoStart_transitionsFromArmedToExtractingOnPressure() {
         coordinator.selectProfile(twoStageProfile)
@@ -110,6 +110,100 @@ final class ShotCoordinatorTests: XCTestCase {
         )
         coordinator.processTelemetryFrame(pullFrame)
         XCTAssertEqual(coordinator.state, .extracting)
+    }
+    
+    func test_autoStart_doesNotTransitionOnWeightAlone() {
+        coordinator.selectProfile(twoStageProfile)
+        XCTAssertEqual(coordinator.state, .armed)
+        
+        // Rest cup on scale (150.0g) with zero pressure (0.0 bar) -> MUST remain armed
+        let cupOnScaleFrame = MachineFrame(
+            timestamp: 0.0,
+            state: .armed,
+            readings: [.pressure: 0.0, .flow: 0.0, .weight: 150.0]
+        )
+        coordinator.processTelemetryFrame(cupOnScaleFrame)
+        XCTAssertEqual(coordinator.state, .armed, "Resting a cup or scale weight must never trip extraction start")
+    }
+    
+    // MARK: - Auto-Stop Watchdog Precondition Tests (5s / 5g / 1:1)
+    
+    func test_autoStop_doesNotTripBeforeFiveSeconds_evenIfFlowIsZero() {
+        coordinator.selectProfile(twoStageProfile)
+        coordinator.startExtraction()
+        
+        // Weight is 6.0g (meets weight gate), flow is 0.0 mL/s, but timestamp is only 2.0s (< 5.0s)
+        let earlyDeadFlow = MachineFrame(
+            timestamp: 2.0,
+            state: .extracting,
+            readings: [.pressure: 3.0, .flow: 0.0, .weight: 6.0]
+        )
+        coordinator.processTelemetryFrame(earlyDeadFlow)
+        
+        // Timestamp 4.0s (sustain 2.0s expired, but still under 5.0s elapsed shot time)
+        let frameAt4 = MachineFrame(
+            timestamp: 4.0,
+            state: .extracting,
+            readings: [.pressure: 3.0, .flow: 0.0, .weight: 6.0]
+        )
+        coordinator.processTelemetryFrame(frameAt4)
+        
+        XCTAssertEqual(coordinator.state, .extracting, "Auto-stop must not trip before 5.0s elapsed shot time")
+    }
+    
+    func test_autoStop_doesNotTripWhenWeightUnderFiveGrams_evenAfterFiveSeconds() {
+        coordinator.selectProfile(twoStageProfile)
+        coordinator.startExtraction()
+        
+        // Stalled pre-infusion: 8.0s elapsed, flow 0.0 mL/s, but only 0.4g in cup (< 5.0g)
+        let stallFrame1 = MachineFrame(
+            timestamp: 8.0,
+            state: .extracting,
+            readings: [.pressure: 2.5, .flow: 0.0, .weight: 0.4]
+        )
+        coordinator.processTelemetryFrame(stallFrame1)
+        
+        // Still stalled at 10.5s
+        let stallFrame2 = MachineFrame(
+            timestamp: 10.5,
+            state: .extracting,
+            readings: [.pressure: 2.5, .flow: 0.0, .weight: 0.4]
+        )
+        coordinator.processTelemetryFrame(stallFrame2)
+        
+        XCTAssertEqual(coordinator.state, .extracting, "Auto-stop must not kill stalled pre-infusions under 5.0g yield")
+    }
+    
+    func test_autoStop_tripsWhenPreconditionsMetAndFlowDeadForSustainDuration() {
+        coordinator.selectProfile(twoStageProfile)
+        coordinator.startExtraction()
+        
+        // Preconditions met at t=6.0s: time >= 5.0s, weight = 7.0g >= 5.0g, flow = 0.05 <= 0.15 cutoff
+        let deadStart = MachineFrame(
+            timestamp: 6.0,
+            state: .extracting,
+            readings: [.pressure: 1.0, .flow: 0.05, .weight: 7.0]
+        )
+        coordinator.processTelemetryFrame(deadStart)
+        XCTAssertEqual(coordinator.state, .extracting)
+        
+        // 1.0s later (t=7.0s): still within sustain duration (2.0s)
+        let deadMid = MachineFrame(
+            timestamp: 7.0,
+            state: .extracting,
+            readings: [.pressure: 0.5, .flow: 0.05, .weight: 7.0]
+        )
+        coordinator.processTelemetryFrame(deadMid)
+        XCTAssertEqual(coordinator.state, .extracting)
+        
+        // 2.0s later (t=8.0s >= 6.0 + 2.0s sustain): auto-stop trips!
+        let deadConfirmed = MachineFrame(
+            timestamp: 8.0,
+            state: .extracting,
+            readings: [.pressure: 0.0, .flow: 0.0, .weight: 7.0]
+        )
+        coordinator.processTelemetryFrame(deadConfirmed)
+        XCTAssertEqual(coordinator.state, .shotEnded, "Auto-stop must end shot after sustained dead flow once preconditions are met")
     }
     
     // MARK: - Multi-Stage Progression & End of Shot

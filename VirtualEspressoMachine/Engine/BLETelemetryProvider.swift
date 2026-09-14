@@ -64,9 +64,9 @@ public final class BLETelemetryProvider: TelemetryProvider, @unchecked Sendable 
                 rawWeight += self.injectedWeightOffset
                 #endif
                 
-                // 2. Evaluate Extraction Threshold (Trip to t=0)
+                // 2. Evaluate Extraction Threshold (Trip exclusively on Pressure >= 0.5 bar)
                 if !self.isExtracting {
-                    if rawPressure >= 0.5 || rawWeight >= 0.5 {
+                    if rawPressure >= 0.5 {
                         self.isExtracting = true
                         self.extractionStartTime = now
                     }
