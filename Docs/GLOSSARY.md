@@ -13,3 +13,5 @@
 * **Deadband**: An intentional tolerance zone around a target setpoint where the system considers the pull "ON TARGET", preventing visual indicator jitter.
 * **Guardrail**: A safety limit capping pressure or flow. Exceeding a guardrail trips an audio/visual alarm.
 * **Tail Trimming**: Subtracting the post-extraction dead-flow confirmation window (e.g. 1.5s) from the final archived duration in `ShotRecord`.
+* **Stage-Relative Exit Trigger (`relative: true`)**: A condition evaluated strictly against the local delta accumulated since entering the current stage (e.g. elapsed stage time $t - t_0$, or stage yield $w - w_0$).
+* **Absolute Shot Exit Trigger (`relative: false`)**: A condition evaluated against the cumulative extraction timeline or aggregate scale yield since shot start ($t = 0.0\text{s}$). Default behavior when `relative` is omitted in the OEPF schema.

@@ -67,14 +67,14 @@ final class ProfileExecutionEngineTests: XCTestCase {
         )
     }
     
-    // MARK: - Baseline Parity Tests
+    // MARK: - Baseline Parity & Relative vs Absolute Time
     
-    /// Verifies local time stage duration (frame.timestamp - baseline.startTime) does not prematurely cut off.
-    func test_bloomStage_doesNotPrematurelyCutoffAtAbsoluteShotTime() {
+    /// Verifies local time stage duration (frame.timestamp - baseline.startTime) when relative == true.
+    func test_bloomStage_doesNotPrematurelyCutoffAtAbsoluteShotTime_whenRelativeTrue() {
         let bloomStage = makeStage(
             name: "Bloom",
             type: .flow,
-            triggers: [ExitTrigger(type: .time, value: .value(5.0))]
+            triggers: [ExitTrigger(type: .time, value: .value(5.0), relative: true)]
         )
         // Stage began at 10.0s
         let baseline = StageBaseline(startTime: 10.0, startWeight: 2.0)
@@ -102,6 +102,115 @@ final class ProfileExecutionEngineTests: XCTestCase {
             finalWeightTarget: 36.0
         )
         XCTAssertTrue(result15.shouldAdvanceStage, "Bloom should advance once local time reaches 5.0s")
+    }
+    
+    /// Verifies time trigger with relative == true measures local stage time.
+    func test_timeTrigger_whenRelativeTrue_measuresFromStageEntryBaseline() {
+        let stage = makeStage(
+            type: .flow,
+            triggers: [ExitTrigger(type: .time, value: .value(5.0), relative: true)]
+        )
+        // Stage entered at shot timestamp 12.0s
+        let baseline = StageBaseline(startTime: 12.0, startWeight: 4.0)
+        
+        // Shot elapsed is 15.0s -> stage local time is 3.0s (3.0 / 5.0 = 60%)
+        let frame = makeFrame(timestamp: 15.0)
+        let result = engine.evaluate(
+            stage: stage,
+            stageIndex: 1,
+            totalStages: 3,
+            frame: frame,
+            baseline: baseline,
+            finalWeightTarget: 36.0
+        )
+        XCTAssertFalse(result.shouldAdvanceStage)
+        XCTAssertEqual(result.exitTriggerItems.first!.progress, 0.6, accuracy: 0.001)
+        XCTAssertEqual(result.exitTriggerItems.first?.currentString, "3.0s")
+        
+        // Shot elapsed is 17.0s -> stage local time is 5.0s -> Hit!
+        let frameHit = makeFrame(timestamp: 17.0)
+        let resultHit = engine.evaluate(
+            stage: stage,
+            stageIndex: 1,
+            totalStages: 3,
+            frame: frameHit,
+            baseline: baseline,
+            finalWeightTarget: 36.0
+        )
+        XCTAssertTrue(resultHit.shouldAdvanceStage)
+        XCTAssertEqual(resultHit.exitTriggerItems.first!.progress, 1.0)
+    }
+    
+    /// Verifies that when relative == false, time triggers evaluate against total elapsed shot timestamp.
+    func test_timeTrigger_whenRelativeFalse_measuresFromTotalShotTimestamp() {
+        let stage = makeStage(
+            type: .flow,
+            triggers: [ExitTrigger(type: .time, value: .value(20.0), relative: false)]
+        )
+        // Stage entered at shot timestamp 12.0s; target is 20.0s total shot time
+        let baseline = StageBaseline(startTime: 12.0, startWeight: 4.0)
+        
+        // At 16.0s total shot time (local 4.0s), progress is (16 - 12) / (20 - 12) = 4 / 8 = 50%
+        let frameMid = makeFrame(timestamp: 16.0)
+        let resultMid = engine.evaluate(
+            stage: stage,
+            stageIndex: 1,
+            totalStages: 3,
+            frame: frameMid,
+            baseline: baseline,
+            finalWeightTarget: 36.0
+        )
+        XCTAssertFalse(resultMid.shouldAdvanceStage)
+        XCTAssertEqual(resultMid.exitTriggerItems.first!.progress, 0.5, accuracy: 0.001)
+        XCTAssertEqual(resultMid.exitTriggerItems.first?.currentString, "16.0s")
+        XCTAssertEqual(resultMid.exitTriggerItems.first?.targetString, "20.0s")
+        
+        // At 20.0s total shot time -> Hit!
+        let frameHit = makeFrame(timestamp: 20.0)
+        let resultHit = engine.evaluate(
+            stage: stage,
+            stageIndex: 1,
+            totalStages: 3,
+            frame: frameHit,
+            baseline: baseline,
+            finalWeightTarget: 36.0
+        )
+        XCTAssertTrue(resultHit.shouldAdvanceStage)
+        XCTAssertEqual(resultHit.exitTriggerItems.first!.progress, 1.0)
+    }
+    
+    /// Verifies that an omitted relative flag normalizes to false (absolute shot time) per OEPF spec.
+    func test_timeTrigger_omittedRelativeDefaultsToFalse() {
+        let stage = makeStage(
+            type: .pressure,
+            triggers: [ExitTrigger(type: .time, value: .value(25.0))] // relative omitted -> false
+        )
+        let baseline = StageBaseline(startTime: 15.0, startWeight: 10.0)
+        
+        // At t = 20.0s, total shot time is 20.0s < 25.0s -> pending
+        let frameMid = makeFrame(timestamp: 20.0)
+        let resultMid = engine.evaluate(
+            stage: stage,
+            stageIndex: 1,
+            totalStages: 2,
+            frame: frameMid,
+            baseline: baseline,
+            finalWeightTarget: 36.0
+        )
+        XCTAssertFalse(resultMid.shouldAdvanceStage)
+        XCTAssertEqual(resultMid.exitTriggerItems.first!.currentString, "20.0s")
+        
+        // At t = 25.0s, total shot time hits 25.0s -> advances
+        let frameHit = makeFrame(timestamp: 25.0)
+        let resultHit = engine.evaluate(
+            stage: stage,
+            stageIndex: 1,
+            totalStages: 2,
+            frame: frameHit,
+            baseline: baseline,
+            finalWeightTarget: 36.0
+        )
+        XCTAssertTrue(resultHit.shouldAdvanceStage)
     }
     
     /// Verifies weight cutoff triggers against target cup yield.
@@ -243,50 +352,13 @@ final class ProfileExecutionEngineTests: XCTestCase {
         XCTAssertEqual(result2.exitTriggerItems.first!.progress, 1.0)
     }
     
-    /// Verifies Meticulous firmware parity: time triggers measure local stage time regardless of shot timestamp.
-    func test_timeTrigger_measuresFromStageEntryBaseline() {
-        let stage = makeStage(
-            type: .flow,
-            triggers: [ExitTrigger(type: .time, value: .value(5.0))]
-        )
-        // Stage entered at shot timestamp 12.0s
-        let baseline = StageBaseline(startTime: 12.0, startWeight: 4.0)
-        
-        // Shot elapsed is 15.0s -> stage local time is 3.0s (3.0 / 5.0 = 60%)
-        let frame = makeFrame(timestamp: 15.0)
-        let result = engine.evaluate(
-            stage: stage,
-            stageIndex: 1,
-            totalStages: 3,
-            frame: frame,
-            baseline: baseline,
-            finalWeightTarget: 36.0
-        )
-        XCTAssertFalse(result.shouldAdvanceStage)
-        XCTAssertEqual(result.exitTriggerItems.first!.progress, 0.6, accuracy: 0.001)
-        XCTAssertEqual(result.exitTriggerItems.first?.currentString, "3.0s")
-        
-        // Shot elapsed is 17.0s -> stage local time is 5.0s -> Hit!
-        let frameHit = makeFrame(timestamp: 17.0)
-        let resultHit = engine.evaluate(
-            stage: stage,
-            stageIndex: 1,
-            totalStages: 3,
-            frame: frameHit,
-            baseline: baseline,
-            finalWeightTarget: 36.0
-        )
-        XCTAssertTrue(resultHit.shouldAdvanceStage)
-        XCTAssertEqual(resultHit.exitTriggerItems.first!.progress, 1.0)
-    }
-    
     /// Verifies the multi-trigger race condition: whichever trigger has the highest progress is flagged `isLeading`.
     func test_multiTriggerRace_leadingTriggerFlagsIsLeading() {
         let stage = makeStage(
             type: .pressure,
             triggers: [
-                ExitTrigger(type: .time, value: .value(10.0)),
-                ExitTrigger(type: .weight, value: .value(20.0))
+                ExitTrigger(type: .time, value: .value(10.0), relative: true),
+                ExitTrigger(type: .weight, value: .value(20.0), relative: true)
             ]
         )
         let baseline = StageBaseline(startTime: 0.0, startWeight: 0.0)

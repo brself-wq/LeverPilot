@@ -17,7 +17,7 @@ final class ShotCoordinatorTests: XCTestCase {
         super.setUp()
         coordinator = ShotCoordinator()
         
-        // Stage 0: Pre-infusion (Exits after 2.0 seconds)
+        // Stage 0: Pre-infusion (Exits after 2.0 seconds stage duration)
         let preinfusion = Stage(
             name: "Pre-infusion",
             key: "preinfusion",
@@ -28,14 +28,14 @@ final class ShotCoordinatorTests: XCTestCase {
                 interpolation: .linear
             ),
             exitTriggers: [
-                ExitTrigger(type: .time, value: 2.0, comparison: .greaterThanOrEqual)
+                ExitTrigger(type: .time, value: 2.0, relative: true, comparison: .greaterThanOrEqual)
             ],
             limits: [
                 Limit(type: .pressure, value: 4.0)
             ]
         )
         
-        // Stage 1: Extraction (Exits when weight >= 10.0g)
+        // Stage 1: Extraction (Exits when total cup weight >= 10.0g)
         let extraction = Stage(
             name: "Extraction",
             key: "extraction",
@@ -46,7 +46,7 @@ final class ShotCoordinatorTests: XCTestCase {
                 interpolation: .linear
             ),
             exitTriggers: [
-                ExitTrigger(type: .weight, value: 10.0, comparison: .greaterThanOrEqual)
+                ExitTrigger(type: .weight, value: 10.0, relative: false, comparison: .greaterThanOrEqual)
             ]
         )
         
@@ -118,7 +118,7 @@ final class ShotCoordinatorTests: XCTestCase {
         coordinator.selectProfile(twoStageProfile)
         coordinator.startExtraction()
         
-        // 1. Tick during Pre-infusion (t = 1.0s, trigger is 2.0s)
+        // 1. Tick during Pre-infusion (t = 1.0s, trigger is 2.0s local)
         let stage0Frame = MachineFrame(
             timestamp: 1.0,
             state: .extracting,
@@ -128,7 +128,7 @@ final class ShotCoordinatorTests: XCTestCase {
         XCTAssertEqual(coordinator.activeStageIndex, 0)
         XCTAssertEqual(coordinator.guidanceFrame.stageName, "Pre-infusion")
         
-        // 2. Tick crossing Pre-infusion trigger (t = 2.0s >= 2.0s)
+        // 2. Tick crossing Pre-infusion trigger (t = 2.0s >= 2.0s local)
         let advanceFrame = MachineFrame(
             timestamp: 2.0,
             state: .extracting,
@@ -144,7 +144,7 @@ final class ShotCoordinatorTests: XCTestCase {
         XCTAssertEqual(coordinator.stagePills[0].state, .completed)
         XCTAssertEqual(coordinator.stagePills[1].state, .active)
         
-        // 3. Tick during Extraction (weight = 5.0g, trigger is 10.0g)
+        // 3. Tick during Extraction (weight = 5.0g, trigger is 10.0g absolute)
         let stage1Frame = MachineFrame(
             timestamp: 4.0,
             state: .extracting,
@@ -154,7 +154,7 @@ final class ShotCoordinatorTests: XCTestCase {
         XCTAssertEqual(coordinator.activeStageIndex, 1)
         XCTAssertEqual(coordinator.state, .extracting)
         
-        // 4. Tick crossing Extraction trigger (weight = 10.0g >= 10.0g)
+        // 4. Tick crossing Extraction trigger (weight = 10.0g >= 10.0g absolute)
         let finalFrame = MachineFrame(
             timestamp: 7.0,
             state: .extracting,

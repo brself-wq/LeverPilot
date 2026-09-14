@@ -89,9 +89,21 @@ public nonisolated struct ProfileExecutionEngine: Sendable {
         case .pistonPosition: domainValue = frame[.pistonPosition] ?? 0.0
         }
         
-        // 4. Calculate Stage Horizon & Plan Curve (With Infinite Right Flatline Rule & Step Mode Support)
+        // 4. Calculate Stage Horizon & Plan Curve (Accounting for Relative vs Absolute Time Triggers)
         let maxKnotX = rawKnots.map(\.x).max() ?? 0.0
-        let timeTriggerVal = stage.exitTriggers?.first(where: { $0.type == .time })?.value.numericValue ?? 0.0
+        let timeTrigger = stage.exitTriggers?.first(where: { $0.type == .time })
+        let timeTriggerVal: Double
+        if let timeTrigger, let rawVal = timeTrigger.value.numericValue {
+            if timeTrigger.relative ?? false {
+                timeTriggerVal = rawVal
+            } else {
+                // Absolute shot time: remaining stage horizon is bounded by (target - baseline.startTime)
+                timeTriggerVal = max(0.0, rawVal - baseline.startTime)
+            }
+        } else {
+            timeTriggerVal = 0.0
+        }
+        
         let stageHorizon = max(maxKnotX, timeTriggerVal, 10.0, domainValue)
         let planCurve = generatePlanCurve(
             knots: rawKnots,
@@ -253,8 +265,13 @@ public nonisolated struct ProfileExecutionEngine: Sendable {
                     sensorKey = .time
                     icon = "clock.fill"
                     unit = "s"
-                    currentVal = localTime
-                    startVal = 0.0
+                    if isRelative {
+                        currentVal = localTime
+                        startVal = 0.0
+                    } else {
+                        currentVal = frame.timestamp
+                        startVal = baseline.startTime
+                    }
                     
                 case .weight:
                     sensorKey = .weight

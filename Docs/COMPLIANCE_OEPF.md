@@ -20,7 +20,7 @@
 
 ### A. Global `final_weight` as Supervisor Cutoff
 * **OEPF Ambiguity**: Some profile implementations treat `final_weight` as an implicit exit trigger inside every stage.
-* **Engine Decision**: In LeverStudio, `ProfileExecutionEngine` does *not* trip `shouldAdvanceStage` when `final_weight` is reached if explicit stage exit triggers are pending. Doing so on a manual lever machine would advance a preinfusion stage into a 9-bar infusion stage into an already full cup. Shot completion is strictly supervised by the `ShotCoordinator`.
+* **Engine Decision**: In LeverStudio / BaristaPilot, `ProfileExecutionEngine` does *not* trip `shouldAdvanceStage` when `final_weight` is reached if explicit stage exit triggers are pending. Doing so on a manual lever machine would advance a pre-infusion stage into a 9-bar infusion stage into an already full cup. Shot completion is strictly supervised by the `ShotCoordinator`.
 
 ### B. Unified Decay Trigger Progress Mapping
 * For descending exit triggers (`comparison == "<="`), progress is calculated against the stage entry baseline:
@@ -29,3 +29,28 @@
 
 ### C. Overrun Flatline Rule
 * If the domain variable ($x$) exceeds the maximum defined knot in a stage, the target setpoint ($y$) clamps to the final knot's value indefinitely until an exit trigger condition is met.
+
+### D. Exit Trigger `relative` Defaulting & Semantic Rules
+* **Schema Normalization**: In accordance with the OEPF schema and developer normalization models, if `relative` is omitted from an exit trigger definition, it defaults to `false`.
+* **Semantic Behavior**:
+  - `relative: true`: Evaluates against stage-local delta values ($t - t_0$ for time, $w - w_0$ for weight).
+  - `relative: false` (Default): Evaluates against absolute total elapsed shot time ($t_{\text{shot}}$) or cumulative scale yield.
+* **Time Trigger Hazard**: Absolute time triggers (`relative: false`) measure from extraction initiation ($t = 0.0\text{s}$, valve close / auto-start trip). If an absolute time trigger is set shorter than the elapsed time of preceding stages, the stage exits immediately (0.0s duration). Recipe authors are advised to explicitly set `relative: true` for stage durations (e.g. blooms, soaks).
+
+---
+
+## 3. Handling Incompatibilities in Machine Capabilities (OEPF §4 Compliance)
+
+The Flair 58 is a manual, human-powered lever platform equipped with Bluetooth pressure and scale transducers. It lacks a motorized piston actuator and a linear piston displacement sensor. BaristaPilot implements OEPF §4 (*Handling Incompatibilities in Machine Capabilities*) as follows:
+
+1. **`piston_position` Dynamics & Triggers**:
+   - **Approach**: Interpretation Fallback / Approximation.
+   - Manual levers do not possess a linear displacement transducer. Profiles configuring `dynamics.over = pistonPosition` or exit triggers on `piston_position` cannot be directly measured.
+   - For MVP, BaristaPilot will display a pre-flight incompatibility warning when such a profile is selected, informing the user that piston position parameters cannot be monitored or driven.
+
+2. **`type = power` Stages**:
+   - **Approach**: Visual Operator Effort Guidance.
+   - Motor current control is mechanically inapplicable to manual levers. Power stages (0–100%) are rendered on the HUD as a suggested relative pulling effort guide for the human operator.
+
+3. **Pre-Flight Validation**:
+   - Profiles requiring capabilities unsupported by the manual lever hardware trigger non-blocking informational warnings in the pre-flight check, maintaining recipe portability without crashing the execution engine.

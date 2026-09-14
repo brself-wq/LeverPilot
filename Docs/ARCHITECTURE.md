@@ -4,7 +4,7 @@
 **Target Platform:** iOS 17+, macOS 14+  
 **Language / Concurrency:** Swift 5.9 / Swift 6 (Strict Concurrency Checking)  
 **Status:** Accepted Architecture Blueprint  
-**Revision:** 1.0  
+**Revision:** 1.1  
 **Date:** September 2026  
 
 ---
@@ -17,54 +17,54 @@ The application serves two distinct operational personas:
 1. **The In-Flight Barista Copilot (Live Mode)**: Real-time, low-latency HUD telemetry providing target steering curves, delta guidance cues, limit guardrails, and automated shot-lifecycle detection via live Bluetooth Low Energy (BLE) hardware.
 2. **The Roaster / Profile Studio (Workbench Mode)**: An offline sandbox environment enabling profile inspection (variable dependency mapping, stage tree decompilation, JSON validation) and shot simulation (scrubbing previous historical pulls or synthetic test fixtures across any recipe).
 
+In accordance with OEPF §4, unsupported motorized capabilities (such as motorized piston position or electrical power stages) utilize non-blocking visual approximation and pre-flight notices rather than synthetic emulation.
+
 ---
 
 ## 2. System Topology (The 5-Layer Stack)
 
 The architecture enforces a strict unidirectional data flow. Higher layers observe lower layers; lower layers have zero knowledge of higher layers.
-
-```
 ┌─────────────────────────────────────────────────────────────────────────┐
-│                       Layer 4: Presentation & UI                        │
-│   • BaristaHUDView         • StageDynamicsChartView  • LeftCockpitView  │
-│   • SimulatorControlDock   • ExitTriggersPanelView   • ProfileInspector │
+│ Layer 4: Presentation & UI │
+│ • BaristaHUDView • StageDynamicsChartView • LeftCockpitView │
+│ • SimulatorControlDock • ExitTriggersPanelView • ProfileInspector │
 └────────────────────────────────────▲────────────────────────────────────┘
-                                     │ Observes via @Observable / State
+│ Observes via @Observable / State
 ┌────────────────────────────────────┴────────────────────────────────────┐
-│                    Layer 3: State & Orchestration                       │
-│                        ShotCoordinator (Actor)                          │
-│   • Owns MachineState (.ready, .shotReady, .extracting, .shotEnded)     │
-│   • Tracks activeStageIndex & StageBaselines                            │
-│   • Evaluates stage transitions & auto-start / auto-stop heuristics     │
-│   • Routes frames to Pipeline A (Logger) and Pipeline B (Guidance)      │
+│ Layer 3: State & Orchestration │
+│ ShotCoordinator (Actor) │
+│ • Owns MachineState (.ready, .shotReady, .extracting, .shotEnded) │
+│ • Tracks activeStageIndex & StageBaselines │
+│ • Evaluates stage transitions & auto-start / auto-stop heuristics │
+│ • Routes frames to Pipeline A (Logger) and Pipeline B (Guidance) │
 └────────────────────────────────────▲────────────────────────────────────┘
-                                     │ Consumes AsyncStream<MachineFrame>
+│ Consumes AsyncStream<MachineFrame>
 ┌────────────────────────────────────┴────────────────────────────────────┐
-│                  Layer 2: Engine & Telemetry Bridges                    │
-│   ┌────────────────────────────────┐  ┌──────────────────────────────┐  │
-│   │     ProfileExecutionEngine     │  │      TelemetryProvider       │  │
-│   │   (Pure, Stateless Struct)     │  │      (Protocol Contract)     │  │
-│   │ • Trajectory interpolation     │  ├──────────────────────────────┤  │
-│   │ • Normalized trigger progress  │  │ BLETelemetryProvider (Live)  │  │
-│   │ • Limit guardrail checks       │  │ ReplayTelemetryProvider (Sim)│  │
-│   └────────────────────────────────┘  └──────────────────────────────┘  │
+│ Layer 2: Engine & Telemetry Bridges │
+│ ┌────────────────────────────────┐ ┌──────────────────────────────┐ │
+│ │ ProfileExecutionEngine │ │ TelemetryProvider │ │
+│ │ (Pure, Stateless Struct) │ │ (Protocol Contract) │ │
+│ │ • Trajectory interpolation │ ├──────────────────────────────┤ │
+│ │ • Normalized trigger progress │ │ BLETelemetryProvider (Live) │ │
+│ │ • Limit guardrail checks │ │ ReplayTelemetryProvider (Sim)│ │
+│ └────────────────────────────────┘ └──────────────────────────────┘ │
 └────────────────────────────────────▲────────────────────────────────────┘
-                                     │ Streams Hardware / Mock Telemetry
+│ Streams Hardware / Mock Telemetry
 ┌────────────────────────────────────┴────────────────────────────────────┐
-│                     Layer 1: Hardware & Transceivers                    │
-│   • EspressoBLEManager (CoreBluetooth central manager)                  │
-│   • BookooScaleDriver (GATT 0xFFE / weight streaming)                   │
-│   • BookooPressureDriver (GATT 0xFFF / pressure streaming)              │
-│   • PlaybackEngine (10 Hz scenario timeline replay)                     │
+│ Layer 1: Hardware & Transceivers │
+│ • EspressoBLEManager (CoreBluetooth central manager) │
+│ • BookooScaleDriver (GATT 0xFFE / weight streaming) │
+│ • BookooPressureDriver (GATT 0xFFF / pressure streaming) │
+│ • PlaybackEngine (10 Hz scenario timeline replay) │
 └────────────────────────────────────▲────────────────────────────────────┘
-                                     │ Validates & Conforms
+│ Validates & Conforms
 ┌────────────────────────────────────┴────────────────────────────────────┐
-│                     Layer 0: OEPF Domain & Contracts                    │
-│   • MeticulousProfile      • MachineFrame           • GuidanceFrame     │
-│   • ShotRecord             • SensorKey              • MachineConfig     │
+│ Layer 0: OEPF Domain & Contracts │
+│ • MeticulousProfile • MachineFrame • GuidanceFrame │
+│ • ShotRecord • SensorKey • MachineConfig │
 └─────────────────────────────────────────────────────────────────────────┘
-```
-
+code
+Code
 ---
 
 ## 3. Concurrency & Isolation Model (Swift 6)
@@ -141,32 +141,30 @@ To prevent brief muscle tremors on a manual lever from prematurely tripping a de
 ## 5. Shot Lifecycle & Extraction Heuristics
 
 The `ShotCoordinator` supervises macro state transitions:
-
-```
 [.ready] ──► Select Profile ──► [.profileSelected]
-                                      │
-                                  Arm System
-                                      │
-                                      ▼
-                                [.shotReady]
-                                      │
-                   Pressure >= 0.5 bar (Auto-Start)
-                                      │
-                                      ▼
-                                [.extracting] ◄──┐
-                                      │          │ Evaluate Stage Triggers
-                              Check Auto-Stop    │ Advance Stage & Baseline
-                              or Weight Cutoff   └───┘
-                                      │
-                                      ▼
-                                [.shotEnded]
-                                      │
-                                Clean / Reset
-                                      │
-                                      ▼
-                                  [.ready]
-```
-
+│
+Arm System
+│
+▼
+[.shotReady]
+│
+Pressure >= 0.5 bar (Auto-Start)
+│
+▼
+[.extracting] ◄──┐
+│ │ Evaluate Stage Triggers
+Check Auto-Stop │ Advance Stage & Baseline
+or Weight Cutoff └───┘
+│
+▼
+[.shotEnded]
+│
+Clean / Reset
+│
+▼
+[.ready]
+code
+Code
 ### 5.1. Auto-Start
 * When state is `.shotReady`, extraction begins (`.extracting`, $t = 0.0\text{s}$) when:
   $$\text{Pressure} \ge 0.5\text{ bar}$$
@@ -217,10 +215,19 @@ $$\text{Progress} = \text{clamp}\left(\frac{V_{\text{current}} - V_{\text{start}
 * **Ascending Trigger** (e.g. $2 \to 8\text{ bar}$): At $5\text{ bar} \implies (5 - 2) / (8 - 2) = 3 / 6 = \mathbf{50\%}$.
 * **Decaying Trigger** (e.g. $9 \to 4\text{ bar}$): At $6.5\text{ bar} \implies (6.5 - 9) / (4 - 9) = -2.5 / -5 = \mathbf{50\%}$.
 
-### 6.4. Relative Trigger Normalization
-When a trigger declares `relative: true`:
-$$\text{Local Value} = \max(0.0, \ V_{\text{actual}} - V_{\text{baseline}})$$
-This applies equally to relative weight ($w - w_0$), relative pressure ($p - p_0$), and relative flow ($f - f_0$).
+### 6.4. Relative vs. Absolute Trigger Normalization
+Exit triggers evaluate according to their `relative` flag (which defaults to `false` when omitted):
+
+1. **Relative Triggers (`relative: true`)**:
+   - **Time**: $t_{\text{local}} = \max(0.0, \ t_{\text{actual}} - t_{\text{baseline}})$.
+   - **Weight**: $w_{\text{local}} = \max(0.0, \ w_{\text{actual}} - w_{\text{baseline}})$.
+   - **Pressure / Flow**: Evaluated relative to stage entry baseline ($V_{\text{actual}} - V_{\text{baseline}}$).
+
+2. **Absolute Triggers (`relative: false`, default)**:
+   - **Time**: $t_{\text{shot}} = t_{\text{actual}}$ (Total extraction elapsed time since auto-start trip at $t = 0.0\text{s}$). Progress is mapped along the stage span:
+     $$\text{Progress} = \text{clamp}\left(\frac{t_{\text{actual}} - t_{\text{baseline}}}{t_{\text{target}} - t_{\text{baseline}}}, \ 0.0, \ 1.0\right)$$
+   - **Weight**: Evaluated against total accumulated cup weight ($w_{\text{actual}}$).
+   - **Pressure / Flow**: Evaluated against raw instantaneous gauge readings.
 
 ---
 
