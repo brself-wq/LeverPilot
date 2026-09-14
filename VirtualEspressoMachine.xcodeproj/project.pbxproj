@@ -23,6 +23,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		B54B756F3058A44E00437672 /* ADR-006-ConsoleNavigation.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "ADR-006-ConsoleNavigation.md"; sourceTree = "<group>"; };
 		B57F2C6C3052D2B1009DBA78 /* ADR-001-ProfileValueSemantics.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "ADR-001-ProfileValueSemantics.md"; sourceTree = "<group>"; };
 		B57F2C6D3052D2B1009DBA78 /* ADR-002-TelemetryStreaming.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "ADR-002-TelemetryStreaming.md"; sourceTree = "<group>"; };
 		B57F2C6E3052D2B1009DBA78 /* ADR-003-OEPFSpecCompliance.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "ADR-003-OEPFSpecCompliance.md"; sourceTree = "<group>"; };
@@ -94,6 +95,7 @@
 		B57F2C703052D2B1009DBA78 /* ADR */ = {
 			isa = PBXGroup;
 			children = (
+				B54B756F3058A44E00437672 /* ADR-006-ConsoleNavigation.md */,
 				B57F2C6C3052D2B1009DBA78 /* ADR-001-ProfileValueSemantics.md */,
 				B57F2C6D3052D2B1009DBA78 /* ADR-002-TelemetryStreaming.md */,
 				B57F2C6E3052D2B1009DBA78 /* ADR-003-OEPFSpecCompliance.md */,
