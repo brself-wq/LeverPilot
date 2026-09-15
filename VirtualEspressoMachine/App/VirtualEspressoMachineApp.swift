@@ -115,11 +115,11 @@ struct VirtualEspressoMachineApp: App {
         
         let provider: any TelemetryProvider
         if let primedScenario {
-            let replay = ReplayTelemetryProvider(scenario: primedScenario)
-            provider = replay
+            let scenarioProvider = ScenarioTelemetryProvider(scenario: primedScenario)
+            provider = scenarioProvider
             self.activeTelemetryProvider = provider
             coordinator.attach(telemetryProvider: provider)
-            replay.play()
+            scenarioProvider.start()
         } else {
             // Zero physical scale and reset scale timer upon arming
             bleManager.tareScale()
