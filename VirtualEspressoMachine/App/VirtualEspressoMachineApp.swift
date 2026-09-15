@@ -18,24 +18,49 @@ struct VirtualEspressoMachineApp: App {
     @State private var activeTelemetryProvider: (any TelemetryProvider)?
     @State private var showAbortConfirmation: Bool = false
     
-    // MARK: - Navigation State
+    // MARK: - Root Navigation Destination
+    @State private var currentDestination: AppDestination = .brew
+    
+    // MARK: - Active Extraction / Debrief Modal Overlays
     @State private var activeExtractionProfile: Profile? = nil
     @State private var completedRecordForDebrief: ShotRecord? = nil
     
     var body: some Scene {
         WindowGroup {
             ZStack {
-                // 1. BASE LAYER: Profile Console
-                ProfileConsoleView(
-                    profiles: profileStore.profiles,
-                    bleManager: bleManager,
-                    scenarioStore: scenarioStore,
-                    onArm: { sessionProfile, primedScenario in
-                        launchShot(with: sessionProfile, primedScenario: primedScenario)
+                // 1. BASE LAYER: Active Workspace
+                Group {
+                    switch currentDestination {
+                    case .brew:
+                        ProfileConsoleView(
+                            profiles: profileStore.profiles,
+                            bleManager: bleManager,
+                            scenarioStore: scenarioStore,
+                            onArm: { sessionProfile, primedScenario in
+                                launchShot(with: sessionProfile, primedScenario: primedScenario)
+                            }
+                        )
+                    case .history:
+                        ShotHistoryBrowserView(scenarioStore: scenarioStore)
+                    case .workbench, .settings:
+                        // Deferred for future passes; menu items disabled below
+                        EmptyView()
                     }
-                )
+                }
+                .transition(.opacity)
                 
-                // 2. EXTRACTION LAYER: Cross-Platform HUD (Visible only in flight)
+                // 2. UNIVERSAL BOTTOM-LEFT HAMBURGER MENU
+                VStack {
+                    Spacer()
+                    HStack {
+                        universalHamburgerMenu
+                            .padding(.leading, 28)
+                            .padding(.bottom, 22)
+                        Spacer()
+                    }
+                }
+                
+                // 3. EXTRACTION LAYER: Cross-Platform HUD (Visible only in flight)
                 if activeExtractionProfile != nil {
                     BaristaHUDView(
                         frame: coordinator.guidanceFrame,
@@ -58,7 +83,6 @@ struct VirtualEspressoMachineApp: App {
                             concludeShot()
                         }
                     }
-                    // HUD Flight Controls: Clean Abort Trigger
                     .overlay(alignment: .topTrailing) {
                         Button(action: { showAbortConfirmation = true }) {
                             Image(systemName: "xmark")
@@ -87,7 +111,7 @@ struct VirtualEspressoMachineApp: App {
                     .zIndex(10)
                 }
                 
-                // 3. POST-SHOT LAYER: Full-Screen Shot Record / History
+                // 4. POST-SHOT LAYER: Full-Screen Shot Record / History Debrief
                 if let shotRecord = completedRecordForDebrief {
                     ShotRecordView(
                         record: shotRecord,
@@ -108,6 +132,53 @@ struct VirtualEspressoMachineApp: App {
         }
     }
     
+    // MARK: - Universal Hamburger Menu
+    
+    private var universalHamburgerMenu: some View {
+        Menu {
+            Button {
+                withAnimation(.easeInOut(duration: 0.2)) { currentDestination = .brew }
+            } label: {
+                Label(AppDestination.brew.rawValue, systemImage: AppDestination.brew.systemImage)
+            }
+            
+            Button {
+                withAnimation(.easeInOut(duration: 0.2)) { currentDestination = .history }
+            } label: {
+                Label(AppDestination.history.rawValue, systemImage: AppDestination.history.systemImage)
+            }
+            
+            Button {} label: {
+                Label(AppDestination.workbench.rawValue, systemImage: AppDestination.workbench.systemImage)
+            }
+            .disabled(true)
+            
+            Divider()
+            
+            Button {} label: {
+                Label(AppDestination.settings.rawValue, systemImage: AppDestination.settings.systemImage)
+            }
+            .disabled(true)
+        } label: {
+            HStack(spacing: 4) {
+                Image(systemName: "line.3.horizontal")
+                    .font(.system(size: 14, weight: .bold))
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 8, weight: .bold))
+            }
+            .foregroundStyle(.white.opacity(0.85))
+            .padding(8)
+            .background(Color.white.opacity(0.06))
+            .cornerRadius(8)
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(Color.white.opacity(0.08), lineWidth: 1)
+            )
+        }
+        .menuStyle(.borderlessButton)
+        .fixedSize()
+    }
+    
     // MARK: - Machine Lifecycle Handlers
     
     private func launchShot(with profile: Profile, primedScenario: ShotRecord? = nil) {
@@ -121,7 +192,6 @@ struct VirtualEspressoMachineApp: App {
             coordinator.attach(telemetryProvider: provider)
             scenarioProvider.start()
         } else {
-            // Zero physical scale and reset scale timer upon arming
             bleManager.tareScale()
             bleManager.resetScaleTimer()
             
