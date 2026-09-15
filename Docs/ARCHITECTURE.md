@@ -136,6 +136,12 @@ To prevent rapid alarm toggling when a manual lever pull hovers near a safety ce
 To prevent brief muscle tremors on a manual lever from prematurely tripping a descending exit trigger:
 * A decaying condition (e.g. $\text{pressure} \le 4.0\text{ bar}$) must evaluate to `true` for **two consecutive 100ms ticks** ($200\text{ms}$) before triggering stage advancement.
 
+#### HUD Chart Sliding Viewport Window (StageDynamicsChartView)
+Stages on a manual lever have dynamic, open-ended durations that cannot be known in advance. To preserve high-resolution visual feedback for manual lever control without compressing the curve into an unreadable scale:
+* The HUD dynamics chart enforces a bounded viewport window (nominal $25.0\text{s}$).
+* **Phase A ($t_{\text{local}} \le 25.0\text{s}$)**: The domain is anchored at $[0.0 \dots \max(25.0, \text{horizon})]$. The actual pull line grows from left to right.
+* **Phase B ($t_{\text{local}} > 25.0\text{s}$)**: The chart automatically slides its visible X-domain: $[(t_{\text{local}} - 25.0) \dots t_{\text{local}}]$. The active extraction coordinate remains pinned near the right edge of the chart at full visual resolution while earlier points roll out of view.
+
 ---
 
 ## 5. Shot Lifecycle & Extraction Heuristics
@@ -179,12 +185,11 @@ $$\text{Smoothed Flow} \le 0.1\text{ g/s sustained continuously for } 2.0\text{ 
 OR
 $$\text{Current Weight} \ge \text{Target Final Weight}$$
 
-### 5.4. Post-Shot Tail Trimming
-Because confirmation of dead flow requires $2.0\text{s}$ of sustained low flow, the final recorded shot duration in `ShotRecord` subtracts this confirmation tail:
-$$\text{Duration}_{\text{final}} = \text{Duration}_{\text{actual}} - 2.0\text{s}$$
+### 5.4. Post-Shot Retroactive Tail Trimming
+When the dead-flow watchdog ($\le 0.15\text{ mL/s}$ for $2.0\text{s}$) confirms the end of the shot, `ShotCoordinator` scans backwards through `capturedSamples` to find the initial timestamp where flow permanently fell below threshold. The archived duration and final yield are locked to that sample, and trailing silent samples are trimmed.
 
-### 5.5. Physical Lever Lifecycle vs. Profile Execution Boundary
-On automated robotic machines (like Meticulous), recipe profiles command actuators directly; reaching the final stage exit trigger physically stops the motor.
+### 5.5. Profile Complete & Holding Setpoint State
+Stage advancement and profile completion govern the digital twin's guidance state, not the physical machine's power state. Reaching the final recipe trigger enters `isProfileComplete`, holding the commanded setpoint steady and monitoring flow cutoff without terminating the pull mid-stream.
 
 On a manual lever (Flair 58), the profile acts as an in-flight flight director:
 1. **Early Terminations**: The barista may release the lever early (due to choking or channeling), which is cleanly caught by the 2.0s dead-flow watchdog or manual abort.

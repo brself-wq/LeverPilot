@@ -36,6 +36,16 @@ public final class ReplayTelemetryProvider: TelemetryProvider, @unchecked Sendab
         continuation?.finish()
     }
     
+    // MARK: - TelemetryProvider Protocol Conformance
+    
+    public func start() {
+        play()
+    }
+    
+    public func stop() {
+        pause()
+    }
+    
     // MARK: - Scenario Loading
     
     public func load(scenario: ShotRecord?) {
@@ -74,10 +84,6 @@ public final class ReplayTelemetryProvider: TelemetryProvider, @unchecked Sendab
         isPlaying = false
         playbackTask?.cancel()
         playbackTask = nil
-    }
-    
-    public func stop() {
-        pause()
     }
     
     public func stepForward() {

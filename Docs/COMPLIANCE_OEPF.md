@@ -39,8 +39,12 @@
 
 ### E. Profile Completion vs. Physical Extraction Lifetime
 * **OEPF Assumption**: Profile completion inherently halts physical machine flow (motor retracts).
-* **Flair 58 Lever Deviation**: On a manual lever, the human barista controls the hydraulic piston. Physical extraction may conclude *before* all profile stages complete (early blonde / channel cut) or *after* all stages have expired (lingering lever pull).
-* **Resolution**: Profile stage completion advances the digital twin's guidance state, but macro extraction termination is supervised by physical telemetry (the 2.0s dead-flow watchdog $\le 0.1\text{ g/s}$) and target weight cutoffs.
+* **Flair 58 Lever Reality**: On a manual lever, the human barista controls the hydraulic piston. Physical extraction may conclude *before* all profile stages complete (early blonde / channel cut) or continue *after* all stages have expired (barista riding out the finish).
+* **Architectural Implementation**: 
+  - When the final stage's exit condition is satisfied, the digital twin marks `isProfileComplete = true` and transitions the HUD into **Profile Complete / Holding Setpoint** mode.
+  - The target setpoint clamps to the final knot value indefinitely.
+  - The HUD exit racetrack displays a single flow-stop monitor (`Profile Complete • Flow Stop`).
+  - Macro extraction conclusion is supervised strictly by physical telemetry (the sustained dead-flow watchdog) or manual barista abort.
 
 ---
 

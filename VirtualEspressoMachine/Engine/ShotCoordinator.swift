@@ -43,6 +43,9 @@ public final class ShotCoordinator {
     public private(set) var actualWeight: Double = 0.0
     public var isAlarmActive: Bool = false
     
+    /// True when all recipe stages and triggers have concluded, but physical flow is still active.
+    public private(set) var isProfileComplete: Bool = false
+    
     // MARK: - Configuration & Watchdogs
     public var machineConfig: MachineConfig = .flair58Default
     private var deadFlowStartTime: TimeInterval? = nil
@@ -114,6 +117,7 @@ public final class ShotCoordinator {
         self.actualWeight = 0.0
         self.actualHistory = []
         self.isAlarmActive = false
+        self.isProfileComplete = false
         self.completedShotRecord = nil
         self.capturedSamples.removeAll()
         self.deadFlowStartTime = nil
@@ -132,6 +136,21 @@ public final class ShotCoordinator {
         guard state == .extracting else { return }
         state = .shotEnded
         
+        // Retroactive Cutoff Detection:
+        // Identify the exact timestamp when flow dropped below the cutoff threshold for the final sustained period.
+        let threshold = machineConfig.autoStop.cutoffRule.threshold
+        var trimmedDuration = elapsedTime
+        var trimmedFinalWeight = actualWeight
+        var trimmedSamples = capturedSamples
+        
+        if let lastSignificantIndex = capturedSamples.lastIndex(where: { $0.flow > threshold }) {
+            let cutoffIndex = min(lastSignificantIndex + 1, capturedSamples.count - 1)
+            let cutoffSample = capturedSamples[cutoffIndex]
+            trimmedDuration = cutoffSample.timestamp
+            trimmedFinalWeight = cutoffSample.weight
+            trimmedSamples = Array(capturedSamples.prefix(through: cutoffIndex))
+        }
+        
         // Freeze in-flight telemetry and the exact in-memory profile into a permanent record
         if let profile = activeProfile {
             self.completedShotRecord = ShotRecord(
@@ -139,12 +158,12 @@ public final class ShotCoordinator {
                 profileName: profile.name,
                 profileSnapshot: profile.sanitizedForHistory(),
                 timestamp: Date(),
-                duration: elapsedTime,
-                finalWeight: actualWeight,
+                duration: trimmedDuration,
+                finalWeight: trimmedFinalWeight,
                 doseWeight: activeDose,
                 targetWeight: resolvedTargetWeight,
                 brewTemperature: profile.temperature,
-                samples: capturedSamples
+                samples: trimmedSamples
             )
         }
     }
@@ -256,17 +275,34 @@ public final class ShotCoordinator {
                     )
                 }
             } else {
-                // Reached end of final stage
-                print("🏁 SHOT ENDED: Profile Reached Final Stage Exit Trigger (Stage \(activeStageIndex + 1)/\(profile.stages.count))")
-                endExtraction()
-                return
+                // Recipe guidance completed; hold final setpoint until physical flow stops
+                if !isProfileComplete {
+                    print("🎯 PROFILE COMPLETE: Holding final setpoint until flow cutoff.")
+                    isProfileComplete = true
+                }
             }
         }
         
         // 6. Update Guidance Surface Buffers
         self.guidanceFrame = result.guidanceFrame
         self.planCurve = result.planCurve
-        self.exitTriggerItems = result.exitTriggerItems
+        
+        if isProfileComplete {
+            self.exitTriggerItems = [
+                ExitTriggerProgressItem(
+                    sensorKey: .flow,
+                    icon: "cup.and.saucer.fill",
+                    label: "Profile Complete",
+                    currentString: String(format: "%.1f mL/s", currentFlow),
+                    targetString: "Flow Stop",
+                    progress: 1.0,
+                    isLeading: true
+                )
+            ]
+        } else {
+            self.exitTriggerItems = result.exitTriggerItems
+        }
+        
         self.elapsedTime = frame.timestamp
         self.stageTime = max(0.0, frame.timestamp - currentStageBaseline.startTime)
         self.actualWeight = currentWeight

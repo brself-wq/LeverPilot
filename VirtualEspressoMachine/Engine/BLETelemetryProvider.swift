@@ -18,6 +18,10 @@ public final class BLETelemetryProvider: TelemetryProvider, @unchecked Sendable 
     private var isExtracting: Bool = false
     private var extractionStartTime: Date? = nil
     
+    // Staleness Tracking
+    private var lastObservedWeight: Double? = nil
+    private var lastWeightUpdateTime: Date = Date()
+    
     // Signal Conditioning Ring Buffer (6 samples @ 10 Hz = 500ms window)
     private var weightHistory: [(timestamp: Double, weight: Double)] = []
     private let maxHistorySamples = 6
@@ -48,6 +52,8 @@ public final class BLETelemetryProvider: TelemetryProvider, @unchecked Sendable 
         stop()
         self.isExtracting = false
         self.extractionStartTime = nil
+        self.lastObservedWeight = nil
+        self.lastWeightUpdateTime = Date()
         
         timerTask = Task { [weak self] in
             guard let self else { return }
@@ -80,19 +86,32 @@ public final class BLETelemetryProvider: TelemetryProvider, @unchecked Sendable 
                     shotElapsed = 0.0
                 }
                 
-                // 4. Compute Flow (dw/dt) via Rolling Linear Regression
+                // 4. Update Staleness Tracker
+                if self.lastObservedWeight != rawWeight {
+                    self.lastObservedWeight = rawWeight
+                    self.lastWeightUpdateTime = now
+                }
+                
+                let isScaleConnected = self.bleManager.slots[.scale]?.isConnected == true
+                let isScaleStale = !isScaleConnected || (now.timeIntervalSince(self.lastWeightUpdateTime) > 0.5)
+                
+                // 5. Compute Flow (dw/dt) via Rolling Linear Regression
                 var derivedFlow: Double
                 #if DEBUG
-                if self.forceZeroFlow {
+                if self.forceZeroFlow || isScaleStale {
                     derivedFlow = 0.0
                 } else {
                     derivedFlow = self.calculateRegressionFlow(currentTime: shotElapsed, currentWeight: rawWeight)
                 }
                 #else
-                derivedFlow = self.calculateRegressionFlow(currentTime: shotElapsed, currentWeight: rawWeight)
+                if isScaleStale {
+                    derivedFlow = 0.0
+                } else {
+                    derivedFlow = self.calculateRegressionFlow(currentTime: shotElapsed, currentWeight: rawWeight)
+                }
                 #endif
                 
-                // 5. Emit Frame with True Machine State (.armed while waiting, .extracting after trip)
+                // 6. Emit Frame with True Machine State (.armed while waiting, .extracting after trip)
                 let frame = MachineFrame(
                     timestamp: shotElapsed,
                     absoluteTime: now,
@@ -120,6 +139,7 @@ public final class BLETelemetryProvider: TelemetryProvider, @unchecked Sendable 
         isExtracting = false
         extractionStartTime = nil
         weightHistory.removeAll()
+        lastObservedWeight = nil
         #if DEBUG
         resetInjections()
         #endif

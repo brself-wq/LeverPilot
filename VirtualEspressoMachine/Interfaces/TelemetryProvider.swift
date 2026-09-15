@@ -10,4 +10,10 @@ import MeticulousProfile
 public protocol TelemetryProvider: AnyObject, Sendable {
     /// An asynchronous stream emitting consecutive machine frames.
     var frames: AsyncStream<MachineFrame> { get }
+    
+    /// Starts telemetry acquisition or streaming.
+    func start()
+    
+    /// Halts telemetry acquisition and cleans up active timers or tasks.
+    func stop()
 }

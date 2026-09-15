@@ -47,11 +47,13 @@ Manual lever espresso machines (such as the Flair 58) combined with wireless Blu
   OR
   $$\text{Current Weight} \ge \text{Profile Final Weight}$$
 
-### 2.6. Post-Shot Tail Trimming
-* Because dead-flow cutoff requires a $1.5\text{s}$ confirmation window, the final recorded shot duration in `ShotRecord` is trimmed:
-  $$\text{Duration}_{\text{recorded}} = \text{Duration}_{\text{actual}} - 1.5\text{s}$$
-* Ensures historical shot duration reflects when liquid stopped flowing, not when the watchdog timer expired.
-
+### 2.6. Post-Shot Retroactive Tail Trimming
+* Because dead-flow cutoff requires a $2.0\text{s}$ confirmation window ($\text{flow} \le 0.15\text{ mL/s}$), the final recorded shot duration and metrics in `ShotRecord` are not calculated via naive arithmetic subtraction.
+* Instead, upon watchdog cutoff trip, `ShotCoordinator` scans `capturedSamples` in reverse to locate the exact sample where flow first dropped below the cutoff threshold for the final sustained period.
+* **Duration & Yield Snapping**:
+  - $\text{Duration}_{\text{final}} = \text{Sample}_{\text{cutoff}}.\text{timestamp}$
+  - $\text{Weight}_{\text{final}} = \text{Sample}_{\text{cutoff}}.\text{weight}$
+* Trailing zero-flow samples are pruned from the archived record, guaranteeing that charts in `ShotRecordView`, Visualizer.coffee, and Beanconqueror reflect the true moment liquid stopped flowing without artificial trailing flatlines.
 ### 2.7. Vacuum Clamping & Trigger Stabilization
 * Transient negative pressure values ($<0.0\text{ bar}$) caused by lever raise are clamped to `0.0` in the ingestion layer.
 * Safety limit alarms implement a **$0.5\text{ bar}$ hysteresis** to prevent buzzer stutter.

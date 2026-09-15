@@ -13,6 +13,9 @@ public struct StageDynamicsChartView: View {
     let domainLabel: String
     let activeMetric: SensorKey
     
+    /// Maximum time/domain span (in seconds or grams) visible in the viewport window
+    private let windowSpan: Double = 25.0
+    
     public init(
         planCurve: [PlanPoint],
         actualHistory: [ActualPoint],
@@ -27,6 +30,22 @@ public struct StageDynamicsChartView: View {
     
     private var themeColor: Color {
         activeMetric.themeColor
+    }
+    
+    private var currentX: Double {
+        actualHistory.last?.x ?? 0.0
+    }
+    
+    private var xDomain: ClosedRange<Double> {
+        let nominalMax = planCurve.map(\.x).max() ?? windowSpan
+        let baselineMax = max(windowSpan, nominalMax)
+        
+        if currentX <= baselineMax {
+            return 0.0...baselineMax
+        } else {
+            // Slide viewport to keep active extraction point pinned near the right
+            return (currentX - windowSpan)...currentX
+        }
     }
     
     public var body: some View {
@@ -92,6 +111,7 @@ public struct StageDynamicsChartView: View {
                     .foregroundStyle(Color.white)
                 }
             }
+            .chartXScale(domain: xDomain)
             .chartYAxis {
                 AxisMarks(position: .trailing) { _ in
                     AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5, dash: [2, 2]))

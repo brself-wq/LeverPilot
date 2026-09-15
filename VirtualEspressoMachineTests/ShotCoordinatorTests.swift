@@ -74,6 +74,7 @@ final class ShotCoordinatorTests: XCTestCase {
         XCTAssertEqual(coordinator.activeStageIndex, 0)
         XCTAssertNil(coordinator.activeProfile)
         XCTAssertFalse(coordinator.isAlarmActive)
+        XCTAssertFalse(coordinator.isProfileComplete)
     }
     
     func test_selectProfile_configuresInitialStateAndPills() {
@@ -85,6 +86,7 @@ final class ShotCoordinatorTests: XCTestCase {
         XCTAssertEqual(coordinator.stagePills[0].state, .active)
         XCTAssertEqual(coordinator.stagePills[1].state, .upcoming)
         XCTAssertEqual(coordinator.guidanceFrame.stageName, "Pre-infusion")
+        XCTAssertFalse(coordinator.isProfileComplete)
     }
     
     // MARK: - Auto-Start Transition (Pressure Exclusivity)
@@ -206,9 +208,9 @@ final class ShotCoordinatorTests: XCTestCase {
         XCTAssertEqual(coordinator.state, .shotEnded, "Auto-stop must end shot after sustained dead flow once preconditions are met")
     }
     
-    // MARK: - Multi-Stage Progression & End of Shot
+    // MARK: - Multi-Stage Progression, Profile Complete & Extraction Conclusion
     
-    func test_multiStageExtraction_advancesStagesAndEndsShot() {
+    func test_multiStageExtraction_advancesStagesAndHoldsSetpointOnCompletion() {
         coordinator.selectProfile(twoStageProfile)
         coordinator.startExtraction()
         
@@ -247,17 +249,70 @@ final class ShotCoordinatorTests: XCTestCase {
         coordinator.processTelemetryFrame(stage1Frame)
         XCTAssertEqual(coordinator.activeStageIndex, 1)
         XCTAssertEqual(coordinator.state, .extracting)
+        XCTAssertFalse(coordinator.isProfileComplete)
         
-        // 4. Tick crossing Extraction trigger (weight = 10.0g >= 10.0g absolute)
-        let finalFrame = MachineFrame(
+        // 4. Tick crossing Extraction trigger (weight = 10.0g >= 10.0g absolute) with active flow (2.0 mL/s)
+        let finalRecipeFrame = MachineFrame(
             timestamp: 7.0,
             state: .extracting,
             readings: [.pressure: 9.0, .flow: 2.0, .weight: 10.0]
         )
-        coordinator.processTelemetryFrame(finalFrame)
+        coordinator.processTelemetryFrame(finalRecipeFrame)
         
-        // Must transition to .shotEnded
+        // Guidance reaches completion, but shot remains extracting while liquid flows!
+        XCTAssertEqual(coordinator.state, .extracting, "Shot must not terminate immediately while flow is active")
+        XCTAssertTrue(coordinator.isProfileComplete)
+        XCTAssertEqual(coordinator.exitTriggerItems.first?.label, "Profile Complete")
+        
+        // 5. Liquid flow ceases -> Dead-flow watchdog triggers final conclusion
+        let flowStop1 = MachineFrame(
+            timestamp: 7.5,
+            state: .extracting,
+            readings: [.pressure: 3.0, .flow: 0.05, .weight: 10.2]
+        )
+        let flowStop2 = MachineFrame(
+            timestamp: 9.5,
+            state: .extracting,
+            readings: [.pressure: 0.0, .flow: 0.0, .weight: 10.2]
+        )
+        coordinator.processTelemetryFrame(flowStop1)
+        coordinator.processTelemetryFrame(flowStop2)
+        
         XCTAssertEqual(coordinator.state, .shotEnded)
+    }
+    
+    // MARK: - Retroactive Tail Trimming Test
+    
+    func test_retroactiveTailTrimming_anchorsDurationAndWeightToTrueFlowStop() {
+        coordinator.selectProfile(twoStageProfile)
+        coordinator.startExtraction()
+        
+        // Active flow up to t = 6.0s (weight = 8.0g, flow = 1.5)
+        coordinator.processTelemetryFrame(
+            MachineFrame(timestamp: 6.0, state: .extracting, readings: [.pressure: 9.0, .flow: 1.5, .weight: 8.0])
+        )
+        
+        // Flow drops below cutoff at t = 6.1s (weight = 8.2g, flow = 0.05)
+        coordinator.processTelemetryFrame(
+            MachineFrame(timestamp: 6.1, state: .extracting, readings: [.pressure: 2.0, .flow: 0.05, .weight: 8.2])
+        )
+        
+        // 2-second sustain period where flow remains dead
+        coordinator.processTelemetryFrame(
+            MachineFrame(timestamp: 7.1, state: .extracting, readings: [.pressure: 0.0, .flow: 0.0, .weight: 8.2])
+        )
+        coordinator.processTelemetryFrame(
+            MachineFrame(timestamp: 8.1, state: .extracting, readings: [.pressure: 0.0, .flow: 0.0, .weight: 8.2])
+        )
+        
+        XCTAssertEqual(coordinator.state, .shotEnded)
+        
+        let record = coordinator.completedShotRecord
+        XCTAssertNotNil(record)
+        // Must be trimmed back to t = 6.1s (where flow first dropped below cutoff), NOT 8.1s!
+        XCTAssertEqual(record?.duration ?? 0.0, 6.1, accuracy: 0.05)
+        XCTAssertEqual(record?.finalWeight ?? 0.0, 8.2, accuracy: 0.05)
+        XCTAssertEqual(record?.samples.last?.timestamp ?? 0.0, 6.1, accuracy: 0.05)
     }
     
     // MARK: - Guardrail Alarms

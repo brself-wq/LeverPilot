@@ -15,8 +15,7 @@ struct VirtualEspressoMachineApp: App {
     @State private var scenarioStore = ScenarioStore()
     @State private var bleManager = EspressoBLEManager(savedDevices: loadSavedBLEDevices())
     @State private var coordinator = ShotCoordinator()
-    @State private var playbackEngine = PlaybackEngine()
-    @State private var bleProvider: BLETelemetryProvider?
+    @State private var activeTelemetryProvider: (any TelemetryProvider)?
     @State private var showAbortConfirmation: Bool = false
     
     // MARK: - Navigation State
@@ -32,11 +31,7 @@ struct VirtualEspressoMachineApp: App {
                     bleManager: bleManager,
                     scenarioStore: scenarioStore,
                     onArm: { sessionProfile, primedScenario in
-                        if let primedScenario {
-                            launchScenarioPlayback(profile: sessionProfile, scenario: primedScenario)
-                        } else {
-                            launchShot(with: sessionProfile)
-                        }
+                        launchShot(with: sessionProfile, primedScenario: primedScenario)
                     }
                 )
                 
@@ -115,57 +110,37 @@ struct VirtualEspressoMachineApp: App {
     
     // MARK: - Machine Lifecycle Handlers
     
-    private func launchShot(with profile: Profile) {
+    private func launchShot(with profile: Profile, primedScenario: ShotRecord? = nil) {
         coordinator.arm(with: profile, store: profileStore)
         
-        // Zero physical scale and reset scale timer upon arming
-        bleManager.tareScale()
-        bleManager.resetScaleTimer()
-        
-        let provider = BLETelemetryProvider(bleManager: bleManager)
-        self.bleProvider = provider
-        coordinator.attach(telemetryProvider: provider)
-        provider.start()
-        
-        withAnimation(.easeInOut(duration: 0.25)) {
-            self.activeExtractionProfile = profile
-        }
-    }
-    
-    private func launchScenarioPlayback(profile: Profile, scenario: ShotRecord) {
-        coordinator.arm(with: profile, store: profileStore)
-        playbackEngine.load(scenario: scenario)
-        
-        playbackEngine.onTick = { sample, _ in
-            let frame = MachineFrame(
-                timestamp: sample.timestamp,
-                state: .extracting,
-                readings: [
-                    .pressure: sample.pressure,
-                    .flow: sample.flow,
-                    .weight: sample.weight,
-                    .time: sample.timestamp,
-                    .power: 100.0
-                ]
-            )
-            coordinator.processTelemetryFrame(frame, allowAdvance: true)
+        let provider: any TelemetryProvider
+        if let primedScenario {
+            let replay = ReplayTelemetryProvider(scenario: primedScenario)
+            provider = replay
+            self.activeTelemetryProvider = provider
+            coordinator.attach(telemetryProvider: provider)
+            replay.play()
+        } else {
+            // Zero physical scale and reset scale timer upon arming
+            bleManager.tareScale()
+            bleManager.resetScaleTimer()
             
-            if coordinator.state == .shotEnded && playbackEngine.isPlaying {
-                playbackEngine.stop()
-            }
+            let ble = BLETelemetryProvider(bleManager: bleManager)
+            provider = ble
+            self.activeTelemetryProvider = provider
+            coordinator.attach(telemetryProvider: provider)
+            ble.start()
         }
         
         withAnimation(.easeInOut(duration: 0.25)) {
             self.activeExtractionProfile = profile
         }
-        
-        playbackEngine.play()
     }
     
     private func concludeShot() {
         bleManager.stopScaleTimer()
-        playbackEngine.stop()
-        bleProvider?.stop()
+        activeTelemetryProvider?.stop()
+        activeTelemetryProvider = nil
         coordinator.detachTelemetry()
         
         let finishedRecord = coordinator.completedShotRecord
@@ -178,8 +153,8 @@ struct VirtualEspressoMachineApp: App {
     
     private func abortShot() {
         bleManager.stopScaleTimer()
-        playbackEngine.stop()
-        bleProvider?.stop()
+        activeTelemetryProvider?.stop()
+        activeTelemetryProvider = nil
         coordinator.detachTelemetry()
         coordinator.abort()
         
