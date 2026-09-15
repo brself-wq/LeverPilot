@@ -17,7 +17,12 @@ public final class ScenarioStore {
         case inMemory
     }
     
+    /// Real historical shot logs recorded from completed pulls.
     public var scenarios: [ShotRecord] = []
+    
+    /// Bundled mock test fixtures reserved exclusively for simulator / desk debugging.
+    public var mockScenarios: [ShotRecord] = []
+    
     private let mode: StorageMode
     private let fileManager = FileManager.default
     private let shotLogsDirectory: URL?
@@ -83,33 +88,35 @@ public final class ScenarioStore {
     }
     
     public func loadAllScenarios(bundle: Bundle = .main) {
-        var loaded: [ShotRecord] = []
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
         
-        // 1. Bundle Scenarios
+        // 1. Bundle Scenarios (Isolated for DEBUG simulation only)
+        var bundled: [ShotRecord] = []
         if let urls = bundle.urls(forResourcesWithExtension: "json", subdirectory: nil) {
             for url in urls {
                 if let data = try? Data(contentsOf: url),
                    let raw = try? decoder.decode(ShotRecord.self, from: data) {
                     let continuous = Self.expandKeyframesTo10Hz(samples: raw.samples)
-                    loaded.append(raw.updatingSamples(continuous))
+                    bundled.append(raw.updatingSamples(continuous))
                 }
             }
         }
+        self.mockScenarios = bundled
         
-        // 2. User Shot Logs from Application Support
+        // 2. Real User Shot Logs from Application Support (Sole source of truth for History)
+        var recorded: [ShotRecord] = []
         if case .disk = mode, let dir = shotLogsDirectory,
            let logURLs = try? fileManager.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil) {
             for url in logURLs where url.pathExtension.lowercased() == "json" {
                 if let data = try? Data(contentsOf: url),
                    let raw = try? decoder.decode(ShotRecord.self, from: data) {
-                    loaded.append(raw)
+                    recorded.append(raw)
                 }
             }
         }
         
-        self.scenarios = loaded.sorted { $0.timestamp > $1.timestamp }
+        self.scenarios = recorded.sorted { $0.timestamp > $1.timestamp }
     }
     
     private func loadBundledOnly(bundle: Bundle) {

@@ -258,7 +258,7 @@ public struct ProfileConsoleView: View {
                     }
                 }
                 
-                ForEach(scenarioStore.scenarios, id: \.id) { scenario in
+                ForEach(scenarioStore.mockScenarios, id: \.id) { scenario in
                     Button {
                         primedScenario = scenario
                     } label: {

@@ -12,7 +12,6 @@ public struct ShotHistoryBrowserView: View {
     
     @State private var selectedShotID: String? = nil
     @State private var searchQuery: String = ""
-    @State private var showCopiedBanner: Bool = false
     
     public init(scenarioStore: ScenarioStore) {
         self.scenarioStore = scenarioStore
@@ -28,14 +27,13 @@ public struct ShotHistoryBrowserView: View {
         return scenarioStore.scenarios.filter { shot in
             shot.profileName.localizedCaseInsensitiveContains(query) ||
             (shot.beanName?.localizedCaseInsensitiveContains(query) ?? false) ||
-            (shot.beanRoaster?.localizedCaseInsensitiveContains(query) ?? false) ||
-            (shot.grinderModel?.localizedCaseInsensitiveContains(query) ?? false)
+            (shot.beanRoaster?.localizedCaseInsensitiveContains(query) ?? false)
         }
     }
     
     private var selectedShot: ShotRecord? {
-        if let id = selectedShotID {
-            return filteredShots.first(where: { $0.id == id }) ?? filteredShots.first
+        if let id = selectedShotID, let found = filteredShots.first(where: { $0.id == id }) {
+            return found
         }
         return filteredShots.first
     }
@@ -68,30 +66,11 @@ public struct ShotHistoryBrowserView: View {
                         
                         Divider().background(Color.white.opacity(0.08))
                         
-                        // DETAIL PANE: Multi-stream telemetry & shot notes
+                        // DETAIL PANE: Multi-stream telemetry chart & Share
                         if let shot = selectedShot {
                             detailView(for: shot)
                         }
                     }
-                }
-            }
-            
-            if showCopiedBanner {
-                VStack {
-                    Spacer()
-                    HStack(spacing: 8) {
-                        Image(systemName: "checkmark.circle.fill")
-                            .foregroundStyle(.green)
-                        Text("Visualizer JSON copied to clipboard")
-                            .font(.system(size: 12, weight: .bold, design: .monospaced))
-                            .foregroundStyle(.white)
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 10)
-                    .background(Color(red: 0.14, green: 0.14, blue: 0.18), in: Capsule())
-                    .overlay(Capsule().stroke(Color.white.opacity(0.15), lineWidth: 1))
-                    .padding(.bottom, 24)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
             }
         }
@@ -99,6 +78,10 @@ public struct ShotHistoryBrowserView: View {
             if selectedShotID == nil {
                 selectedShotID = filteredShots.first?.id
             }
+        }
+        .onChange(of: searchQuery) { _, _ in
+            // Auto-select top matching shot when search filter mutates
+            selectedShotID = filteredShots.first?.id
         }
     }
     
@@ -143,7 +126,7 @@ public struct ShotHistoryBrowserView: View {
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                 
-                TextField("Search recipe, roaster, bean...", text: $searchQuery)
+                TextField("Search recipe...", text: $searchQuery)
                     .textFieldStyle(.plain)
                     .font(.system(size: 12))
                     .frame(width: 220)
@@ -181,7 +164,7 @@ public struct ShotHistoryBrowserView: View {
                 }
             }
             .padding(14)
-            // Bottom clearance for the universal hamburger menu
+            // Bottom clearance for universal hamburger menu
             .padding(.bottom, 60)
         }
     }
@@ -233,18 +216,15 @@ public struct ShotHistoryBrowserView: View {
         )
     }
     
-    // MARK: - Detail Pane (Telemetry Chart & Metadata)
+    // MARK: - Detail Pane (Telemetry Chart & Share)
     
     private func detailView(for shot: ShotRecord) -> some View {
         ScrollView {
             VStack(spacing: 16) {
-                // Dominant Multi-Stream Extraction Chart
+                // Dominant Multi-Stream Extraction Chart & Metrics Strip
                 meticulousGraphCard(for: shot)
                 
-                // Dial-In Parameters and Notes
-                dialInAndNotesCard(for: shot)
-                
-                // Read-only Export Action Bar
+                // Read-only Share Action Bar
                 exportActionBar(for: shot)
             }
             .padding(20)
@@ -328,7 +308,7 @@ public struct ShotHistoryBrowserView: View {
                         .foregroundStyle(.secondary)
                 }
             }
-            .frame(height: 240)
+            .frame(height: 280)
             .padding(.horizontal, 14)
             
             // Summary Metric Footer Strip
@@ -352,66 +332,10 @@ public struct ShotHistoryBrowserView: View {
         .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.08), lineWidth: 1))
     }
     
-    // MARK: - Dial-In Parameters & Notes
-    
-    private func dialInAndNotesCard(for shot: ShotRecord) -> some View {
-        HStack(alignment: .top, spacing: 14) {
-            VStack(alignment: .leading, spacing: 8) {
-                Text("DIAL-IN PARAMETERS")
-                    .font(.system(size: 9, weight: .heavy, design: .monospaced))
-                    .foregroundStyle(.secondary)
-                
-                HStack(spacing: 12) {
-                    metadataPill(label: "Roaster", val: shot.beanRoaster ?? "Unspecified")
-                    metadataPill(label: "Bean", val: shot.beanName ?? "Unspecified")
-                }
-                
-                HStack(spacing: 12) {
-                    metadataPill(label: "Grinder", val: shot.grinderModel ?? "Unspecified")
-                    metadataPill(label: "Setting", val: shot.grindSetting ?? "Unspecified")
-                    metadataPill(label: "Dose", val: shot.doseWeight != nil ? String(format: "%.1fg", shot.doseWeight!) : "--")
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(12)
-            .background(Color(red: 0.08, green: 0.08, blue: 0.10))
-            .cornerRadius(10)
-            
-            if let notes = shot.tastingNotes, !notes.isEmpty {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("TASTING NOTES")
-                        .font(.system(size: 9, weight: .heavy, design: .monospaced))
-                        .foregroundStyle(.secondary)
-                    
-                    Text(notes)
-                        .font(.system(size: 12))
-                        .foregroundStyle(.white.opacity(0.85))
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(12)
-                .background(Color(red: 0.08, green: 0.08, blue: 0.10))
-                .cornerRadius(10)
-            }
-        }
-    }
-    
-    // MARK: - Export Action Bar (Read-Only)
+    // MARK: - Export Action Bar (Read-Only Share)
     
     private func exportActionBar(for shot: ShotRecord) -> some View {
-        HStack(spacing: 12) {
-            Button(action: { copyVisualizerJSON(shot: shot) }) {
-                HStack(spacing: 6) {
-                    Image(systemName: "doc.on.doc.fill")
-                    Text("Copy Beanconqueror JSON")
-                }
-                .font(.system(size: 11, weight: .bold))
-                .padding(.horizontal, 14)
-                .padding(.vertical, 8)
-                .background(Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 6))
-            }
-            .buttonStyle(.plain)
-            
+        HStack {
             ShareLink(
                 item: visualizerJSONString(shot: shot),
                 preview: SharePreview("Shot: \(shot.profileName)", image: Image(systemName: "cup.and.saucer.fill"))
@@ -473,37 +397,11 @@ public struct ShotHistoryBrowserView: View {
         }
     }
     
-    private func metadataPill(label: String, val: String) -> some View {
-        VStack(alignment: .leading, spacing: 1) {
-            Text(label.uppercased())
-                .font(.system(size: 7, weight: .heavy, design: .monospaced))
-                .foregroundStyle(.tertiary)
-            Text(val)
-                .font(.system(size: 11, weight: .bold))
-                .foregroundStyle(.white)
-                .lineLimit(1)
-        }
-    }
-    
     private func formattedDate(_ date: Date) -> String {
         let formatter = DateFormatter()
         formatter.dateStyle = .medium
         formatter.timeStyle = .short
         return formatter.string(from: date)
-    }
-    
-    private func copyVisualizerJSON(shot: ShotRecord) {
-        let json = visualizerJSONString(shot: shot)
-        #if os(iOS)
-        UIPasteboard.general.string = json
-        #elseif os(macOS)
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(json, forType: .string)
-        #endif
-        withAnimation { showCopiedBanner = true }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-            withAnimation { showCopiedBanner = false }
-        }
     }
     
     private func visualizerJSONString(shot: ShotRecord) -> String {

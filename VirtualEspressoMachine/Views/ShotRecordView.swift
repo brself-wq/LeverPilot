@@ -8,20 +8,14 @@ import Charts
 import MeticulousProfile
 
 public struct ShotRecordView: View {
-    @State private var record: ShotRecord
-    let onSave: (ShotRecord) -> Void
+    let record: ShotRecord
     let onDismiss: () -> Void
-    
-    @State private var selectedTimestamp: Double? = nil
-    @State private var showCopiedBanner: Bool = false
     
     public init(
         record: ShotRecord,
-        onSave: @escaping (ShotRecord) -> Void,
         onDismiss: @escaping () -> Void
     ) {
-        self._record = State(initialValue: record)
-        self.onSave = onSave
+        self.record = record
         self.onDismiss = onDismiss
     }
     
@@ -41,6 +35,7 @@ public struct ShotRecordView: View {
                 .ignoresSafeArea()
             
             VStack(spacing: 0) {
+                // Header Bar: Profile Name & Core Extraction Metrics
                 headerBar
                     .padding(.horizontal, 24)
                     .padding(.vertical, 16)
@@ -48,42 +43,21 @@ public struct ShotRecordView: View {
                 
                 Divider().background(Color.white.opacity(0.08))
                 
+                // Content: Dominant Extraction Chart & Metric Summary Strip
                 ScrollView {
                     VStack(spacing: 20) {
-                        // 1. Dominant Meticulous-style Chart Card
                         meticulousGraphCard
-                        
-                        // 2. Dial-In Metadata & Tasting Notes
-                        dialInAndNotesSection
                     }
                     .padding(24)
                 }
                 
                 Divider().background(Color.white.opacity(0.08))
                 
-                footerActionBar
+                // Bottom Action Bar: Done gesture
+                footerBar
                     .padding(.horizontal, 24)
-                    .padding(.vertical, 12)
+                    .padding(.vertical, 14)
                     .background(Color(red: 0.08, green: 0.08, blue: 0.10))
-            }
-            
-            if showCopiedBanner {
-                VStack {
-                    Spacer()
-                    HStack(spacing: 8) {
-                        Image(systemName: "checkmark.circle.fill")
-                            .foregroundStyle(.green)
-                        Text("Visualizer JSON copied to clipboard")
-                            .font(.system(size: 12, weight: .bold, design: .monospaced))
-                            .foregroundStyle(.white)
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 10)
-                    .background(Color(red: 0.14, green: 0.14, blue: 0.18), in: Capsule())
-                    .overlay(Capsule().stroke(Color.white.opacity(0.15), lineWidth: 1))
-                    .padding(.bottom, 24)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
-                }
             }
         }
     }
@@ -92,43 +66,25 @@ public struct ShotRecordView: View {
     
     private var headerBar: some View {
         HStack {
-            VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: 8) {
-                    Text(record.profileName)
-                        .font(.title3.weight(.black))
-                        .foregroundStyle(.white)
-                    
-                    Text(String(format: "⏱ %02d:%02ds", Int(record.duration) / 60, Int(record.duration) % 60))
-                        .font(.system(size: 11, weight: .bold, design: .monospaced))
-                        .foregroundStyle(.secondary)
-                    
-                    Text(String(format: "⚖️ %.1fg", record.finalWeight))
-                        .font(.system(size: 11, weight: .bold, design: .monospaced))
-                        .foregroundStyle(Color(red: 0.90, green: 0.68, blue: 0.28))
-                    
-                    Text(String(format: "🌡 %.0f°C", record.brewTemperature))
-                        .font(.system(size: 11, weight: .bold, design: .monospaced))
-                        .foregroundStyle(.secondary)
-                }
+            HStack(spacing: 12) {
+                Text(record.profileName)
+                    .font(.title3.weight(.black))
+                    .foregroundStyle(.white)
+                
+                Text(String(format: "⏱ %02d:%02ds", Int(record.duration) / 60, Int(record.duration) % 60))
+                    .font(.system(size: 11, weight: .bold, design: .monospaced))
+                    .foregroundStyle(.secondary)
+                
+                Text(String(format: "⚖️ %.1fg", record.finalWeight))
+                    .font(.system(size: 11, weight: .bold, design: .monospaced))
+                    .foregroundStyle(Color(red: 0.90, green: 0.68, blue: 0.28))
+                
+                Text(String(format: "🌡 %.0f°C", record.brewTemperature))
+                    .font(.system(size: 11, weight: .bold, design: .monospaced))
+                    .foregroundStyle(.secondary)
             }
             
             Spacer()
-            
-            Button {
-                onSave(record)
-                onDismiss()
-            } label: {
-                HStack(spacing: 6) {
-                    Image(systemName: "checkmark")
-                        .font(.system(size: 11, weight: .black))
-                    Text("SAVE TO HISTORY")
-                        .font(.system(size: 11, weight: .heavy, design: .monospaced))
-                }
-                .padding(.horizontal, 14)
-                .padding(.vertical, 8)
-                .background(Color.white.opacity(0.12), in: RoundedRectangle(cornerRadius: 6))
-            }
-            .buttonStyle(.plain)
         }
     }
     
@@ -203,7 +159,7 @@ public struct ShotRecordView: View {
                         .foregroundStyle(.secondary)
                 }
             }
-            .frame(height: 260)
+            .frame(height: 320)
             .padding(.horizontal, 14)
             
             HStack {
@@ -224,80 +180,24 @@ public struct ShotRecordView: View {
         .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.08), lineWidth: 1))
     }
     
-    // MARK: - Dial-In Parameters & Tasting Notes
+    // MARK: - Bottom Footer Action Bar
     
-    private var dialInAndNotesSection: some View {
-        HStack(alignment: .top, spacing: 16) {
-            VStack(alignment: .leading, spacing: 10) {
-                Text("DIAL-IN PARAMETERS")
-                    .font(.system(size: 10, weight: .heavy, design: .monospaced))
-                    .foregroundStyle(.secondary)
-                
-                VStack(spacing: 8) {
-                    fieldInput(label: "Roaster", text: Binding(get: { record.beanRoaster ?? "" }, set: { record.beanRoaster = $0 }))
-                    fieldInput(label: "Bean / Origin", text: Binding(get: { record.beanName ?? "" }, set: { record.beanName = $0 }))
-                    HStack(spacing: 8) {
-                        fieldInput(label: "Grinder", text: Binding(get: { record.grinderModel ?? "" }, set: { record.grinderModel = $0 }))
-                        fieldInput(label: "Setting", text: Binding(get: { record.grindSetting ?? "" }, set: { record.grindSetting = $0 }))
-                            .frame(width: 100)
-                    }
-                }
-            }
-            .padding(14)
-            .background(Color(red: 0.10, green: 0.10, blue: 0.12))
-            .cornerRadius(12)
-            
-            VStack(alignment: .leading, spacing: 10) {
-                Text("TASTING NOTES")
-                    .font(.system(size: 10, weight: .heavy, design: .monospaced))
-                    .foregroundStyle(.secondary)
-                
-                TextField("Acidity, sweetness, channel events, mouthfeel...", text: Binding(get: { record.tastingNotes ?? "" }, set: { record.tastingNotes = $0 }), axis: .vertical)
-                    .lineLimit(4...5)
-                    .font(.system(size: 12))
-                    .foregroundStyle(.white)
-                    .padding(10)
-                    .background(Color.white.opacity(0.04))
-                    .cornerRadius(8)
-            }
-            .padding(14)
-            .background(Color(red: 0.10, green: 0.10, blue: 0.12))
-            .cornerRadius(12)
-        }
-    }
-    
-    // MARK: - Footer Actions
-    
-    private var footerActionBar: some View {
-        HStack(spacing: 12) {
-            Button(action: copyVisualizerJSON) {
-                HStack(spacing: 6) {
-                    Image(systemName: "doc.on.doc.fill")
-                    Text("Export Beanconqueror JSON")
-                }
-                .font(.system(size: 12, weight: .bold))
-                .padding(.horizontal, 16)
-                .padding(.vertical, 8)
-                .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 6))
-            }
-            .buttonStyle(.plain)
-            
-            ShareLink(
-                item: visualizerJSONString(),
-                preview: SharePreview("Shot: \(record.profileName)", image: Image(systemName: "cup.and.saucer.fill"))
-            ) {
-                HStack(spacing: 6) {
-                    Image(systemName: "square.and.arrow.up")
-                    Text("Share")
-                }
-                .font(.system(size: 12, weight: .bold))
-                .padding(.horizontal, 16)
-                .padding(.vertical, 8)
-                .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 6))
-            }
-            .buttonStyle(.plain)
-            
+    private var footerBar: some View {
+        HStack {
             Spacer()
+            
+            Button(action: onDismiss) {
+                HStack(spacing: 6) {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 11, weight: .black))
+                    Text("Done")
+                        .font(.system(size: 13, weight: .bold))
+                }
+                .padding(.horizontal, 24)
+                .padding(.vertical, 10)
+                .background(Color.white.opacity(0.12), in: RoundedRectangle(cornerRadius: 8))
+            }
+            .buttonStyle(.plain)
         }
     }
     
@@ -319,41 +219,5 @@ public struct ShotRecordView: View {
                 .font(.system(size: 8, weight: .heavy, design: .monospaced))
                 .foregroundStyle(.tertiary)
         }
-    }
-    
-    private func fieldInput(label: String, text: Binding<String>) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(label).font(.system(size: 8, weight: .bold, design: .monospaced)).foregroundStyle(.tertiary)
-            TextField(label, text: text)
-                .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(.white)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 5)
-                .background(Color.white.opacity(0.04))
-                .cornerRadius(6)
-        }
-    }
-    
-    private func copyVisualizerJSON() {
-        let json = visualizerJSONString()
-        #if os(iOS)
-        UIPasteboard.general.string = json
-        #elseif os(macOS)
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(json, forType: .string)
-        #endif
-        withAnimation { showCopiedBanner = true }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-            withAnimation { showCopiedBanner = false }
-        }
-    }
-    
-    private func visualizerJSONString() -> String {
-        let payload = record.toVisualizerPayload()
-        guard let data = try? JSONSerialization.data(withJSONObject: payload, options: [.prettyPrinted]),
-              let str = String(data: data, encoding: .utf8) else {
-            return "{}"
-        }
-        return str
     }
 }

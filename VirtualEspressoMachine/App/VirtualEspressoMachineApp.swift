@@ -115,9 +115,6 @@ struct VirtualEspressoMachineApp: App {
                 if let shotRecord = completedRecordForDebrief {
                     ShotRecordView(
                         record: shotRecord,
-                        onSave: { updatedRecord in
-                            try? scenarioStore.recordCompletedShot(updatedRecord)
-                        },
                         onDismiss: {
                             withAnimation(.easeInOut(duration: 0.2)) {
                                 completedRecordForDebrief = nil
@@ -213,11 +210,18 @@ struct VirtualEspressoMachineApp: App {
         activeTelemetryProvider = nil
         coordinator.detachTelemetry()
         
-        let finishedRecord = coordinator.completedShotRecord
-        
-        withAnimation(.easeInOut(duration: 0.25)) {
-            activeExtractionProfile = nil
-            completedRecordForDebrief = finishedRecord
+        if let finishedRecord = coordinator.completedShotRecord {
+            // Automatic persistence of completed pull to history ledger
+            try? scenarioStore.recordCompletedShot(finishedRecord)
+            
+            withAnimation(.easeInOut(duration: 0.25)) {
+                activeExtractionProfile = nil
+                completedRecordForDebrief = finishedRecord
+            }
+        } else {
+            withAnimation(.easeInOut(duration: 0.25)) {
+                activeExtractionProfile = nil
+            }
         }
     }
     
