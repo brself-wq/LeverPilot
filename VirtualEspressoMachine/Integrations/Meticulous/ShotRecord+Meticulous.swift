@@ -1,0 +1,56 @@
+//
+//  ShotRecord+Meticulous.swift
+//  VirtualEspressoMachine
+//
+
+import Foundation
+
+extension ShotRecord {
+    /// Maps an immutable VEM `ShotRecord` and its 10 Hz `ShotSample` series
+    /// into the canonical payload structure expected by Meticulous REST endpoints.
+    public func toMeticulousHistoryEntry() -> MeticulousHistoryEntry {
+        let telemetryPoints: [MeticulousDataPoint] = samples.map { sample in
+            // Convert seconds (0.1s, 0.2s...) to integer milliseconds
+            let elapsedMs = Int((sample.timestamp * 1000.0).rounded())
+            
+            let telemetry = MeticulousShotTelemetry(
+                pressure: (sample.pressure * 10.0).rounded() / 10.0,
+                flow: (sample.flow * 10.0).rounded() / 10.0,
+                weight: (sample.weight * 10.0).rounded() / 10.0,
+                temperature: brewTemperature,
+                gravimetricFlow: (sample.flow * 10.0).rounded() / 10.0
+            )
+            
+            return MeticulousDataPoint(
+                time: elapsedMs,
+                status: "extracting",
+                shot: telemetry
+            )
+        }
+        
+        let meticulousProfile = MeticulousProfile(
+            name: profileName,
+            temperature: brewTemperature,
+            dbKey: 1
+        )
+        
+        return MeticulousHistoryEntry(
+            id: id,
+            dbKey: 1,
+            time: Int64(timestamp.timeIntervalSince1970 * 1000.0),
+            name: profileName,
+            profile: meticulousProfile,
+            data: telemetryPoints
+        )
+    }
+}
+
+// MARK: - Ergonomic Staging Extensions
+
+extension MeticulousServer {
+    /// Convenience helper to stage a completed VEM `ShotRecord` directly for export
+    public func stageShot(_ record: ShotRecord) {
+        stageShot(record.toMeticulousHistoryEntry())
+    }
+}
+

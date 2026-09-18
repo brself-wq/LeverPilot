@@ -332,17 +332,19 @@ public struct ShotHistoryBrowserView: View {
     
     // MARK: - Export Action Bar (Read-Only Share)
     
+    // MARK: - Export Action Bar (Meticulous Telemetry Staging)
+    
     private func exportActionBar(for shot: ShotRecord) -> some View {
         HStack {
-            ShareLink(
-                item: visualizerJSONString(shot: shot),
-                preview: SharePreview("Shot: \(shot.profileName)", image: Image(systemName: "cup.and.saucer.fill"))
-            ) {
+            Button {
+                MeticulousServer.shared.stageShot(shot.toMeticulousHistoryEntry())
+            } label: {
                 HStack(spacing: 6) {
-                    Image(systemName: "square.and.arrow.up")
-                    Text("Share")
+                    Image(systemName: "waveform.path.ecg")
+                    Text("Stage Shot")
                 }
                 .font(.system(size: 11, weight: .bold))
+                .foregroundStyle(.white)
                 .padding(.horizontal, 14)
                 .padding(.vertical, 8)
                 .background(Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 6))
