@@ -159,6 +159,6 @@ public final class ScenarioStore {
 
 private extension ShotRecord {
     func updatingSamples(_ newSamples: [ShotSample]) -> ShotRecord {
-        ShotRecord(id: self.id, profileId: self.profileId, profileName: self.profileName, profileSnapshot: self.profileSnapshot, timestamp: self.timestamp, duration: self.duration, finalWeight: self.finalWeight, doseWeight: self.doseWeight, targetWeight: self.targetWeight, brewTemperature: self.brewTemperature, grinderModel: self.grinderModel, grindSetting: self.grindSetting, beanRoaster: self.beanRoaster, beanName: self.beanName, tastingNotes: self.tastingNotes, isAborted: self.isAborted, samples: newSamples)
+        ShotRecord(id: self.id, profileId: self.profileId, profileName: self.profileName, profileSnapshot: self.profileSnapshot, timestamp: self.timestamp, duration: self.duration, finalWeight: self.finalWeight, doseWeight: self.doseWeight, targetWeight: self.targetWeight, brewTemperature: self.brewTemperature, isAborted: self.isAborted, samples: newSamples)
     }
 }

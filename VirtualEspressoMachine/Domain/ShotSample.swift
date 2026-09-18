@@ -135,12 +135,7 @@ public nonisolated struct ShotRecord: Sendable, Codable, Identifiable, Equatable
     public let targetWeight: Double       // Recipe goal (e.g. 40.0g)
     public let brewTemperature: Double    // Water temperature (°C)
     
-    // MARK: - Barista Notes & Metadata
-    public var grinderModel: String?      // e.g. "DF64 Gen 2"
-    public var grindSetting: String?      // e.g. "14.5"
-    public var beanRoaster: String?       // e.g. "DAK Coffee Roasters"
-    public var beanName: String?          // e.g. "Milky Donks"
-    public var tastingNotes: String?      // Barista feedback or test scenario notes
+    // MARK: - Metadata
     public var isAborted: Bool            // True if manually cancelled early
     
     // MARK: - Sub-Second Telemetry Series (10 Hz)
@@ -157,11 +152,6 @@ public nonisolated struct ShotRecord: Sendable, Codable, Identifiable, Equatable
         doseWeight: Double? = nil,
         targetWeight: Double = 40.0,
         brewTemperature: Double = 93.0,
-        grinderModel: String? = nil,
-        grindSetting: String? = nil,
-        beanRoaster: String? = nil,
-        beanName: String? = nil,
-        tastingNotes: String? = nil,
         isAborted: Bool = false,
         samples: [ShotSample]
     ) {
@@ -179,11 +169,6 @@ public nonisolated struct ShotRecord: Sendable, Codable, Identifiable, Equatable
         self.doseWeight = doseWeight
         self.targetWeight = targetWeight
         self.brewTemperature = brewTemperature
-        self.grinderModel = grinderModel
-        self.grindSetting = grindSetting
-        self.beanRoaster = beanRoaster
-        self.beanName = beanName
-        self.tastingNotes = tastingNotes
         self.isAborted = isAborted
     }
     
@@ -270,22 +255,6 @@ public nonisolated struct ShotRecord: Sendable, Codable, Identifiable, Equatable
             ?? (try? container.decode(Double.self, forKey: .altBrewTemperature))
             ?? 93.0
             
-        self.grinderModel = (try? container.decode(String.self, forKey: .grinderModel))
-            ?? (try? container.decode(String.self, forKey: .altGrinderModel))
-            
-        self.grindSetting = (try? container.decode(String.self, forKey: .grindSetting))
-            ?? (try? container.decode(String.self, forKey: .altGrindSetting))
-            
-        self.beanRoaster = (try? container.decode(String.self, forKey: .beanRoaster))
-            ?? (try? container.decode(String.self, forKey: .altBeanRoaster))
-            
-        self.beanName = (try? container.decode(String.self, forKey: .beanName))
-            ?? (try? container.decode(String.self, forKey: .altBeanName))
-            
-        self.tastingNotes = (try? container.decode(String.self, forKey: .tastingNotes))
-            ?? (try? container.decode(String.self, forKey: .altTastingNotes))
-            ?? (try? container.decode(String.self, forKey: .notes))
-            
         self.isAborted = (try? container.decode(Bool.self, forKey: .isAborted))
             ?? (try? container.decode(Bool.self, forKey: .altIsAborted))
             ?? false
@@ -303,47 +272,7 @@ public nonisolated struct ShotRecord: Sendable, Codable, Identifiable, Equatable
         try container.encodeIfPresent(doseWeight, forKey: .doseWeight)
         try container.encode(targetWeight, forKey: .targetWeight)
         try container.encode(brewTemperature, forKey: .brewTemperature)
-        try container.encodeIfPresent(grinderModel, forKey: .grinderModel)
-        try container.encodeIfPresent(grindSetting, forKey: .grindSetting)
-        try container.encodeIfPresent(beanRoaster, forKey: .beanRoaster)
-        try container.encodeIfPresent(beanName, forKey: .beanName)
-        try container.encodeIfPresent(tastingNotes, forKey: .tastingNotes)
         try container.encode(isAborted, forKey: .isAborted)
         try container.encode(samples, forKey: .samples)
-    }
-}
-
-// MARK: - External Platform Serializers (Visualizer & Beanconqueror)
-
-extension ShotRecord {
-    /// Generates the columnar JSON payload format expected by Visualizer.coffee API
-    public func toVisualizerPayload() -> [String: Any] {
-        var payload: [String: Any] = [
-            "clock": samples.map { $0.timestamp },
-            "espresso_pressure": samples.map { $0.pressure },
-            "espresso_flow": samples.map { $0.flow },
-            "espresso_flow_weight": samples.map { $0.flow },
-            "espresso_weight": samples.map { $0.weight },
-            "profile_title": profileName,
-            "target_weight": targetWeight,
-            "duration": duration,
-            "drink_weight": finalWeight,
-            "grinder_model": grinderModel ?? "",
-            "grinder_setting": grindSetting ?? "",
-            "bean_weight": doseWeight ?? 0.0,
-            "espresso_notes": tastingNotes ?? ""
-        ]
-        
-        let targetPressures = samples.compactMap { $0.targetPressure }
-        if targetPressures.count == samples.count {
-            payload["espresso_pressure_goal"] = targetPressures
-        }
-        
-        let targetFlows = samples.compactMap { $0.targetFlow }
-        if targetFlows.count == samples.count {
-            payload["espresso_flow_goal"] = targetFlows
-        }
-        
-        return payload
     }
 }

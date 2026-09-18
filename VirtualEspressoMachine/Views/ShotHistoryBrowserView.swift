@@ -25,9 +25,7 @@ public struct ShotHistoryBrowserView: View {
             return scenarioStore.scenarios
         }
         return scenarioStore.scenarios.filter { shot in
-            shot.profileName.localizedCaseInsensitiveContains(query) ||
-            (shot.beanName?.localizedCaseInsensitiveContains(query) ?? false) ||
-            (shot.beanRoaster?.localizedCaseInsensitiveContains(query) ?? false)
+            shot.profileName.localizedCaseInsensitiveContains(query)
         }
     }
     
@@ -405,12 +403,7 @@ public struct ShotHistoryBrowserView: View {
     }
     
     private func visualizerJSONString(shot: ShotRecord) -> String {
-        let payload = shot.toVisualizerPayload()
-        guard let data = try? JSONSerialization.data(withJSONObject: payload, options: [.prettyPrinted]),
-              let str = String(data: data, encoding: .utf8) else {
-            return "{}"
-        }
-        return str
+        return "REMOVE ME!"
     }
     
     private var emptyStateView: some View {
