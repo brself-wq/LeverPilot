@@ -8,6 +8,7 @@ import MeticulousProfile
 
 public struct ProfileVariableOverridesView: View {
     let originalProfile: Profile
+    let defaultDose: Double
     let onApply: (Profile, Double) -> Void
     let onCancel: () -> Void
     
@@ -22,7 +23,7 @@ public struct ProfileVariableOverridesView: View {
     private var hasChanges: Bool {
         if abs(targetYield - originalProfile.finalWeight) > 0.05 { return true }
         if abs(targetTemperature - originalProfile.temperature) > 0.05 { return true }
-        if abs(doseWeight - 18.0) > 0.05 { return true }
+        if abs(doseWeight - defaultDose) > 0.05 { return true }
         for v in originalProfile.variables {
             if let current = variableValues[v.key], abs(current - v.value) > 0.05 {
                 return true
@@ -38,6 +39,7 @@ public struct ProfileVariableOverridesView: View {
         onCancel: @escaping () -> Void
     ) {
         self.originalProfile = profile
+        self.defaultDose = initialDose
         self.onApply = onApply
         self.onCancel = onCancel
         
@@ -244,7 +246,7 @@ public struct ProfileVariableOverridesView: View {
     private func resetToDefaults() {
         targetYield = originalProfile.finalWeight
         targetTemperature = originalProfile.temperature
-        doseWeight = 18.0
+        doseWeight = defaultDose
         for v in originalProfile.variables {
             variableValues[v.key] = v.value
         }

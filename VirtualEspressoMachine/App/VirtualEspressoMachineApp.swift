@@ -13,6 +13,7 @@ struct VirtualEspressoMachineApp: App {
     // MARK: - App-Level Shared Singletons
     @State private var profileStore = ProfileStore()
     @State private var scenarioStore = ScenarioStore()
+    @State private var settingsStore = SettingsStore()
     @State private var bleManager = EspressoBLEManager(savedDevices: loadSavedBLEDevices())
     @State private var coordinator = ShotCoordinator()
     @State private var activeTelemetryProvider: (any TelemetryProvider)?
@@ -36,14 +37,17 @@ struct VirtualEspressoMachineApp: App {
                             profiles: profileStore.profiles,
                             bleManager: bleManager,
                             scenarioStore: scenarioStore,
-                            onArm: { sessionProfile, primedScenario in
-                                launchShot(with: sessionProfile, primedScenario: primedScenario)
+                            settings: settingsStore,
+                            onArm: { sessionProfile, dose, primedScenario in
+                                launchShot(with: sessionProfile, dose: dose, primedScenario: primedScenario)
                             }
                         )
                     case .history:
                         ShotHistoryBrowserView(scenarioStore: scenarioStore)
-                    case .workbench, .settings:
-                        // Deferred for future passes; menu items disabled below
+                    case .settings:
+                        SettingsView(settings: settingsStore)
+                    case .workbench:
+                        // Deferred for post-MVP
                         EmptyView()
                     }
                 }
@@ -71,6 +75,7 @@ struct VirtualEspressoMachineApp: App {
                         domainLabel: coordinator.currentStage?.dynamics.over.rawValue.capitalized ?? "Time",
                         finalWeightTarget: coordinator.resolvedTargetWeight,
                         nominalDuration: 32.0,
+                        windowSpan: settingsStore.chartWindowSpan,
                         isAlarmActive: coordinator.isAlarmActive,
                         elapsedTime: coordinator.elapsedTime,
                         stageTime: coordinator.stageTime,
@@ -126,6 +131,21 @@ struct VirtualEspressoMachineApp: App {
                 }
             }
             .preferredColorScheme(.dark)
+            .onAppear {
+                MeticulousServer.shared.configure(
+                    port: settingsStore.meticulousPort,
+                    verbose: settingsStore.verboseServerLogging
+                )
+            }
+            .onChange(of: settingsStore.meticulousPort) { _, newPort in
+                MeticulousServer.shared.configure(
+                    port: newPort,
+                    verbose: settingsStore.verboseServerLogging
+                )
+            }
+            .onChange(of: settingsStore.verboseServerLogging) { _, newVerbose in
+                MeticulousServer.shared.verboseLogging = newVerbose
+            }
         }
     }
     
@@ -133,6 +153,14 @@ struct VirtualEspressoMachineApp: App {
     
     private var universalHamburgerMenu: some View {
         Menu {
+            Button {
+                withAnimation(.easeInOut(duration: 0.2)) { currentDestination = .settings }
+            } label: {
+                Label(AppDestination.settings.rawValue, systemImage: AppDestination.settings.systemImage)
+            }
+            
+            Divider()
+            
             Button {
                 withAnimation(.easeInOut(duration: 0.2)) { currentDestination = .brew }
             } label: {
@@ -147,13 +175,6 @@ struct VirtualEspressoMachineApp: App {
             
             Button {} label: {
                 Label(AppDestination.workbench.rawValue, systemImage: AppDestination.workbench.systemImage)
-            }
-            .disabled(true)
-            
-            Divider()
-            
-            Button {} label: {
-                Label(AppDestination.settings.rawValue, systemImage: AppDestination.settings.systemImage)
             }
             .disabled(true)
         } label: {
@@ -172,14 +193,17 @@ struct VirtualEspressoMachineApp: App {
                     .stroke(Color.white.opacity(0.08), lineWidth: 1)
             )
         }
+        .menuOrder(.fixed)
         .menuStyle(.borderlessButton)
         .fixedSize()
     }
     
     // MARK: - Machine Lifecycle Handlers
     
-    private func launchShot(with profile: Profile, primedScenario: ShotRecord? = nil) {
-        coordinator.arm(with: profile, store: profileStore)
+    private func launchShot(with profile: Profile, dose: Double? = nil, primedScenario: ShotRecord? = nil) {
+        coordinator.configure(from: settingsStore)
+        let resolvedDose = dose ?? settingsStore.defaultDose
+        coordinator.arm(with: profile, dose: resolvedDose, store: profileStore)
         
         let provider: any TelemetryProvider
         if let primedScenario {
@@ -211,7 +235,6 @@ struct VirtualEspressoMachineApp: App {
         coordinator.detachTelemetry()
         
         if let finishedRecord = coordinator.completedShotRecord {
-            // Automatic persistence of completed pull to history ledger
             try? scenarioStore.recordCompletedShot(finishedRecord)
             
             withAnimation(.easeInOut(duration: 0.25)) {

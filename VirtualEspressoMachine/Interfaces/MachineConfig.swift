@@ -121,7 +121,7 @@ public nonisolated struct MachineConfig: Sendable, Codable, Equatable {
     public var customSettings: [String: Double]
     
     public init(
-        autoStartRule: TriggerRule = TriggerRule(sensor: .pressure, comparison: .greaterThanOrEqual, threshold: 0.8),
+        autoStartRule: TriggerRule = TriggerRule(sensor: .pressure, comparison: .greaterThanOrEqual, threshold: 0.5),
         autoStop: AutoStopConfig = AutoStopConfig(),
         tolerances: GuidanceTolerances = GuidanceTolerances(),
         customSettings: [String: Double] = [:]

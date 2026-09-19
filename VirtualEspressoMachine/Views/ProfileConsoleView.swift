@@ -14,7 +14,8 @@ public struct ProfileConsoleView: View {
     let profiles: [Profile]
     let bleManager: EspressoBLEManager
     let scenarioStore: ScenarioStore
-    let onArm: (Profile, ShotRecord?) -> Void
+    let settings: SettingsStore
+    let onArm: (Profile, Double, ShotRecord?) -> Void
     
     @AppStorage("lastSelectedProfileID") private var lastSelectedProfileID: String = ""
     
@@ -25,7 +26,7 @@ public struct ProfileConsoleView: View {
     
     // In-memory working copy isolated from ProfileStore
     @State private var sessionProfile: Profile? = nil
-    @State private var sessionDose: Double = 18.0
+    @State private var sessionDose: Double
     
     // Debug desk stimulation: primed scenario bypassing physical BLE
     @State private var primedScenario: ShotRecord? = nil
@@ -41,12 +42,15 @@ public struct ProfileConsoleView: View {
         profiles: [Profile],
         bleManager: EspressoBLEManager,
         scenarioStore: ScenarioStore,
-        onArm: @escaping (Profile, ShotRecord?) -> Void
+        settings: SettingsStore,
+        onArm: @escaping (Profile, Double, ShotRecord?) -> Void
     ) {
         self.profiles = profiles
         self.bleManager = bleManager
         self.scenarioStore = scenarioStore
+        self.settings = settings
         self.onArm = onArm
+        self._sessionDose = State(initialValue: settings.defaultDose)
     }
     
     private var filteredProfiles: [Profile] {
@@ -179,7 +183,7 @@ public struct ProfileConsoleView: View {
         
         if issues.isEmpty {
             lastSelectedProfileID = profile.id
-            onArm(profile, primedScenario)
+            onArm(profile, sessionDose, primedScenario)
         } else {
             self.preFlightIssues = issues
             self.isShowingPreFlightAlert = true
@@ -302,7 +306,7 @@ public struct ProfileConsoleView: View {
     private func syncSessionProfile() {
         if let current = catalogProfile {
             self.sessionProfile = current
-            self.sessionDose = 18.0
+            self.sessionDose = settings.defaultDose
             self.lastSelectedProfileID = current.id
         } else {
             self.sessionProfile = nil

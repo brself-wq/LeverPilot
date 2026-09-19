@@ -11,6 +11,9 @@ public final class MeticulousServer: ObservableObject {
     @Published public var currentShotId: String = "shot-1"
     @Published public var stagedShot: MeticulousHistoryEntry?
 
+    /// Flag gating high-frequency HTTP traffic and Socket.IO heartbeat logs
+    public var verboseLogging: Bool = false
+
     /// Hook fired when BQ completes downloading the telemetry shot payload
     public var onShotDelivered: (() -> Void)?
 
@@ -21,7 +24,16 @@ public final class MeticulousServer: ObservableObject {
     private var internalStagedShot: MeticulousHistoryEntry?
 
     private init() {
-        start()
+        // Leave empty — server starts via configure() on app launch
+    }
+
+    /// Configures the server from user settings, restarting the listener only if the port changes.
+    public func configure(port: Int, verbose: Bool) {
+        self.verboseLogging = verbose
+        let targetPort = UInt16(clamping: port)
+        if serverPort != targetPort || listener == nil {
+            start(port: targetPort)
+        }
     }
 
     public func start(port: UInt16 = 8080) {
@@ -102,7 +114,7 @@ public final class MeticulousServer: ObservableObject {
         connection.receive(minimumIncompleteLength: 4, maximumLength: 65536) { [weak self] data, _, _, error in
             guard let self = self, let data = data, let request = String(data: data, encoding: .utf8) else {
                 if let error = error {
-                    print("[MeticulousServer] Connection error: \(error)")
+                    self?.logVerbose("[MeticulousServer] Connection error: \(error)")
                 }
                 connection.cancel()
                 return
@@ -121,7 +133,7 @@ public final class MeticulousServer: ObservableObject {
             return httpResponse(statusCode: 400, body: "Bad Request")
         }
 
-        print("[MeticulousServer] >>> \(firstLine)")
+        logVerbose("[MeticulousServer] >>> \(firstLine)")
         let parts = firstLine.components(separatedBy: " ")
         guard parts.count >= 2 else {
             return httpResponse(statusCode: 400, body: "Bad Request")
@@ -132,13 +144,13 @@ public final class MeticulousServer: ObservableObject {
 
         // 1. Handle CORS preflight (Crucial for Axios POST in Capacitor / WebView)
         if method == "OPTIONS" {
-            print("[MeticulousServer] <<< 204 No Content (OPTIONS Preflight)")
+            logVerbose("[MeticulousServer] <<< 204 No Content (OPTIONS Preflight)")
             return corsPreflightResponse()
         }
         
         // Handle Socket.IO Handshake (Required for BQ to consider Meticulous connected)
         if path.hasPrefix("/socket.io/") {
-            print("[MeticulousServer] <<< 200 OK (Socket.IO Handshake)")
+            logVerbose("[MeticulousServer] <<< 200 OK (Socket.IO Handshake)")
             if path.contains("sid=") {
                 // Connected confirmation packet (4 = MESSAGE, 0 = CONNECT)
                 return httpResponse(statusCode: 200, text: "40{\"sid\":\"bb123\"}")
@@ -150,9 +162,8 @@ public final class MeticulousServer: ObservableObject {
         }
 
         // 2. Handshake Ping from BQ (Checks if machine is online)
-        // BQ specifically verifies: if (settings?.data?.config)
         if method == "GET" && path.hasPrefix("/api/v1/settings") {
-            print("[MeticulousServer] <<< 200 OK (/api/v1/settings)")
+            logVerbose("[MeticulousServer] <<< 200 OK (/api/v1/settings)")
             let settingsPayload = "{\"config\":{\"machine\":\"Flair 58 (Meticulous Emulated)\"},\"heat_on_boot\":true}"
             return httpResponse(statusCode: 200, json: settingsPayload)
         }
@@ -168,6 +179,7 @@ public final class MeticulousServer: ObservableObject {
             let isDetailRequest = request.contains("\"dump_data\":true") || request.contains("\"dump_data\": true")
 
             if isDetailRequest {
+                // Always log detailed telemetry delivery
                 print("[MeticulousServer] <<< 200 OK: Serving detailed telemetry for '\(staged.id)'")
                 let response = MeticulousHistoryResponse(history: [staged])
                 if let encoded = try? JSONEncoder().encode(response),
@@ -180,7 +192,7 @@ public final class MeticulousServer: ObservableObject {
                     return httpResponse(statusCode: 200, json: jsonString)
                 }
             } else {
-                print("[MeticulousServer] <<< 200 OK: Serving shot listing (dump_data: false)")
+                logVerbose("[MeticulousServer] <<< 200 OK: Serving shot listing (dump_data: false)")
                 let listingShot = staged.withoutData()
                 let response = MeticulousHistoryResponse(history: [listingShot])
                 if let encoded = try? JSONEncoder().encode(response),
@@ -190,13 +202,20 @@ public final class MeticulousServer: ObservableObject {
             }
         }
 
-        // 4. Default Profiles List (Optional fallback)
+        // 4. Default Profiles List
         if path.hasPrefix("/api/v1/profile") {
+            logVerbose("[MeticulousServer] <<< 200 OK (/api/v1/profile)")
             return httpResponse(statusCode: 200, json: "[]")
         }
 
-        print("[MeticulousServer] <<< 404 Not Handled: \(method) \(path)")
+        logVerbose("[MeticulousServer] <<< 404 Not Handled: \(method) \(path)")
         return httpResponse(statusCode: 404, body: "Not Found")
+    }
+
+    private func logVerbose(_ message: String) {
+        if verboseLogging {
+            print(message)
+        }
     }
 
     private func corsPreflightResponse() -> Data {

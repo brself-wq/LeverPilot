@@ -125,6 +125,15 @@ public final class ShotCoordinator {
         setupInitialStage(stageIndex: 0)
     }
     
+    // MARK: - Settings Synchronization
+    
+    /// Syncs coordinator machine config with user preferences from SettingsStore
+    public func configure(from settings: SettingsStore) {
+        self.machineConfig.autoStartRule.threshold = settings.autoStartPressure
+        self.machineConfig.autoStop.cutoffRule.threshold = settings.deadFlowThreshold
+        self.machineConfig.autoStop.sustainDuration = settings.deadFlowSustainDuration
+    }
+    
     // MARK: - Machine State Transitions
     
     public func startExtraction() {
@@ -202,8 +211,8 @@ public final class ShotCoordinator {
         let currentFlow = frame[.flow] ?? 0.0
         let currentWeight = frame[.weight] ?? 0.0
         
-        // 1. Auto-Start: Triggered strictly by >= 0.5 bar lever pull or external extraction state
-        if state == .armed && (currentPressure >= 0.5 || frame.state == .extracting) {
+        // 1. Auto-Start: Evaluates configured autoStartRule (e.g. pressure >= threshold) or external state
+        if state == .armed && (machineConfig.autoStartRule.isSatisfied(by: frame) || frame.state == .extracting) {
             state = .extracting
         }
         
@@ -224,7 +233,7 @@ public final class ShotCoordinator {
         capturedSamples.append(sample)
         
         // 3. Auto-Stop Dead-Flow Watchdog
-        // Beanconqueror Heuristic: Requires elapsed time >= 5.0s AND (weight >= 5.0g OR weight >= dose)
+        // Requires elapsed time >= 5.0s AND (weight >= 5.0g OR weight >= dose)
         let isPreconditionMet = frame.timestamp >= 5.0 && (currentWeight >= 5.0 || currentWeight >= activeDose)
         
         if isPreconditionMet && currentFlow <= machineConfig.autoStop.cutoffRule.threshold {
@@ -322,7 +331,6 @@ public final class ShotCoordinator {
         // 8. Update Stage Navigation Pills
         updateStagePills(for: profile, activeIndex: activeStageIndex)
     }
-    
     // MARK: - Rehearsal / Stepping Backward
     
     public func stepBackward(to frame: MachineFrame) {

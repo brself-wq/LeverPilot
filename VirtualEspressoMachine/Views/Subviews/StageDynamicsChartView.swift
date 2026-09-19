@@ -14,18 +14,20 @@ public struct StageDynamicsChartView: View {
     let activeMetric: SensorKey
     
     /// Maximum time/domain span (in seconds or grams) visible in the viewport window
-    private let windowSpan: Double = 25.0
+    let windowSpan: Double
     
     public init(
         planCurve: [PlanPoint],
         actualHistory: [ActualPoint],
         domainLabel: String,
-        activeMetric: SensorKey
+        activeMetric: SensorKey,
+        windowSpan: Double = 25.0
     ) {
         self.planCurve = planCurve
         self.actualHistory = actualHistory
         self.domainLabel = domainLabel
         self.activeMetric = activeMetric
+        self.windowSpan = windowSpan
     }
     
     private var themeColor: Color {

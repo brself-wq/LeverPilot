@@ -108,6 +108,7 @@ public struct BaristaHUDView: View {
     let domainLabel: String
     let finalWeightTarget: Double
     let nominalDuration: Double
+    let windowSpan: Double
     let isAlarmActive: Bool
     
     // Explicit telemetry overrides with fallback to frame
@@ -126,6 +127,7 @@ public struct BaristaHUDView: View {
         domainLabel: String = "TIME",
         finalWeightTarget: Double = 40.0,
         nominalDuration: Double = 32.0,
+        windowSpan: Double = 25.0,
         isAlarmActive: Bool = false,
         elapsedTime: Double? = nil,
         stageTime: Double? = nil,
@@ -139,6 +141,7 @@ public struct BaristaHUDView: View {
         self.domainLabel = domainLabel
         self.finalWeightTarget = finalWeightTarget
         self.nominalDuration = nominalDuration
+        self.windowSpan = windowSpan
         self.isAlarmActive = isAlarmActive
         self.elapsedTime = elapsedTime
         self.stageTime = stageTime
@@ -182,7 +185,8 @@ public struct BaristaHUDView: View {
                             planCurve: planCurve,
                             actualHistory: actualHistory,
                             domainLabel: domainLabel,
-                            activeMetric: frame.activeMetric
+                            activeMetric: frame.activeMetric,
+                            windowSpan: windowSpan
                         )
                         
                         ExitTriggersPanelView(
