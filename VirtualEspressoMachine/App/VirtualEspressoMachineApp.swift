@@ -22,9 +22,9 @@ struct VirtualEspressoMachineApp: App {
     // MARK: - Root Navigation Destination
     @State private var currentDestination: AppDestination = .brew
     
-    // MARK: - Active Extraction / Debrief Modal Overlays
+    // MARK: - Active Extraction / Shot Modal Overlays
     @State private var activeExtractionProfile: Profile? = nil
-    @State private var completedRecordForDebrief: ShotRecord? = nil
+    @State private var completedRecordForReview: ShotRecord? = nil
     
     var body: some Scene {
         WindowGroup {
@@ -116,13 +116,13 @@ struct VirtualEspressoMachineApp: App {
                     .zIndex(10)
                 }
                 
-                // 4. POST-SHOT LAYER: Full-Screen Shot Record / History Debrief
-                if let shotRecord = completedRecordForDebrief {
+                // 4. POST-SHOT LAYER: Full-Screen Shot Record / Shot History
+                if let shotRecord = completedRecordForReview {
                     ShotRecordView(
                         record: shotRecord,
                         onDismiss: {
                             withAnimation(.easeInOut(duration: 0.2)) {
-                                completedRecordForDebrief = nil
+                                completedRecordForReview = nil
                             }
                         }
                     )
@@ -239,7 +239,7 @@ struct VirtualEspressoMachineApp: App {
             
             withAnimation(.easeInOut(duration: 0.25)) {
                 activeExtractionProfile = nil
-                completedRecordForDebrief = finishedRecord
+                completedRecordForReview = finishedRecord
             }
         } else {
             withAnimation(.easeInOut(duration: 0.25)) {

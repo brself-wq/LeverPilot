@@ -72,7 +72,7 @@ public struct ProfileVariableOverridesView: View {
                         Image(systemName: "info.circle.fill")
                             .font(.system(size: 12))
                             .foregroundStyle(.secondary)
-                        Text("Overrides apply only to this shot session. Recipe on disk remains untouched.")
+                        Text("Overrides apply only to this shot session. Profile on disk remains untouched.")
                             .font(.system(size: 11))
                             .foregroundStyle(.secondary)
                         Spacer()
@@ -85,9 +85,9 @@ public struct ProfileVariableOverridesView: View {
                     // Section 1: Targets (Dose -> Target Weight -> Temperature)
                     targetsSection
                     
-                    // Section 2: Parameters (If present)
+                    // Section 2: Variables (If present)
                     if !originalProfile.variables.isEmpty {
-                        parametersSection
+                        variablesSection
                     }
                 }
                 .padding(24)
@@ -178,12 +178,12 @@ public struct ProfileVariableOverridesView: View {
         }
     }
     
-    // MARK: - Parameters Section
+    // MARK: - Variables Section
     
-    private var parametersSection: some View {
+    private var variablesSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text("PARAMETERS")
+                Text("VARIABLES")
                     .font(.system(size: 10, weight: .heavy, design: .monospaced))
                     .foregroundStyle(.secondary)
                 Spacer()

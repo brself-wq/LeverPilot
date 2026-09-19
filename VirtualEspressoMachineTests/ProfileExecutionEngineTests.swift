@@ -408,7 +408,7 @@ final class ProfileExecutionEngineTests: XCTestCase {
         XCTAssertTrue(resultC.shouldAdvanceStage)
     }
     
-    /// When a stage defines no explicit exit triggers, it must fall back to the recipe final weight cutoff.
+    /// When a stage defines no explicit exit triggers, it must fall back to the profile final weight cutoff.
     func test_stageWithoutExitTriggers_fallsBackToFinalWeightCutoff() {
         let stageNoTriggers = makeStage(
             type: .pressure,

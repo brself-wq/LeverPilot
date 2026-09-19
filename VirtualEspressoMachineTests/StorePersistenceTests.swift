@@ -61,7 +61,7 @@ final class StorePersistenceTests: XCTestCase {
     func test_profileStore_diskMode_persistsAcrossStoreInstances() throws {
         let profileDir = tempDirectory.appendingPathComponent("Profiles", isDirectory: true)
         
-        // Instance A: Saves a new recipe to disk
+        // Instance A: Saves a new profile to disk
         let storeA = ProfileStore(mode: .disk(directory: profileDir))
         let profile = Profile(
             name: "Persistent Profile",

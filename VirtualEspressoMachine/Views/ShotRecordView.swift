@@ -45,12 +45,18 @@ public struct ShotRecordView: View {
                 
                 Divider().background(Color.white.opacity(0.08))
                 
-                // Content: Dominant Extraction Chart & Metric Summary Strip
-                ScrollView {
-                    VStack(spacing: 20) {
-                        meticulousGraphCard
+                // Content: Responsive extraction graph card
+                ViewThatFits(in: .vertical) {
+                    // 1. Dominant full-bleed layout (iPad landscape & expanded viewports)
+                    meticulousGraphCard(isFlexible: true)
+                        .padding(20)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    
+                    // 2. Fallback scrolling layout for compact heights / Split View
+                    ScrollView {
+                        meticulousGraphCard(isFlexible: false)
+                            .padding(20)
                     }
-                    .padding(24)
                 }
                 
                 Divider().background(Color.white.opacity(0.08))
@@ -95,7 +101,7 @@ public struct ShotRecordView: View {
     
     // MARK: - Meticulous Graph Card
     
-    private var meticulousGraphCard: some View {
+    private func meticulousGraphCard(isFlexible: Bool) -> some View {
         VStack(spacing: 12) {
             HStack(spacing: 16) {
                 legendItem(color: Color(red: 0.0, green: 0.70, blue: 0.95), label: "Pressure (bar)")
@@ -164,7 +170,7 @@ public struct ShotRecordView: View {
                         .foregroundStyle(.secondary)
                 }
             }
-            .frame(height: 320)
+            .frame(minHeight: isFlexible ? 240 : 320, maxHeight: isFlexible ? .infinity : 320)
             .padding(.horizontal, 14)
             
             HStack {
@@ -180,6 +186,7 @@ public struct ShotRecordView: View {
             .padding(.vertical, 12)
             .background(Color.white.opacity(0.03))
         }
+        .frame(maxHeight: isFlexible ? .infinity : nil)
         .background(Color(red: 0.10, green: 0.10, blue: 0.12))
         .cornerRadius(12)
         .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.08), lineWidth: 1))

@@ -43,7 +43,7 @@ public final class ShotCoordinator {
     public private(set) var actualWeight: Double = 0.0
     public var isAlarmActive: Bool = false
     
-    /// True when all recipe stages and triggers have concluded, but physical flow is still active.
+    /// True when all profile stages and triggers have concluded, but physical flow is still active.
     public private(set) var isProfileComplete: Bool = false
     
     // MARK: - Configuration & Watchdogs
@@ -284,7 +284,7 @@ public final class ShotCoordinator {
                     )
                 }
             } else {
-                // Recipe guidance completed; hold final setpoint until physical flow stops
+                // Profile guidance completed; hold final setpoint until physical flow stops
                 if !isProfileComplete {
                     print("🎯 PROFILE COMPLETE: Holding final setpoint until flow cutoff.")
                     isProfileComplete = true

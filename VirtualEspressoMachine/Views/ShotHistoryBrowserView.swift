@@ -129,7 +129,7 @@ public struct ShotHistoryBrowserView: View {
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                 
-                TextField("Search recipe...", text: $searchQuery)
+                TextField("Search profile...", text: $searchQuery)
                     .textFieldStyle(.plain)
                     .font(.system(size: 12))
                     .frame(width: 220)
@@ -237,21 +237,29 @@ public struct ShotHistoryBrowserView: View {
     // MARK: - Detail Pane (Telemetry Chart & Share)
     
     private func detailView(for shot: ShotRecord) -> some View {
-        ScrollView {
+        ViewThatFits(in: .vertical) {
+            // 1. Dominant vertical layout for full iPad viewports
             VStack(spacing: 16) {
-                // Dominant Multi-Stream Extraction Chart & Metrics Strip
-                meticulousGraphCard(for: shot)
-                
-                // Add to Beanconqueror Action Bar
+                meticulousGraphCard(for: shot, isFlexible: true)
                 exportActionBar(for: shot)
             }
             .padding(20)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            
+            // 2. Fallback scrollable layout for compact / squished viewports
+            ScrollView {
+                VStack(spacing: 16) {
+                    meticulousGraphCard(for: shot, isFlexible: false)
+                    exportActionBar(for: shot)
+                }
+                .padding(20)
+            }
         }
     }
     
     // MARK: - Telemetry Chart Card
     
-    private func meticulousGraphCard(for shot: ShotRecord) -> some View {
+    private func meticulousGraphCard(for shot: ShotRecord, isFlexible: Bool) -> some View {
         let peakPressure = shot.samples.map(\.pressure).max() ?? 0.0
         let flows = shot.samples.map(\.flow).filter { $0 > 0.1 }
         let avgFlow = flows.isEmpty ? 0.0 : flows.reduce(0, +) / Double(flows.count)
@@ -326,7 +334,7 @@ public struct ShotHistoryBrowserView: View {
                         .foregroundStyle(.secondary)
                 }
             }
-            .frame(height: 280)
+            .frame(minHeight: isFlexible ? 220 : 280, maxHeight: isFlexible ? .infinity : 280)
             .padding(.horizontal, 14)
             
             // Summary Metric Footer Strip
@@ -345,6 +353,7 @@ public struct ShotHistoryBrowserView: View {
             .padding(.vertical, 10)
             .background(Color.white.opacity(0.03))
         }
+        .frame(maxHeight: isFlexible ? .infinity : nil)
         .background(Color(red: 0.08, green: 0.08, blue: 0.10))
         .cornerRadius(12)
         .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.08), lineWidth: 1))

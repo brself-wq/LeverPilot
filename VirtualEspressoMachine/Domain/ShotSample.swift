@@ -33,7 +33,7 @@ public nonisolated struct ShotSample: Sendable, Codable, Identifiable, Equatable
     // Target guidance setpoints active at this exact millisecond
     public let targetPressure: Double?    // Planned pressure setpoint (if in pressure stage)
     public let targetFlow: Double?        // Planned flow setpoint (if in flow stage)
-    public let stageIndex: Int            // Active recipe stage index (0, 1, 2...)
+    public let stageIndex: Int            // Active [profile] stage index (0, 1, 2...)
     
     public init(
         id: UUID = UUID(),
@@ -119,20 +119,20 @@ public nonisolated struct ShotSample: Sendable, Codable, Identifiable, Equatable
 /// 2. A mock testing fixture (when placed in MockScenarios/).
 /// 3. The export source for Beanconqueror.
 public nonisolated struct ShotRecord: Sendable, Codable, Identifiable, Equatable {
-    // MARK: - Identity & Recipe Link
+    // MARK: - Identity & Profile Link
     public let id: String                 // Unique shot or scenario ID
     public let profileId: String          // Explicit link to MeticulousProfile.Profile.id
-    public let profileName: String        // Cached recipe name
+    public let profileName: String        // Cached profile name
     public let timestamp: Date            // Wall-clock time when shot was pulled
     
-    // MARK: - Immutable Recipe Snapshot
-    public let profileSnapshot: Profile?  // Frozen copy of the exact recipe used (minus heavy artwork)
+    // MARK: - Immutable Profile Snapshot
+    public let profileSnapshot: Profile?  // Frozen copy of the exact profile used (minus heavy artwork)
     
     // MARK: - Core Execution Metrics
     public let duration: TimeInterval     // Total shot time (e.g. 32.4s)
     public let finalWeight: Double        // Total liquid yield in cup (e.g. 40.2g)
     public let doseWeight: Double?        // Dry grounds dose in basket (e.g. 18.0g)
-    public let targetWeight: Double       // Recipe goal (e.g. 40.0g)
+    public let targetWeight: Double       // Profile goal (e.g. 40.0g)
     public let brewTemperature: Double    // Water temperature (°C)
     
     // MARK: - Metadata

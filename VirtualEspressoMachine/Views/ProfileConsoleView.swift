@@ -153,7 +153,7 @@ public struct ProfileConsoleView: View {
             }
         }
         // Pre-Flight Diagnostic Checklist Alert
-        .alert("Cannot Arm Machine", isPresented: $isShowingPreFlightAlert) {
+        .alert("Cannot Start Brew", isPresented: $isShowingPreFlightAlert) {
             Button("OK", role: .cancel) {}
         } message: {
             Text(formattedPreFlightMessage)
@@ -192,7 +192,7 @@ public struct ProfileConsoleView: View {
     
     private var formattedPreFlightMessage: String {
         let bullets = preFlightIssues.map { "• \($0.description)" }.joined(separator: "\n")
-        return "The machine cannot transition to armed state until the following are resolved:\n\n\(bullets)"
+        return "Brewing cannot begin until the following are resolved:\n\n\(bullets)"
     }
     
     // MARK: - Top Console Bar
@@ -212,7 +212,7 @@ public struct ProfileConsoleView: View {
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                 
-                TextField("Search recipe name or author...", text: $searchFilter)
+                TextField("Search profile or author...", text: $searchFilter)
                     .textFieldStyle(.plain)
                     .font(.system(size: 12))
                     .frame(width: 200)
@@ -342,7 +342,7 @@ public struct ProfileConsoleView: View {
             Image(systemName: "magnifyingglass")
                 .font(.system(size: 32))
                 .foregroundStyle(.tertiary)
-            Text("No recipes match \"\(searchFilter)\"")
+            Text("No profiles match \"\(searchFilter)\"")
                 .font(.headline)
                 .foregroundStyle(.secondary)
             Button("Clear Search") {

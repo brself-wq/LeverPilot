@@ -13,7 +13,7 @@ public protocol MachineProtocol: AnyObject {
     var currentFrame: MachineFrame { get }
     var sensors: any SensorArrayProtocol { get }
     
-    // MARK: - Recipe & Configuration Subsystems
+    // MARK: - Profile & Configuration Subsystems
     var profileStore: ProfileStore { get }
     var activeProfile: Profile? { get }
     var config: MachineConfig { get } // 👈 Unified, extensible configuration

@@ -51,8 +51,8 @@ final class ShotCoordinatorTests: XCTestCase {
         )
         
         twoStageProfile = Profile(
-            name: "Test Recipe",
-            id: "test-recipe-1",
+            name: "Test Profile",
+            id: "test-profile-1",
             author: "Tester",
             authorId: "tester-1",
             temperature: 93.0,
@@ -252,12 +252,12 @@ final class ShotCoordinatorTests: XCTestCase {
         XCTAssertFalse(coordinator.isProfileComplete)
         
         // 4. Tick crossing Extraction trigger (weight = 10.0g >= 10.0g absolute) with active flow (2.0 mL/s)
-        let finalRecipeFrame = MachineFrame(
+        let finalProfileFrame = MachineFrame(
             timestamp: 7.0,
             state: .extracting,
             readings: [.pressure: 9.0, .flow: 2.0, .weight: 10.0]
         )
-        coordinator.processTelemetryFrame(finalRecipeFrame)
+        coordinator.processTelemetryFrame(finalProfileFrame)
         
         // Guidance reaches completion, but shot remains extracting while liquid flows!
         XCTAssertEqual(coordinator.state, .extracting, "Shot must not terminate immediately while flow is active")

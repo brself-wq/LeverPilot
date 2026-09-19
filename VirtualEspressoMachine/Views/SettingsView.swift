@@ -103,7 +103,7 @@ public struct SettingsView: View {
     
     private var brewDefaultsSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            sectionHeader(title: "BREW DEFAULTS", subtitle: "Default dose used across console recipes")
+            sectionHeader(title: "BREW DEFAULTS", subtitle: "Default dose used across brew profiles")
             
             stepperRow(
                 icon: "cup.and.saucer.fill",
@@ -195,7 +195,7 @@ public struct SettingsView: View {
     
     private var hudSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            sectionHeader(title: "HUD & VIEWPORT", subtitle: "Live chart rendering and viewport sliding parameters")
+            sectionHeader(title: "HUD & VIEWPORT", subtitle: "Live chart rendering and viewport dynamics")
             
             stepperRow(
                 icon: "chart.xyaxis.line",

@@ -218,7 +218,7 @@ public struct BaristaHUDView: View {
         }
     }
     
-    // MARK: - Top Rail: Recipe Stages & Macro Context
+    // MARK: - Top Rail: Profile Stages & Macro Context
     
     @ViewBuilder
     private var topRailView: some View {

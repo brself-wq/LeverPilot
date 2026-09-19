@@ -17,15 +17,15 @@ public enum PreFlightIssue: Sendable, Equatable, CustomStringConvertible {
     public var description: String {
         switch self {
         case .noProfileSelected:
-            return "No recipe profile selected."
+            return "No profile selected."
         case .profileHasNoStages:
-            return "Selected profile contains no extraction stages."
+            return "Selected profile contains no stages."
         case .bluetoothUnavailable:
             return "Bluetooth is powered off or unauthorized."
         case .scaleDisconnected:
-            return "Bookoo scale is not connected."
+            return "Scale is not connected."
         case .pressureDisconnected:
-            return "Pressure transducer is not connected."
+            return "Pressure device is not connected."
         }
     }
 }
