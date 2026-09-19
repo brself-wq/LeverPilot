@@ -15,3 +15,10 @@
 * **Tail Trimming**: Subtracting the post-extraction dead-flow confirmation window (e.g. 1.5s) from the final archived duration in `ShotRecord`.
 * **Stage-Relative Exit Trigger (`relative: true`)**: A condition evaluated strictly against the local delta accumulated since entering the current stage (e.g. elapsed stage time $t - t_0$, or stage yield $w - w_0$).
 * **Absolute Shot Exit Trigger (`relative: false`)**: A condition evaluated against the cumulative extraction timeline or aggregate scale yield since shot start ($t = 0.0\text{s}$). Default behavior when `relative` is omitted in the OEPF schema.
+
+### Integration & Persistence Concepts
+* **Delivery Ledger (Sidecar)**: An isolated persistence store (`UserDefaults`) recording successfully transferred telemetry IDs without mutating the original, immutable physical flight records (`ShotRecord`).
+* **Loopback REST Emulation**: A local TCP listener (`NWListener`) running on `127.0.0.1:8080` that implements the Meticulous machine API and Engine.IO/Socket.IO presence protocols, allowing third-party apps (Beanconqueror) to ingest telemetry curves without cloud dependencies.
+* **Handoff State**: An explicit finite state machine (`.idle` → `.transferring` → `.transferred` → `.timedOut`) governing cross-app deep-linking and locking out repetitive user button taps.
+* **Anti-Rage-Click Lockout**: A defensive UI state pattern that disables action buttons and presents active indeterminate progress spinners during asynchronous cross-app dispatch to eliminate duplicate task creation in Stage Manager / Split View.
+* **Sliding Viewport Span**: The configurable horizontal domain window (typically 20–30s) rendered on `StageDynamicsChartView`. Once elapsed stage time exceeds this window, the X-axis continuously scrolls to keep the live extraction point pinned near the right edge of the display.
