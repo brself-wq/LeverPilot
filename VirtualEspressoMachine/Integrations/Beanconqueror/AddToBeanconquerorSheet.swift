@@ -9,6 +9,7 @@ public struct AddToBeanconquerorSheet: View {
     let record: ShotRecord
     
     @ObservedObject private var bqStorage = BQStorageManager.shared
+    @ObservedObject private var handoff = BQHandoffCoordinator.shared
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
     
@@ -66,8 +67,21 @@ public struct AddToBeanconquerorSheet: View {
             }
         }
         .onAppear {
+            handoff.resetState()
+            // Auto-refresh bean list when opening sheet to pick up newly minted share codes
+            bqStorage.refresh()
             if selectedBean == nil {
                 selectedBean = bqStorage.beans.first(where: \.hasShareCode) ?? bqStorage.beans.first
+            }
+        }
+        .onDisappear {
+            handoff.resetState()
+        }
+        .onChange(of: handoff.state) { _, newState in
+            if newState == .transferred {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
+                    dismiss()
+                }
             }
         }
     }
@@ -283,26 +297,51 @@ public struct AddToBeanconquerorSheet: View {
     // MARK: - Footer
     
     private var footerBar: some View {
-        HStack {
+        let isDelivered = handoff.isDelivered(shotId: record.id)
+        let isBusy = handoff.state == .transferring || handoff.state == .transferred
+
+        return HStack {
             Spacer()
             
             Button {
                 guard let bean = selectedBean, let shareCode = bean.internalShareCode else { return }
-                BQHandoffCoordinator.shared.addBrewToBeanconqueror(shareCode: shareCode, shot: record)
-                dismiss()
+                handoff.addBrewToBeanconqueror(shareCode: shareCode, shot: record)
             } label: {
                 HStack(spacing: 8) {
-                    Image(systemName: "arrow.up.forward.app.fill")
-                        .font(.system(size: 12, weight: .black))
-                    Text(selectedBean?.hasShareCode == true ? "Add Brew in Beanconqueror" : "Share Code Required")
-                        .font(.system(size: 13, weight: .bold))
+                    switch handoff.state {
+                    case .transferring:
+                        ProgressView()
+                            .controlSize(.small)
+                            .tint(.white)
+                        Text("Transferring...")
+                            .font(.system(size: 13, weight: .bold))
+                    case .transferred:
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.system(size: 13, weight: .black))
+                            .foregroundStyle(.green)
+                        Text("Transferred!")
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundStyle(.green)
+                    case .timedOut:
+                        Image(systemName: "arrow.clockwise")
+                            .font(.system(size: 12, weight: .black))
+                        Text("Ready to Re-send")
+                            .font(.system(size: 13, weight: .bold))
+                    case .idle:
+                        Image(systemName: isDelivered ? "arrow.clockwise" : "arrow.up.forward.app.fill")
+                            .font(.system(size: 12, weight: .black))
+                        Text(selectedBean?.hasShareCode == true
+                             ? (isDelivered ? "Re-send to Beanconqueror" : "Add Brew in Beanconqueror")
+                             : "Share Code Required")
+                            .font(.system(size: 13, weight: .bold))
+                    }
                 }
                 .padding(.horizontal, 20)
                 .padding(.vertical, 10)
             }
             .buttonStyle(.borderedProminent)
-            .tint(canAddBrew ? .blue : .secondary)
-            .disabled(!canAddBrew)
+            .tint(canAddBrew && !isBusy ? (isDelivered ? .secondary : .blue) : .secondary)
+            .disabled(!canAddBrew || isBusy)
         }
     }
 }

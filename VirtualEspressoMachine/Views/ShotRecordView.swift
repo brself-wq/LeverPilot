@@ -188,12 +188,14 @@ public struct ShotRecordView: View {
     // MARK: - Bottom Footer Action Bar
     
     private var footerBar: some View {
-        HStack {
+        let isDelivered = BQHandoffCoordinator.shared.isDelivered(shotId: record.id)
+
+        return HStack {
             Button(action: { isShowingAddBrewSheet = true }) {
                 HStack(spacing: 6) {
-                    Image(systemName: "cup.and.saucer.fill")
+                    Image(systemName: isDelivered ? "arrow.clockwise" : "cup.and.saucer.fill")
                         .font(.system(size: 11, weight: .bold))
-                    Text("Add to Beanconqueror")
+                    Text(isDelivered ? "Re-send to Beanconqueror" : "Add to Beanconqueror")
                         .font(.system(size: 13, weight: .bold))
                 }
                 .foregroundStyle(.white)

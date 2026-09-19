@@ -9,6 +9,7 @@ import MeticulousProfile
 
 public struct ShotHistoryBrowserView: View {
     let scenarioStore: ScenarioStore
+    @ObservedObject private var handoff = BQHandoffCoordinator.shared
     
     @State private var selectedShotID: String? = nil
     @State private var searchQuery: String = ""
@@ -172,7 +173,9 @@ public struct ShotHistoryBrowserView: View {
     }
     
     private func shotRowCard(shot: ShotRecord, isSelected: Bool) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
+        let isDelivered = handoff.isDelivered(shotId: shot.id)
+
+        return VStack(alignment: .leading, spacing: 6) {
             HStack {
                 Text(shot.profileName)
                     .font(.system(size: 13, weight: .bold))
@@ -180,6 +183,19 @@ public struct ShotHistoryBrowserView: View {
                     .lineLimit(1)
                 
                 Spacer()
+
+                if isDelivered {
+                    HStack(spacing: 3) {
+                        Image(systemName: "cup.and.saucer.fill")
+                            .font(.system(size: 8))
+                        Text("BQ")
+                            .font(.system(size: 8, weight: .heavy, design: .monospaced))
+                    }
+                    .foregroundStyle(Color(red: 0.20, green: 0.85, blue: 0.65))
+                    .padding(.horizontal, 5)
+                    .padding(.vertical, 2)
+                    .background(Color(red: 0.20, green: 0.85, blue: 0.65).opacity(0.12), in: Capsule())
+                }
                 
                 if shot.isAborted {
                     Text("ABORTED")
@@ -337,13 +353,15 @@ public struct ShotHistoryBrowserView: View {
     // MARK: - Action Bar (Add Brew to Beanconqueror)
     
     private func exportActionBar(for shot: ShotRecord) -> some View {
-        HStack {
+        let isDelivered = handoff.isDelivered(shotId: shot.id)
+
+        return HStack {
             Button {
                 shotToAddBrew = shot
             } label: {
                 HStack(spacing: 6) {
-                    Image(systemName: "cup.and.saucer.fill")
-                    Text("Add to Beanconqueror")
+                    Image(systemName: isDelivered ? "arrow.clockwise" : "cup.and.saucer.fill")
+                    Text(isDelivered ? "Re-send to Beanconqueror" : "Add to Beanconqueror")
                 }
                 .font(.system(size: 11, weight: .bold))
                 .foregroundStyle(.white)
