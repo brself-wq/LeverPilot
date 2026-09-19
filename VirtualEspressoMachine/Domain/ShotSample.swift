@@ -117,7 +117,7 @@ public nonisolated struct ShotSample: Sendable, Codable, Identifiable, Equatable
 /// Functions as:
 /// 1. A completed extraction log saved in your local database.
 /// 2. A mock testing fixture (when placed in MockScenarios/).
-/// 3. The export source for Visualizer.coffee and Beanconqueror.
+/// 3. The export source for Beanconqueror.
 public nonisolated struct ShotRecord: Sendable, Codable, Identifiable, Equatable {
     // MARK: - Identity & Recipe Link
     public let id: String                 // Unique shot or scenario ID

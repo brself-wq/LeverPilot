@@ -37,7 +37,7 @@ extension ShotRecord {
         return MeticulousHistoryEntry(
             id: id,
             dbKey: 1,
-            time: Int64(timestamp.timeIntervalSince1970 * 1000.0),
+            time: Int64(timestamp.timeIntervalSince1970),
             name: profileName,
             profile: meticulousProfile,
             data: telemetryPoints

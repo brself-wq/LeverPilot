@@ -12,6 +12,7 @@ public struct ShotHistoryBrowserView: View {
     
     @State private var selectedShotID: String? = nil
     @State private var searchQuery: String = ""
+    @State private var shotToAddBrew: ShotRecord? = nil
     
     public init(scenarioStore: ScenarioStore) {
         self.scenarioStore = scenarioStore
@@ -71,6 +72,9 @@ public struct ShotHistoryBrowserView: View {
                     }
                 }
             }
+        }
+        .sheet(item: $shotToAddBrew) { shot in
+            AddToBeanconquerorSheet(record: shot)
         }
         .onAppear {
             if selectedShotID == nil {
@@ -222,7 +226,7 @@ public struct ShotHistoryBrowserView: View {
                 // Dominant Multi-Stream Extraction Chart & Metrics Strip
                 meticulousGraphCard(for: shot)
                 
-                // Read-only Share Action Bar
+                // Add to Beanconqueror Action Bar
                 exportActionBar(for: shot)
             }
             .padding(20)
@@ -330,18 +334,16 @@ public struct ShotHistoryBrowserView: View {
         .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.08), lineWidth: 1))
     }
     
-    // MARK: - Export Action Bar (Read-Only Share)
-    
-    // MARK: - Export Action Bar (Meticulous Telemetry Staging)
+    // MARK: - Action Bar (Add Brew to Beanconqueror)
     
     private func exportActionBar(for shot: ShotRecord) -> some View {
         HStack {
             Button {
-                MeticulousServer.shared.stageShot(shot.toMeticulousHistoryEntry())
+                shotToAddBrew = shot
             } label: {
                 HStack(spacing: 6) {
-                    Image(systemName: "waveform.path.ecg")
-                    Text("Stage Shot")
+                    Image(systemName: "cup.and.saucer.fill")
+                    Text("Add to Beanconqueror")
                 }
                 .font(.system(size: 11, weight: .bold))
                 .foregroundStyle(.white)
@@ -402,10 +404,6 @@ public struct ShotHistoryBrowserView: View {
         formatter.dateStyle = .medium
         formatter.timeStyle = .short
         return formatter.string(from: date)
-    }
-    
-    private func visualizerJSONString(shot: ShotRecord) -> String {
-        return "REMOVE ME!"
     }
     
     private var emptyStateView: some View {
