@@ -18,13 +18,19 @@ public final class BLETelemetryProvider: TelemetryProvider, @unchecked Sendable 
     private var isExtracting: Bool = false
     private var extractionStartTime: Date? = nil
     
-    // Staleness Tracking
+    // Dual Staleness & Heartbeat Tracking (ADR-009)
     private var lastObservedWeight: Double? = nil
     private var lastWeightUpdateTime: Date = Date()
+    private var lastObservedPressure: Double? = nil
+    private var lastPressureUpdateTime: Date = Date()
+    
+    // Weight Latching: Never default or drop to 0.0g during active extraction (ADR-009)
+    private var latchedWeight: Double = 0.0
     
     // Signal Conditioning Ring Buffer (6 samples @ 10 Hz = 500ms window)
     private var weightHistory: [(timestamp: Double, weight: Double)] = []
     private let maxHistorySamples = 6
+    private var lastRegressionTimestamp: Double? = nil
     
     // MARK: - Bench Sensor Stimulation (DEBUG Only)
     #if DEBUG
@@ -54,6 +60,11 @@ public final class BLETelemetryProvider: TelemetryProvider, @unchecked Sendable 
         self.extractionStartTime = nil
         self.lastObservedWeight = nil
         self.lastWeightUpdateTime = Date()
+        self.lastObservedPressure = nil
+        self.lastPressureUpdateTime = Date()
+        self.latchedWeight = 0.0
+        self.weightHistory.removeAll()
+        self.lastRegressionTimestamp = nil
         
         timerTask = Task { [weak self] in
             guard let self else { return }
@@ -70,15 +81,38 @@ public final class BLETelemetryProvider: TelemetryProvider, @unchecked Sendable 
                 rawWeight += self.injectedWeightOffset
                 #endif
                 
-                // 2. Evaluate Extraction Threshold (Trip exclusively on Pressure >= 0.5 bar)
+                // 2. Dual Staleness Heartbeat Evaluation (ADR-009)
+                let isScaleConnected = self.bleManager.slots[.scale]?.isConnected == true
+                let isPressureConnected = self.bleManager.slots[.pressure]?.isConnected == true
+                
+                if self.lastObservedWeight != rawWeight {
+                    self.lastObservedWeight = rawWeight
+                    self.lastWeightUpdateTime = now
+                    if rawWeight > 0.0 {
+                        self.latchedWeight = rawWeight
+                    }
+                }
+                
+                if self.lastObservedPressure != rawPressure {
+                    self.lastObservedPressure = rawPressure
+                    self.lastPressureUpdateTime = now
+                }
+                
+                let scaleSlotStale = self.bleManager.slots[.scale]?.isStale ?? true
+                let pressureSlotStale = self.bleManager.slots[.pressure]?.isStale ?? true
+                
+                let isScaleStale = !isScaleConnected || scaleSlotStale || (now.timeIntervalSince(self.lastWeightUpdateTime) > 0.5)
+                let isPressureStale = !isPressureConnected || pressureSlotStale || (now.timeIntervalSince(self.lastPressureUpdateTime) > 0.5)
+                
+                // 3. Evaluate Extraction Threshold (Trip exclusively on Pressure >= 0.5 bar)
                 if !self.isExtracting {
-                    if rawPressure >= 0.5 {
+                    if rawPressure >= 0.5 && !isPressureStale {
                         self.isExtracting = true
                         self.extractionStartTime = now
                     }
                 }
                 
-                // 3. Compute Elapsed Shot Time (0.0s while armed; ticks only after trip)
+                // 4. Compute Elapsed Shot Time (0.0s while armed; ticks only after trip)
                 let shotElapsed: Double
                 if let start = self.extractionStartTime, self.isExtracting {
                     shotElapsed = now.timeIntervalSince(start)
@@ -86,32 +120,36 @@ public final class BLETelemetryProvider: TelemetryProvider, @unchecked Sendable 
                     shotElapsed = 0.0
                 }
                 
-                // 4. Update Staleness Tracker
-                if self.lastObservedWeight != rawWeight {
-                    self.lastObservedWeight = rawWeight
-                    self.lastWeightUpdateTime = now
+                // 5. Weight Latching Invariant (ADR-009)
+                let effectiveWeight: Double
+                if self.isExtracting {
+                    if isScaleStale {
+                        effectiveWeight = self.latchedWeight
+                    } else {
+                        effectiveWeight = rawWeight
+                        self.latchedWeight = rawWeight
+                    }
+                } else {
+                    effectiveWeight = rawWeight
                 }
                 
-                let isScaleConnected = self.bleManager.slots[.scale]?.isConnected == true
-                let isScaleStale = !isScaleConnected || (now.timeIntervalSince(self.lastWeightUpdateTime) > 0.5)
-                
-                // 5. Compute Flow (dw/dt) via Rolling Linear Regression
+                // 6. Compute Flow (dw/dt) via Rolling Linear Regression with Gap Re-Anchoring
                 var derivedFlow: Double
                 #if DEBUG
-                if self.forceZeroFlow || isScaleStale {
+                if self.forceZeroFlow || isScaleStale || !self.isExtracting {
                     derivedFlow = 0.0
                 } else {
-                    derivedFlow = self.calculateRegressionFlow(currentTime: shotElapsed, currentWeight: rawWeight)
+                    derivedFlow = self.calculateRegressionFlow(currentTime: shotElapsed, currentWeight: effectiveWeight, isStale: isScaleStale)
                 }
                 #else
-                if isScaleStale {
+                if isScaleStale || !self.isExtracting {
                     derivedFlow = 0.0
                 } else {
-                    derivedFlow = self.calculateRegressionFlow(currentTime: shotElapsed, currentWeight: rawWeight)
+                    derivedFlow = self.calculateRegressionFlow(currentTime: shotElapsed, currentWeight: effectiveWeight, isStale: isScaleStale)
                 }
                 #endif
                 
-                // 6. Emit Frame with True Machine State (.armed while waiting, .extracting after trip)
+                // 7. Emit Frame with Sensor Health Metadata
                 let frame = MachineFrame(
                     timestamp: shotElapsed,
                     absoluteTime: now,
@@ -119,10 +157,12 @@ public final class BLETelemetryProvider: TelemetryProvider, @unchecked Sendable 
                     readings: [
                         .pressure: rawPressure,
                         .flow: derivedFlow,
-                        .weight: rawWeight,
+                        .weight: effectiveWeight,
                         .time: shotElapsed,
                         .power: 100.0
-                    ]
+                    ],
+                    isScaleStale: isScaleStale,
+                    isPressureStale: isPressureStale
                 )
                 
                 self.continuation?.yield(frame)
@@ -139,7 +179,10 @@ public final class BLETelemetryProvider: TelemetryProvider, @unchecked Sendable 
         isExtracting = false
         extractionStartTime = nil
         weightHistory.removeAll()
+        lastRegressionTimestamp = nil
         lastObservedWeight = nil
+        lastObservedPressure = nil
+        latchedWeight = 0.0
         #if DEBUG
         resetInjections()
         #endif
@@ -147,14 +190,28 @@ public final class BLETelemetryProvider: TelemetryProvider, @unchecked Sendable 
     
     // MARK: - Ordinary Least Squares (OLS) Linear Regression for Flow Rate
     
-    private func calculateRegressionFlow(currentTime: Double, currentWeight: Double) -> Double {
-        guard isExtracting else { return 0.0 }
+    /// Calculates flow rate using a 6-sample rolling OLS linear regression.
+    /// Re-anchors and wipes history if a gap > 0.5s is detected (ADR-009).
+    public func calculateRegressionFlow(currentTime: Double, currentWeight: Double, isStale: Bool = false) -> Double {
+        guard !isStale else {
+            weightHistory.removeAll()
+            lastRegressionTimestamp = nil
+            return 0.0
+        }
+        
+        // Regression Gap Re-Anchoring (ADR-009):
+        // If delta_t between consecutive packets > 0.5s, purge history to avoid dw/dt derivative spikes.
+        if let lastT = lastRegressionTimestamp, (currentTime - lastT) > 0.5 {
+            weightHistory.removeAll()
+        }
+        lastRegressionTimestamp = currentTime
         
         weightHistory.append((timestamp: currentTime, weight: currentWeight))
         if weightHistory.count > maxHistorySamples {
             weightHistory.removeFirst()
         }
         
+        // Require at least 3 fresh contiguous samples to compute a robust slope
         guard weightHistory.count >= 3 else { return 0.0 }
         
         let n = Double(weightHistory.count)

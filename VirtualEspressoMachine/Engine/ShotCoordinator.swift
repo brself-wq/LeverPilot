@@ -16,7 +16,6 @@ public final class ShotCoordinator {
     public private(set) var currentFrame: MachineFrame = MachineFrame(state: .idle)
     
     // MARK: - Profile Management (In-Memory Session vs Previous)
-    /// The active in-memory profile driving the HUD & Engine (may contain session variable overrides)
     public private(set) var activeProfile: Profile? = nil
     public private(set) var previousProfile: Profile? = nil
     public private(set) var activeDose: Double = 18.0
@@ -82,14 +81,11 @@ public final class ShotCoordinator {
     
     // MARK: - Profile Arming & Lifecycle
     
-    /// Arms a profile for execution.
-    /// Can accept a canonical template from ProfileStore or a session copy modified by ProfileVariableOverridesView.
     public func arm(with profile: Profile, dose: Double = 18.0, store: ProfileStore? = nil) {
         if let current = activeProfile, current.id != profile.id {
             self.previousProfile = current
         }
         
-        // Resolve dynamic $variables if store is provided
         let executableProfile: Profile
         if let store {
             executableProfile = (try? store.resolveForExecution(profile)) ?? profile
@@ -103,7 +99,6 @@ public final class ShotCoordinator {
         resetExecutionState()
     }
     
-    /// Backwards compatibility for existing views
     public func selectProfile(_ profile: Profile) {
         arm(with: profile)
     }
@@ -127,7 +122,6 @@ public final class ShotCoordinator {
     
     // MARK: - Settings Synchronization
     
-    /// Syncs coordinator machine config with user preferences from SettingsStore
     public func configure(from settings: SettingsStore) {
         self.machineConfig.autoStartRule.threshold = settings.autoStartPressure
         self.machineConfig.autoStop.cutoffRule.threshold = settings.deadFlowThreshold
@@ -145,8 +139,6 @@ public final class ShotCoordinator {
         guard state == .extracting else { return }
         state = .shotEnded
         
-        // Retroactive Cutoff Detection:
-        // Identify the exact timestamp when flow dropped below the cutoff threshold for the final sustained period.
         let threshold = machineConfig.autoStop.cutoffRule.threshold
         var trimmedDuration = elapsedTime
         var trimmedFinalWeight = actualWeight
@@ -160,7 +152,6 @@ public final class ShotCoordinator {
             trimmedSamples = Array(capturedSamples.prefix(through: cutoffIndex))
         }
         
-        // Freeze in-flight telemetry and the exact in-memory profile into a permanent record
         if let profile = activeProfile {
             self.completedShotRecord = ShotRecord(
                 profileId: profile.id,
@@ -211,7 +202,7 @@ public final class ShotCoordinator {
         let currentFlow = frame[.flow] ?? 0.0
         let currentWeight = frame[.weight] ?? 0.0
         
-        // 1. Auto-Start: Evaluates configured autoStartRule (e.g. pressure >= threshold) or external state
+        // 1. Auto-Start: Trip on pressure threshold (ignoring weight artifacts)
         if state == .armed && (machineConfig.autoStartRule.isSatisfied(by: frame) || frame.state == .extracting) {
             state = .extracting
         }
@@ -232,11 +223,16 @@ public final class ShotCoordinator {
         )
         capturedSamples.append(sample)
         
-        // 3. Auto-Stop Dead-Flow Watchdog
-        // Requires elapsed time >= 5.0s AND (weight >= 5.0g OR weight >= dose)
+        // 3. Auto-Stop Dead-Flow Watchdog (ADR-005, ADR-009)
+        // Requires elapsed time >= 5.0s AND (weight >= 5.0g OR weight >= activeDose)
         let isPreconditionMet = frame.timestamp >= 5.0 && (currentWeight >= 5.0 || currentWeight >= activeDose)
         
-        if isPreconditionMet && currentFlow <= machineConfig.autoStop.cutoffRule.threshold {
+        if frame.isScaleStale {
+            // Telemetry Continuity Policy (ADR-009):
+            // Dead-flow auto-stop is strictly SUSPENDED during scale packet stalls or disconnection.
+            // Evaluates strictly against measured zero flow from an active scale, never sensor silence.
+            deadFlowStartTime = nil
+        } else if isPreconditionMet && currentFlow <= machineConfig.autoStop.cutoffRule.threshold {
             if let start = deadFlowStartTime {
                 if (frame.timestamp - start) >= machineConfig.autoStop.sustainDuration {
                     print("🛑 SHOT ENDED: BLE Dead-Flow Watchdog (Sustained dead flow for \(machineConfig.autoStop.sustainDuration)s at t=\(String(format: "%.1f", frame.timestamp))s, weight=\(String(format: "%.1f", currentWeight))g)")
@@ -271,7 +267,7 @@ public final class ShotCoordinator {
                     entryFlow: currentFlow
                 )
                 stageBaselines[activeStageIndex] = currentStageBaseline
-                actualHistory.removeAll() // Cleared for active stage chart display
+                actualHistory.removeAll()
                 
                 if let nextStage = currentStage {
                     result = executionEngine.evaluate(
@@ -284,7 +280,6 @@ public final class ShotCoordinator {
                     )
                 }
             } else {
-                // Profile guidance completed; hold final setpoint until physical flow stops
                 if !isProfileComplete {
                     print("🎯 PROFILE COMPLETE: Holding final setpoint until flow cutoff.")
                     isProfileComplete = true
@@ -331,6 +326,7 @@ public final class ShotCoordinator {
         // 8. Update Stage Navigation Pills
         updateStagePills(for: profile, activeIndex: activeStageIndex)
     }
+    
     // MARK: - Rehearsal / Stepping Backward
     
     public func stepBackward(to frame: MachineFrame) {
@@ -343,7 +339,6 @@ public final class ShotCoordinator {
         let currentX = max(0.0, frame.timestamp - stageStart)
         actualHistory.removeAll { $0.x > currentX }
         
-        // Trim accumulated samples to current scrubber timestamp
         capturedSamples.removeAll { $0.timestamp > frame.timestamp }
         
         processTelemetryFrame(frame, allowAdvance: false)

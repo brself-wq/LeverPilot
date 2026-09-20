@@ -15,18 +15,26 @@ public nonisolated struct MachineFrame: Sendable, Identifiable {
     /// Raw sensor readings keyed by SensorKey
     public let readings: [SensorKey: Double]
     
+    /// Telemetry channel health flags (ADR-009)
+    public let isScaleStale: Bool
+    public let isPressureStale: Bool
+    
     public init(
         id: UUID = UUID(),
         timestamp: TimeInterval = 0.0,
         absoluteTime: Date = Date(),
         state: MachineState,
-        readings: [SensorKey: Double] = [:]
+        readings: [SensorKey: Double] = [:],
+        isScaleStale: Bool = false,
+        isPressureStale: Bool = false
     ) {
         self.id = id
         self.timestamp = timestamp
         self.absoluteTime = absoluteTime
         self.state = state
         self.readings = readings
+        self.isScaleStale = isScaleStale
+        self.isPressureStale = isPressureStale
     }
     
     /// Typed lookup: `frame[.pressure]`
