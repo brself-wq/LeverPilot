@@ -1,7 +1,7 @@
 # ADR 005: Sensor-Observed Finite State Machine (FSM) for Manual Lever Telemetry
 
 - **Status**: Accepted
-- **Date**: 2026-09-08 (Updated: 2026-09-14)
+- **Date**: 2026-09-08 (Updated: 2026-09-20)
 - **Author**: Ben Self
 - **Deciders**: Architecture Team, BaristaPilot Core
 - **Consulted**: Open Espresso Profile Format (OEPF) Community, Meticulous Firmware Review, Beanconqueror Core
@@ -30,20 +30,20 @@ We replace the actuator-driven, multi-button state machine with a **Sensor-Obser
 1. **Eliminate the `shotReady` Middleman**: Collapse `profileSelected` and `shotReady` into a single **`armed`** state. Selecting a profile immediately arms the digital twin observer.
 2. **Sensor-Inferred State Progression**: Leverage incoming Bluetooth telemetry (or recorded replay frames) to detect human lever actions and auto-advance machine states without screen taps.
 3. **Hardware Command Hooks on Transition**: State transitions automatically drive hardware peripheral functions over Bluetooth (e.g. tare and reset scale timer on arm, start scale timer on auto-start, stop timer on shot conclusion).
-4. **Formalize 6 Core States**:
+4. **Soft Disconnection & Fault-Tolerance**: Mid-flight BLE disconnects do **not** trigger an instant, destructive transition to `.error`. The engine enters a degraded signal-searching mode, holding valid metrics and suppressing dead-flow auto-stops while auto-reconnect attempts recovery.
+5. **Formalize 6 Core States**:
    - `idle`: Machine at rest, connected or disconnected, no profile loaded.
    - `armed`: Profile loaded, scale tared and zeroed, observer listening strictly for physical lever pull.
    - `extracting`: Lever in motion, active OEPF trajectory evaluation, real-time HUD rendering.
    - `shotEnded`: Extraction complete (target yield reached or sustained dead-flow cutoff detected).
    - `purging`: Wastewater chamber flush detected or prompted.
-   - `error`: Sensor disconnection, stalled shot, limit breach abort, or profile corruption.
+   - `error`: Fatal parsing exception, unrecoverable sensor failure, limit breach abort, or profile corruption.
 
 ---
 
 ## 3. State Transition Matrix
-code
-Code
-+-----------+
+
+   +-----------+
    |   idle    |<-----------------------------+
    +-----+-----+                              |
          | selectProfile(p)                   |
@@ -51,11 +51,11 @@ Code
    +-----------+                              |
    |   armed   |------------------------------+
    +-----+-----+                              |
-         | Auto-Start (Pressure >= 0.5 bar)
+         | Auto-Start (Pressure >= 0.5 bar)   |
          v                                    |
    +-----------+                              |
-   |extracting |                              |
-   +-----+-----+                              |
+   |extracting | (Holds state on BLE drop;   |
+   +-----+-----+  attempts auto-reconnect)    |
          | Auto-Stop (Dead flow <= 0.1 g/s sustained OR W >= target)
          v                                    |
    +-----------+                              |
@@ -66,9 +66,9 @@ Code
    +-----------+                              |
    |  purging  |------------------------------+
    +-----------+
-[Any State] --(Hardware Disconnect / Fatal Abort)--> [ error ]
-code
-Code
+
+[Fatal Exception / Limit Breach / User Abort] ------------> [ error ]
+
 ### Detailed Transition Table
 
 | From State | Event / Trigger | To State | Actions Taken by System |
@@ -77,12 +77,13 @@ Code
 | **`armed`** | `pressure >= 0.5 bar` (or replay tick) | **`extracting`** | **Auto-Start**: Snap Stage 0 `StageBaseline` (t0, w0, entryPressure, entryFlow), zero timer, start HUD chart tracking, send BLE start timer command to scale. |
 | **`armed`** | `abort()` or recipe deselected | **`idle`** | Unload active profile and clear HUD surface buffers. Send BLE stop timer command. |
 | **`extracting`** | Stage exit trigger satisfied (`shouldAdvanceStage == true`) | **`extracting`** | Increment `activeStageIndex`, snap new `StageBaseline`, wipe stage chart slice. |
+| **`extracting`** | Sensor signal drops (> 500ms) | **`extracting`** (Degraded) | Latch last weight; suppress dead-flow rule; display amber HUD warning banner; auto-reconnect peripheral in background. |
 | **`extracting`** | Final stage trigger satisfied OR Auto-Stop condition met | **`shotEnded`** | **Auto-Stop**: Freeze HUD timers, stop scale onboard timer, snapshot final yield and recorded duration. |
 | **`extracting`** | User manual abort or panic stop | **`idle`** | Halt extraction, clear execution state, send BLE stop timer command. |
 | **`shotEnded`** | Secondary lever push with cup removed (P approx 1 to 2 bar) | **`purging`** | Mark chamber flush in progress. |
 | **`shotEnded`** / **`purging`** | `resetExecutionState()` | **`armed`** | Ready for immediate repeat pull of current recipe. Zero scale and timer. |
 | **`shotEnded`** / **`purging`** | `abort()` | **`idle`** | Reset to standby. |
-| **Any State** | BLE drop, fatal parsing exception, or shot stall | **`error`** | Engage limit alarm visual banner, log diagnostics, permit safe reset. |
+| **Any State** | Fatal unrecoverable failure or profile corruption | **`error`** | Engage limit alarm visual banner, log diagnostics, permit safe reset. |
 
 ---
 
@@ -93,12 +94,13 @@ Because the Flair 58 is a purely mechanical lever, the system uses passive telem
 | Physical Human Action | Sensor Telemetry Signature | Inferred FSM State |
 | :--- | :--- | :--- |
 | Barista sets cup on scale & arms recipe | App arms, scale tares to 0.0g, scale timer resets | **`.armed`** |
-| Barista adjusts cup or fills chamber | Scale reads minor weight / vibration noise ($< 0.5\text{ bar}$) | Held in **`.armed`** (Weight ignored for start) |
-| Barista pulls down on lever | Chamber pressure climbs $\ge 0.5\text{ bar}$ | **`.extracting`** (Auto-Start) |
-| Liquid espresso enters cup | Scale weight increases, $\Delta w / \Delta t > 0.5\text{ g/s}$ | First Drip logged; yield tracking active |
-| Flow ceases, lever released | Preconditions satisfied, flow $\le 0.1\text{ g/s}$ for $2.0\text{s}$ | **`.shotEnded`** (Auto-Stop Watchdog) |
+| Barista adjusts cup or fills chamber | Scale reads minor weight / vibration noise (< 0.5 bar) | Held in **`.armed`** (Weight ignored for start) |
+| Barista pulls down on lever | Chamber pressure climbs >= 0.5 bar | **`.extracting`** (Auto-Start) |
+| Liquid espresso enters cup | Scale weight increases, dw/dt > 0.5 g/s | First Drip logged; yield tracking active |
+| Scale drops packets temporarily | Sensor silence > 500ms; weight latched | Held in **`.extracting`** (Dead-flow paused) |
+| Flow ceases, lever released | Preconditions satisfied, flow <= 0.1 g/s for 2.0s | **`.shotEnded`** (Auto-Stop Watchdog) |
 | Barista expels wastewater into dreg cup | Pressure spikes to 1.0–2.5 bar while scale is cleared | **`.purging`** |
-| Chamber fully purged, lever resting | Pressure stable at 0.0 bar for $> 5.0\text{s}$ | Ready for **`.armed`** or **`.idle`** |
+| Chamber fully purged, lever resting | Pressure stable at 0.0 bar for > 5.0s | Ready for **`.armed`** or **`.idle`** |
 
 ---
 
@@ -107,9 +109,9 @@ Because the Flair 58 is a purely mechanical lever, the system uses passive telem
 ### Positive
 - **Eliminates UI Ceremony**: The barista can pull back-to-back shots without touching the iPhone or iPad. Arming primes the entire lifecycle.
 - **Unifies Simulation & Production Hardware**: A recorded JSON scenario (`ShotRecord`) and a live CoreBluetooth stream execute the **identical** code path in `ShotCoordinator`.
-- **Zero Sensor-Start Competition**: Separating Auto-Start (strictly pressure $\ge 0.5\text{ bar}$) from Auto-Stop (strictly scale weight and flow) eliminates false starts caused by setting down cups or pouring kettle water.
+- **Fault-Tolerant Extraction**: Transient BLE drops do not destroy active pulls.
 - **Hardware Mirroring**: Bookoo scale OLED timer stays locked in sync with the digital copilot.
 
 ### Negative / Mitigations
-- **Blind Basket Pulls Without Water Flow**: A blind basket extraction produces zero grams ($w = 0.0\text{g}$), meaning the weight-gated dead-flow auto-stop watchdog will not fire automatically.
+- **Blind Basket Pulls Without Water Flow**: A blind basket extraction produces zero grams (w = 0.0g), meaning the weight-gated dead-flow auto-stop watchdog will not fire automatically.
   - *Mitigation*: Blind basket pulls are terminated cleanly by profile time exit triggers or by the manual HUD abort (`xmark`).
