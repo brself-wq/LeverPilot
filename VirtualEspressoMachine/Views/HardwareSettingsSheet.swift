@@ -5,6 +5,11 @@
 
 import SwiftUI
 import EspressoBLE
+#if canImport(UIKit)
+import UIKit
+#elseif canImport(AppKit)
+import AppKit
+#endif
 
 public struct HardwareSettingsSheet: View {
     @Bindable var bleManager: EspressoBLEManager
@@ -23,6 +28,11 @@ public struct HardwareSettingsSheet: View {
                 .background(Color(red: 0.07, green: 0.07, blue: 0.09))
             
             Divider().background(Color.white.opacity(0.08))
+            
+            // Radio Health Banner (if unauthorized or powered off)
+            if bleManager.centralState == .unauthorized || bleManager.centralState == .poweredOff {
+                radioStatusBanner
+            }
             
             // Content
             ScrollView {
@@ -94,6 +104,59 @@ public struct HardwareSettingsSheet: View {
         }
     }
     
+    // MARK: - Radio Status Banner
+    
+    private var radioStatusBanner: some View {
+        HStack(spacing: 12) {
+            Image(systemName: bleManager.centralState == .unauthorized ? "lock.shield.fill" : "bolt.slash.fill")
+                .font(.system(size: 14))
+                .foregroundStyle(.orange)
+            
+            VStack(alignment: .leading, spacing: 2) {
+                Text(bleManager.centralState == .unauthorized ? "Bluetooth Permission Required" : "Bluetooth is Turned Off")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundStyle(.white)
+                Text(bleManager.centralState == .unauthorized
+                     ? "BaristaPilot requires Bluetooth to stream telemetry from your scale and pressure device."
+                     : "Enable Bluetooth in Control Center or Settings to connect peripherals.")
+                    .font(.system(size: 10))
+                    .foregroundStyle(.secondary)
+            }
+            
+            Spacer()
+            
+            if bleManager.centralState == .unauthorized {
+                Button("Open Settings") {
+                    openSystemSettings()
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
+                .tint(.blue)
+            }
+        }
+        .padding(.horizontal, 24)
+        .padding(.vertical, 10)
+        .background(Color.orange.opacity(0.12))
+        .overlay(
+            Rectangle()
+                .fill(Color.orange.opacity(0.3))
+                .frame(height: 1),
+            alignment: .bottom
+        )
+    }
+    
+    private func openSystemSettings() {
+        #if canImport(UIKit)
+        if let url = URL(string: UIApplication.openSettingsURLString) {
+            UIApplication.shared.open(url)
+        }
+        #elseif canImport(AppKit)
+        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Bluetooth") {
+            NSWorkspace.shared.open(url)
+        }
+        #endif
+    }
+    
     // MARK: - Paired Slots
     
     private var activeSlotsSection: some View {
@@ -112,7 +175,7 @@ public struct HardwareSettingsSheet: View {
                 
                 deviceSlotCard(
                     role: .pressure,
-                    title: "PRESSURE GAUGE",
+                    title: "PRESSURE DEVICE",
                     icon: "gauge.with.dots.needle.bottom.50percent",
                     slot: bleManager.slots[.pressure]
                 )
@@ -329,7 +392,7 @@ public struct HardwareSettingsSheet: View {
                 Text(device.name)
                     .font(.system(size: 12, weight: .bold))
                     .foregroundStyle(.white)
-                Text(device.role == .scale ? "Scale" : "Pressure Gauge")
+                Text(device.role == .scale ? "Scale" : "Pressure Device")
                     .font(.system(size: 9, design: .monospaced))
                     .foregroundStyle(.tertiary)
             }

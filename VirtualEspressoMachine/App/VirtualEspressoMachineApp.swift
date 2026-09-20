@@ -47,7 +47,6 @@ struct VirtualEspressoMachineApp: App {
                     case .settings:
                         SettingsView(settings: settingsStore)
                     case .workbench:
-                        // Deferred for post-MVP
                         EmptyView()
                     }
                 }
@@ -79,7 +78,9 @@ struct VirtualEspressoMachineApp: App {
                         isAlarmActive: coordinator.isAlarmActive,
                         elapsedTime: coordinator.elapsedTime,
                         stageTime: coordinator.stageTime,
-                        actualWeight: coordinator.actualWeight
+                        actualWeight: coordinator.actualWeight,
+                        isScaleStale: coordinator.currentFrame.isScaleStale,
+                        isPressureStale: coordinator.currentFrame.isPressureStale
                     )
                     .onChange(of: coordinator.state) { _, newState in
                         if newState == .extracting {

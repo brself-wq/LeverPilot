@@ -118,7 +118,8 @@ public struct StageDynamicsChartView: View {
                 AxisMarks(position: .trailing) { _ in
                     AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5, dash: [2, 2]))
                         .foregroundStyle(Color.white.opacity(0.1))
-                    AxisValueLabel()
+                    // Explicit standard anchor eliminates runtime UnitPoint warning
+                    AxisValueLabel(anchor: .leading)
                 }
             }
             .chartXAxis {
@@ -127,7 +128,8 @@ public struct StageDynamicsChartView: View {
                         .foregroundStyle(Color.white.opacity(0.1))
                     if let val = value.as(Double.self) {
                         let unit = domainLabel.lowercased() == "weight" ? "g" : "s"
-                        AxisValueLabel("\(Int(val))\(unit)")
+                        // Explicit standard anchor eliminates runtime UnitPoint warning
+                        AxisValueLabel("\(Int(val))\(unit)", anchor: .top)
                     }
                 }
             }

@@ -116,6 +116,10 @@ public struct BaristaHUDView: View {
     let stageTime: Double?
     let actualWeight: Double?
     
+    // Hardware Sensor Health Flags (ADR-009)
+    let isScaleStale: Bool
+    let isPressureStale: Bool
+    
     @State private var alarmFlashPhase: Bool = false
     
     public init(
@@ -131,7 +135,9 @@ public struct BaristaHUDView: View {
         isAlarmActive: Bool = false,
         elapsedTime: Double? = nil,
         stageTime: Double? = nil,
-        actualWeight: Double? = nil
+        actualWeight: Double? = nil,
+        isScaleStale: Bool = false,
+        isPressureStale: Bool = false
     ) {
         self.frame = frame
         self.planCurve = planCurve
@@ -146,6 +152,8 @@ public struct BaristaHUDView: View {
         self.elapsedTime = elapsedTime
         self.stageTime = stageTime
         self.actualWeight = actualWeight
+        self.isScaleStale = isScaleStale
+        self.isPressureStale = isPressureStale
     }
     
     // Resolved Telemetry
@@ -218,7 +226,7 @@ public struct BaristaHUDView: View {
         }
     }
     
-    // MARK: - Top Rail: Profile Stages & Macro Context
+    // MARK: - Top Rail: Profile Stages, Warning Chips & Macro Context
     
     @ViewBuilder
     private var topRailView: some View {
@@ -249,9 +257,41 @@ public struct BaristaHUDView: View {
                     .padding(.horizontal, 2)
                 }
             }
+            
             Spacer()
+            
+            // ADR-009 Sensor Staleness Warning Chips (Fixed trailing alignment; no layout shift)
+            HStack(spacing: 8) {
+                if isScaleStale {
+                    amberWarningChip(icon: "scalemass.fill", text: "SCALE SIGNAL LOST")
+                }
+                if isPressureStale {
+                    amberWarningChip(icon: "gauge.with.dots.needle.bottom.50percent", text: "PRESSURE DEVICE OFFLINE")
+                }
+            }
+            .padding(.trailing, 48) // Clearance for top-trailing abort 'xmark' button
         }
         .padding(.horizontal, 12)
+        .frame(height: 32)
+    }
+    
+    private func amberWarningChip(icon: String, text: String) -> some View {
+        HStack(spacing: 5) {
+            Image(systemName: icon)
+                .font(.system(size: 8, weight: .bold))
+            Text(text)
+                .font(.system(size: 8, weight: .heavy, design: .monospaced))
+        }
+        .foregroundStyle(Color(red: 0.98, green: 0.72, blue: 0.20))
+        .padding(.horizontal, 7)
+        .padding(.vertical, 4)
+        .background(Color(red: 0.98, green: 0.72, blue: 0.20).opacity(0.14))
+        .overlay(
+            RoundedRectangle(cornerRadius: 6)
+                .stroke(Color(red: 0.98, green: 0.72, blue: 0.20).opacity(0.35), lineWidth: 1)
+        )
+        .cornerRadius(6)
+        .transition(.opacity)
     }
 }
 
@@ -297,5 +337,102 @@ struct StagePill: View {
                 .stroke(state == .active ? Color.white.opacity(0.3) : Color.clear, lineWidth: 1)
         )
         .cornerRadius(6)
+    }
+}
+
+// MARK: - Standalone Xcode Previews (Pure In-Memory, No Sockets / No Disk I/O)
+
+#Preview("Nominal Pull", traits: .landscapeLeft) {
+    BaristaHUDView.previewInstance()
+}
+
+#Preview("Scale Signal Lost", traits: .landscapeLeft) {
+    BaristaHUDView.previewInstance(isScaleStale: true)
+}
+
+#Preview("Pressure Device Offline", traits: .landscapeLeft) {
+    BaristaHUDView.previewInstance(isPressureStale: true)
+}
+
+#Preview("Dual Sensor Loss", traits: .landscapeLeft) {
+    BaristaHUDView.previewInstance(isScaleStale: true, isPressureStale: true)
+}
+
+private extension BaristaHUDView {
+    static func previewInstance(isScaleStale: Bool = false, isPressureStale: Bool = false) -> BaristaHUDView {
+        let frame = GuidanceFrame(
+            stageIndex: 1,
+            totalStages: 3,
+            stageName: "Extraction",
+            activeMetric: .pressure,
+            targetValue: 9.0,
+            actualValue: 8.8,
+            delta: -0.2,
+            elapsedTime: 14.5,
+            stageTime: 6.5,
+            actualWeight: 22.4,
+            stageProgress: 0.65,
+            yieldProgress: 0.56,
+            guardrail: nil
+        )
+        
+        let planCurve = [
+            PlanPoint(x: 0.0, y: 9.0),
+            PlanPoint(x: 8.0, y: 9.0),
+            PlanPoint(x: 15.0, y: 7.5),
+            PlanPoint(x: 25.0, y: 6.0)
+        ]
+        
+        let actualHistory = [
+            ActualPoint(x: 0.0, y: 8.0),
+            ActualPoint(x: 2.0, y: 8.5),
+            ActualPoint(x: 4.0, y: 9.1),
+            ActualPoint(x: 6.5, y: 8.8)
+        ]
+        
+        let exitTriggerItems = [
+            ExitTriggerProgressItem(
+                sensorKey: .weight,
+                icon: "scalemass.fill",
+                label: "Target Yield",
+                currentString: "22.4g",
+                targetString: "40.0g",
+                progress: 0.56,
+                isLeading: true
+            ),
+            ExitTriggerProgressItem(
+                sensorKey: .time,
+                icon: "clock.fill",
+                label: "Stage Limit",
+                currentString: "6.5s",
+                targetString: "20.0s",
+                progress: 0.32,
+                isLeading: false
+            )
+        ]
+        
+        let stagePills = [
+            StagePillItem(stageNumber: 1, title: "Pre-infusion", icon: "gauge.with.dots.needle.bottom.50percent", state: .completed),
+            StagePillItem(stageNumber: 2, title: "Extraction", icon: "gauge.with.dots.needle.bottom.50percent", state: .active),
+            StagePillItem(stageNumber: 3, title: "Decline", icon: "gauge.with.dots.needle.bottom.50percent", state: .upcoming)
+        ]
+        
+        return BaristaHUDView(
+            frame: frame,
+            planCurve: planCurve,
+            actualHistory: actualHistory,
+            exitTriggerItems: exitTriggerItems,
+            stagePills: stagePills,
+            domainLabel: "TIME",
+            finalWeightTarget: 40.0,
+            nominalDuration: 32.0,
+            windowSpan: 25.0,
+            isAlarmActive: false,
+            elapsedTime: 14.5,
+            stageTime: 6.5,
+            actualWeight: 22.4,
+            isScaleStale: isScaleStale,
+            isPressureStale: isPressureStale
+        )
     }
 }

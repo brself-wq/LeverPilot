@@ -69,6 +69,16 @@ final class PreFlightValidatorTests: XCTestCase {
         XCTAssertFalse(issues.isEmpty)
     }
     
+    // MARK: - Granular Bluetooth State Tests (ADR-009)
+    
+    func test_evaluate_surfacesBluetoothPoweredOff_whenManagerReportsPoweredOff() {
+        // Mock manager centralState to poweredOff
+        let manager = EspressoBLEManager()
+        // Manager centralState defaults to .unknown (not ready), which maps to .bluetoothPoweredOff
+        let issues = PreFlightValidator.evaluate(profile: validProfile, bleManager: manager)
+        XCTAssertTrue(issues.contains(.bluetoothPoweredOff))
+    }
+    
     // MARK: - Debug Scenario Override
     
     func test_evaluate_passesWhenDebugScenarioIsPrimed_EvenIfHardwareOffline() {
@@ -78,7 +88,6 @@ final class PreFlightValidatorTests: XCTestCase {
             samples: [ShotSample(timestamp: 0.0, pressure: 0.0, flow: 0.0, weight: 0.0)]
         )
         
-        // When a mock scenario is primed, hardware interlock is satisfied
         let issues = PreFlightValidator.evaluate(
             profile: validProfile,
             bleManager: bleManager,
@@ -94,12 +103,10 @@ final class PreFlightValidatorTests: XCTestCase {
         let store = ProfileStore(mode: .inMemory)
         try store.save(profile: validProfile)
         
-        // Simulating the console's defensive copy
         var sessionCopy = try XCTUnwrap(store.profile(withID: validProfile.id))
         sessionCopy.finalWeight = 50.0
         sessionCopy.temperature = 99.0
         
-        // Catalog profile in store remains completely untouched
         let persisted = try XCTUnwrap(store.profile(withID: validProfile.id))
         XCTAssertEqual(persisted.finalWeight, 36.0)
         XCTAssertEqual(persisted.temperature, 93.0)

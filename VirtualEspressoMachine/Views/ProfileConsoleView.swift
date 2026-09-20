@@ -6,6 +6,11 @@
 import SwiftUI
 import MeticulousProfile
 import EspressoBLE
+#if canImport(UIKit)
+import UIKit
+#elseif canImport(AppKit)
+import AppKit
+#endif
 
 // MARK: - App-side Conformance
 extension Profile: @retroactive Identifiable {}
@@ -135,7 +140,6 @@ public struct ProfileConsoleView: View {
             .frame(width: 0, height: 0)
             .opacity(0)
         }
-        // Configure Modal Sheet: Modifies sessionProfile directly
         .sheet(isPresented: $isShowingOverridesSheet) {
             if let profile = sessionProfile {
                 ProfileVariableOverridesView(
@@ -152,8 +156,13 @@ public struct ProfileConsoleView: View {
                 )
             }
         }
-        // Pre-Flight Diagnostic Checklist Alert
+        // Actionable Pre-Flight Alert with Direct Link to Settings
         .alert("Cannot Start Brew", isPresented: $isShowingPreFlightAlert) {
+            if preFlightIssues.contains(where: { $0 == .bluetoothUnauthorized }) {
+                Button("Open Settings") {
+                    openSystemSettings()
+                }
+            }
             Button("OK", role: .cancel) {}
         } message: {
             Text(formattedPreFlightMessage)
@@ -193,6 +202,18 @@ public struct ProfileConsoleView: View {
     private var formattedPreFlightMessage: String {
         let bullets = preFlightIssues.map { "• \($0.description)" }.joined(separator: "\n")
         return "Brewing cannot begin until the following are resolved:\n\n\(bullets)"
+    }
+    
+    private func openSystemSettings() {
+        #if canImport(UIKit)
+        if let url = URL(string: UIApplication.openSettingsURLString) {
+            UIApplication.shared.open(url)
+        }
+        #elseif canImport(AppKit)
+        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Bluetooth") {
+            NSWorkspace.shared.open(url)
+        }
+        #endif
     }
     
     // MARK: - Top Console Bar
