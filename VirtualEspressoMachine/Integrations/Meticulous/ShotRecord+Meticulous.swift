@@ -8,9 +8,8 @@ import Foundation
 extension ShotRecord {
     /// Maps an immutable VEM `ShotRecord` and its 10 Hz `ShotSample` series
     /// into the canonical payload structure expected by Meticulous REST endpoints.
-    public func toMeticulousHistoryEntry() -> MeticulousHistoryEntry {
+    public nonisolated func toMeticulousHistoryEntry() -> MeticulousHistoryEntry {
         let telemetryPoints: [MeticulousDataPoint] = samples.map { sample in
-            // Convert seconds (0.1s, 0.2s...) to integer milliseconds
             let elapsedMs = Int((sample.timestamp * 1000.0).rounded())
             
             let telemetry = MeticulousShotTelemetry(
@@ -28,7 +27,7 @@ extension ShotRecord {
             )
         }
         
-        let meticulousProfile = MeticulousProfile(
+        let profile = MeticulousProfile(
             name: profileName,
             temperature: brewTemperature,
             dbKey: 1
@@ -39,18 +38,8 @@ extension ShotRecord {
             dbKey: 1,
             time: Int64(timestamp.timeIntervalSince1970),
             name: profileName,
-            profile: meticulousProfile,
+            profile: profile,
             data: telemetryPoints
         )
     }
 }
-
-// MARK: - Ergonomic Staging Extensions
-
-extension MeticulousServer {
-    /// Convenience helper to stage a completed VEM `ShotRecord` directly for export
-    public func stageShot(_ record: ShotRecord) {
-        stageShot(record.toMeticulousHistoryEntry())
-    }
-}
-

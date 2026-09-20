@@ -49,7 +49,6 @@ final class BQHandoffTests: XCTestCase {
         coordinator.markDelivered(shotId: shotID)
         XCTAssertTrue(coordinator.isDelivered(shotId: shotID))
 
-        // Ensure persistence survives across re-reads of the underlying defaults
         let restored = testDefaults.stringArray(forKey: "bq.delivered_shot_ids") ?? []
         XCTAssertTrue(restored.contains(shotID))
     }
@@ -65,7 +64,7 @@ final class BQHandoffTests: XCTestCase {
 
     // MARK: - State Machine Transitions
 
-    func test_handoffTransitionsToTransferring_andThenTransferredOnDeliveryHook() {
+    func test_handoffTransitionsToTransferring_andThenTransferredOnDeliveryHook() async {
         let dummyShot = ShotRecord(
             id: "verified-shot-99",
             profileId: "profile-test",
@@ -83,8 +82,14 @@ final class BQHandoffTests: XCTestCase {
             "beanconqueror://int/bean/valid-share-code/START_BREW_CHOOSE_PREPARATION"
         )
 
+        // Allow staging task to complete
+        try? await Task.sleep(nanoseconds: 20_000_000)
+
         // 2. Simulate BQ consuming the payload via MeticulousServer loopback hook
-        MeticulousServer.shared.onShotDelivered?()
+        await MeticulousServer.shared.simulateShotDelivered()
+
+        // Allow MainActor handoff update to execute
+        try? await Task.sleep(nanoseconds: 20_000_000)
 
         // 3. Must transition to .transferred and record in the ledger
         XCTAssertEqual(coordinator.state, .transferred)
@@ -105,3 +110,4 @@ final class BQHandoffTests: XCTestCase {
         XCTAssertEqual(coordinator.state, .idle)
     }
 }
+

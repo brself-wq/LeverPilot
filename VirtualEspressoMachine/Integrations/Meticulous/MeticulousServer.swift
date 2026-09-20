@@ -1,31 +1,27 @@
 import Foundation
-import SwiftUI
 import Network
-import Combine
 
-public final class MeticulousServer: ObservableObject {
+/// Actor-isolated HTTP & Socket.IO loopback server emulating the Meticulous machine API.
+/// Serializes incoming HTTP parsing, socket handling, and telemetry staging without data races.
+public actor MeticulousServer {
     public static let shared = MeticulousServer()
 
-    @Published public var isRunning: Bool = false
-    @Published public var serverPort: UInt16 = 8080
-    @Published public var currentShotId: String = "shot-1"
-    @Published public var stagedShot: MeticulousHistoryEntry?
+    // MARK: - Isolated Server State
+    public private(set) var isRunning: Bool = false
+    public private(set) var serverPort: UInt16 = 8080
+    public private(set) var currentShotId: String = "shot-1"
+    public private(set) var stagedShot: MeticulousHistoryEntry?
+    public private(set) var verboseLogging: Bool = false
 
-    /// Flag gating high-frequency HTTP traffic and Socket.IO heartbeat logs
-    public var verboseLogging: Bool = false
-
-    /// Hook fired when BQ completes downloading the telemetry shot payload
-    public var onShotDelivered: (() -> Void)?
-
+    private var onShotDelivered: (@Sendable () -> Void)?
     private var listener: NWListener?
-    private let queue = DispatchQueue(label: "com.beanbridge.meticulousserver", qos: .userInteractive)
-
     private var internalShotCounter: Int = 0
-    private var internalStagedShot: MeticulousHistoryEntry?
 
     private init() {
-        // Leave empty — server starts via configure() on app launch
+        // Starts via configure() on app launch
     }
+
+    // MARK: - Configuration & Lifecycle
 
     /// Configures the server from user settings, restarting the listener only if the port changes.
     public func configure(port: Int, verbose: Bool) {
@@ -36,6 +32,14 @@ public final class MeticulousServer: ObservableObject {
         }
     }
 
+    public func setVerboseLogging(_ enabled: Bool) {
+        self.verboseLogging = enabled
+    }
+
+    public func setOnShotDelivered(_ handler: (@Sendable () -> Void)?) {
+        self.onShotDelivered = handler
+    }
+
     public func start(port: UInt16 = 8080) {
         stop()
         self.serverPort = port
@@ -44,88 +48,109 @@ public final class MeticulousServer: ObservableObject {
             let params = NWParameters.tcp
             params.allowLocalEndpointReuse = true
 
-            listener = try NWListener(using: params, on: nwPort)
-            listener?.stateUpdateHandler = { [weak self] state in
-                DispatchQueue.main.async {
-                    switch state {
-                    case .ready:
-                        self?.isRunning = true
-                        print("[MeticulousServer] Ready on 127.0.0.1:\(port)")
-                    case .failed(let error):
-                        self?.isRunning = false
-                        print("[MeticulousServer] Listener failed: \(error)")
-                    case .cancelled:
-                        self?.isRunning = false
-                    default:
-                        self?.isRunning = false
-                    }
+            let newListener = try NWListener(using: params, on: nwPort)
+            
+            newListener.stateUpdateHandler = { [weak self] state in
+                Task { [weak self] in
+                    await self?.handleStateUpdate(state, port: port)
                 }
             }
 
-            listener?.newConnectionHandler = { [weak self] connection in
-                self?.handleConnection(connection)
+            newListener.newConnectionHandler = { [weak self] connection in
+                Task { [weak self] in
+                    await self?.handleNewConnection(connection)
+                }
             }
 
-            listener?.start(queue: queue)
+            newListener.start(queue: .global(qos: .userInteractive))
+            self.listener = newListener
         } catch {
             print("[MeticulousServer] Failed to start: \(error)")
-            DispatchQueue.main.async {
-                self.isRunning = false
-            }
+            self.isRunning = false
         }
     }
 
     public func stop() {
         listener?.cancel()
         listener = nil
-        DispatchQueue.main.async {
+        isRunning = false
+    }
+
+    // MARK: - Shot Staging
+
+    /// Stages a completed shot entry and assigns a unique sequence ID.
+    public func stageShot(_ shot: MeticulousHistoryEntry) {
+        self.internalShotCounter += 1
+        let newId = shot.id.isEmpty ? "shot-\(self.internalShotCounter)" : shot.id
+
+        let staged = MeticulousHistoryEntry(
+            id: newId,
+            dbKey: self.internalShotCounter,
+            time: shot.time,
+            name: shot.name,
+            profile: shot.profile,
+            data: shot.data
+        )
+
+        self.currentShotId = newId
+        self.stagedShot = staged
+        print("[MeticulousServer] Staged Meticulous shot with ID '\(newId)'")
+    }
+
+    /// Convenience helper to stage a completed VEM `ShotRecord` directly.
+    public func stageShot(_ record: ShotRecord) {
+        stageShot(record.toMeticulousHistoryEntry())
+    }
+
+    #if DEBUG
+    /// Hook for automated testing to simulate payload delivery without an active TCP client.
+    public func simulateShotDelivered() {
+        onShotDelivered?()
+    }
+    #endif
+
+    // MARK: - Internal Connection Handling
+
+    private func handleStateUpdate(_ state: NWListener.State, port: UInt16) {
+        switch state {
+        case .ready:
+            self.isRunning = true
+            print("[MeticulousServer] Ready on 127.0.0.1:\(port)")
+        case .failed(let error):
+            self.isRunning = false
+            print("[MeticulousServer] Listener failed: \(error)")
+        case .cancelled:
+            self.isRunning = false
+        default:
             self.isRunning = false
         }
     }
 
-    /// Stages the shot and assigns a fresh unique shot ID
-    public func stageShot(_ shot: MeticulousHistoryEntry) {
-        queue.async { [weak self] in
-            guard let self = self else { return }
-            self.internalShotCounter += 1
-            let newId = shot.id.isEmpty ? "shot-\(self.internalShotCounter)" : shot.id
-
-            let staged = MeticulousHistoryEntry(
-                id: newId,
-                dbKey: self.internalShotCounter,
-                time: shot.time,
-                name: shot.name,
-                profile: shot.profile,
-                data: shot.data
-            )
-
-            self.internalStagedShot = staged
-
-            DispatchQueue.main.async {
-                self.currentShotId = newId
-                self.stagedShot = staged
-                print("[MeticulousServer] Staged Meticulous shot with ID '\(newId)'")
-            }
-        }
-    }
-
-    private func handleConnection(_ connection: NWConnection) {
-        connection.start(queue: queue)
+    private func handleNewConnection(_ connection: NWConnection) {
+        connection.start(queue: .global(qos: .userInteractive))
         connection.receive(minimumIncompleteLength: 4, maximumLength: 65536) { [weak self] data, _, _, error in
-            guard let self = self, let data = data, let request = String(data: data, encoding: .utf8) else {
-                if let error = error {
-                    self?.logVerbose("[MeticulousServer] Connection error: \(error)")
-                }
-                connection.cancel()
-                return
+            Task { [weak self] in
+                await self?.processIncomingRequest(connection: connection, data: data, error: error)
             }
-
-            let responseData = self.route(request: request)
-            connection.send(content: responseData, completion: .contentProcessed({ _ in
-                connection.cancel()
-            }))
         }
     }
+
+    private func processIncomingRequest(connection: NWConnection, data: Data?, error: NWError?) {
+        guard let data = data, let request = String(data: data, encoding: .utf8) else {
+            if let error = error {
+                logVerbose("[MeticulousServer] Connection error: \(error)")
+            }
+            connection.cancel()
+            return
+        }
+
+        let responseData = route(request: request)
+        connection.send(content: responseData, completion: .contentProcessed({ _ in
+            connection.cancel()
+        }))
+    }
+
+    // MARK: - HTTP & Socket.IO Routing
 
     private func route(request: String) -> Data {
         let lines = request.components(separatedBy: "\r\n")
@@ -142,52 +167,49 @@ public final class MeticulousServer: ObservableObject {
         let method = parts[0]
         let path = parts[1]
 
-        // 1. Handle CORS preflight (Crucial for Axios POST in Capacitor / WebView)
+        // 1. CORS Preflight
         if method == "OPTIONS" {
             logVerbose("[MeticulousServer] <<< 204 No Content (OPTIONS Preflight)")
             return corsPreflightResponse()
         }
         
-        // Handle Socket.IO Handshake (Required for BQ to consider Meticulous connected)
+        // 2. Socket.IO Handshake
         if path.hasPrefix("/socket.io/") {
             logVerbose("[MeticulousServer] <<< 200 OK (Socket.IO Handshake)")
             if path.contains("sid=") {
-                // Connected confirmation packet (4 = MESSAGE, 0 = CONNECT)
                 return httpResponse(statusCode: 200, text: "40{\"sid\":\"bb123\"}")
             } else {
-                // Open handshake packet (0 = OPEN)
                 let openPacket = "0{\"sid\":\"bb123\",\"upgrades\":[],\"pingInterval\":25000,\"pingTimeout\":20000,\"maxPayload\":1000000}"
                 return httpResponse(statusCode: 200, text: openPacket)
             }
         }
 
-        // 2. Handshake Ping from BQ (Checks if machine is online)
+        // 3. Settings / Presence Handshake from BQ
         if method == "GET" && path.hasPrefix("/api/v1/settings") {
             logVerbose("[MeticulousServer] <<< 200 OK (/api/v1/settings)")
             let settingsPayload = "{\"config\":{\"machine\":\"Flair 58 (Meticulous Emulated)\"},\"heat_on_boot\":true}"
             return httpResponse(statusCode: 200, json: settingsPayload)
         }
 
-        // 3. Search History / Ingestion Endpoint
+        // 4. Ingestion & Telemetry History Endpoint
         if path.hasPrefix("/api/v1/history") {
-            guard let staged = self.internalStagedShot else {
+            guard let staged = self.stagedShot else {
                 let emptyResponse = "{\"history\":[]}"
                 return httpResponse(statusCode: 200, json: emptyResponse)
             }
 
-            // Distinguish between listing query (dump_data: false) and telemetry fetch (dump_data: true)
             let isDetailRequest = request.contains("\"dump_data\":true") || request.contains("\"dump_data\": true")
 
             if isDetailRequest {
-                // Always log detailed telemetry delivery
                 print("[MeticulousServer] <<< 200 OK: Serving detailed telemetry for '\(staged.id)'")
                 let response = MeticulousHistoryResponse(history: [staged])
                 if let encoded = try? JSONEncoder().encode(response),
                    let jsonString = String(data: encoded, encoding: .utf8) {
                     
-                    // Notify coordinator that payload has been served
-                    DispatchQueue.main.async { [weak self] in
-                        self?.onShotDelivered?()
+                    // Trigger completion hook safely
+                    let callback = self.onShotDelivered
+                    Task {
+                        callback?()
                     }
                     return httpResponse(statusCode: 200, json: jsonString)
                 }
@@ -202,7 +224,7 @@ public final class MeticulousServer: ObservableObject {
             }
         }
 
-        // 4. Default Profiles List
+        // 5. Default Profile Catalog Stub
         if path.hasPrefix("/api/v1/profile") {
             logVerbose("[MeticulousServer] <<< 200 OK (/api/v1/profile)")
             return httpResponse(statusCode: 200, json: "[]")
@@ -217,6 +239,8 @@ public final class MeticulousServer: ObservableObject {
             print(message)
         }
     }
+
+    // MARK: - HTTP Encoders
 
     private func corsPreflightResponse() -> Data {
         let headers = """
@@ -258,15 +282,15 @@ public final class MeticulousServer: ObservableObject {
     
     private func httpResponse(statusCode: Int, text: String) -> Data {
         let headers = """
-            HTTP/1.1 \(statusCode) OK\r
-            Content-Type: text/plain; charset=UTF-8\r
-            Access-Control-Allow-Origin: *\r
-            Access-Control-Allow-Methods: GET, POST, OPTIONS\r
-            Access-Control-Allow-Headers: Content-Type, Accept, Authorization\r
-            Connection: close\r
-            Content-Length: \(text.utf8.count)\r
-            \r\n
-            """
+        HTTP/1.1 \(statusCode) OK\r
+        Content-Type: text/plain; charset=UTF-8\r
+        Access-Control-Allow-Origin: *\r
+        Access-Control-Allow-Methods: GET, POST, OPTIONS\r
+        Access-Control-Allow-Headers: Content-Type, Accept, Authorization\r
+        Connection: close\r
+        Content-Length: \(text.utf8.count)\r
+        \r\n
+        """
         return Data((headers + text).utf8)
     }
 }

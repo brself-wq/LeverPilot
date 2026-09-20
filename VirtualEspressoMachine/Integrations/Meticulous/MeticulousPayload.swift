@@ -1,7 +1,7 @@
 import Foundation
 
 // MARK: - History Response Envelope
-public struct MeticulousHistoryResponse: Codable {
+public nonisolated struct MeticulousHistoryResponse: Codable, Sendable {
     public let history: [MeticulousHistoryEntry]
 
     public init(history: [MeticulousHistoryEntry]) {
@@ -10,7 +10,7 @@ public struct MeticulousHistoryResponse: Codable {
 }
 
 // MARK: - History Entry
-public struct MeticulousHistoryEntry: Codable, Identifiable {
+public nonisolated struct MeticulousHistoryEntry: Codable, Identifiable, Sendable {
     public let id: String
     public let dbKey: Int?
     public let time: Int64
@@ -60,7 +60,7 @@ public struct MeticulousHistoryEntry: Codable, Identifiable {
 }
 
 // MARK: - Profile Definition
-public struct MeticulousProfile: Codable {
+public nonisolated struct MeticulousProfile: Codable, Sendable {
     public let name: String
     public let temperature: Double?
     public let dbKey: Int?
@@ -79,7 +79,7 @@ public struct MeticulousProfile: Codable {
 }
 
 // MARK: - Extraction Data Point
-public struct MeticulousDataPoint: Codable {
+public nonisolated struct MeticulousDataPoint: Codable, Sendable {
     public let time: Int
     public let status: String
     public let shot: MeticulousShotTelemetry
@@ -92,7 +92,7 @@ public struct MeticulousDataPoint: Codable {
 }
 
 // MARK: - Shot Telemetry Values
-public struct MeticulousShotTelemetry: Codable {
+public nonisolated struct MeticulousShotTelemetry: Codable, Sendable {
     public let pressure: Double
     public let flow: Double
     public let weight: Double

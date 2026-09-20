@@ -6,7 +6,7 @@
 import Foundation
 import zlib
 
-public final class MicroZipReader {
+public nonisolated final class MicroZipReader: Sendable {
     public static func extractJSONFiles(from zipURL: URL) -> [String: Data] {
         guard let data = try? Data(contentsOf: zipURL) else { return [:] }
         var results: [String: Data] = [:]

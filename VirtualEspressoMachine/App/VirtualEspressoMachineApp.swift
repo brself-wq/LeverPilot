@@ -133,19 +133,25 @@ struct VirtualEspressoMachineApp: App {
             }
             .preferredColorScheme(.dark)
             .onAppear {
-                MeticulousServer.shared.configure(
-                    port: settingsStore.meticulousPort,
-                    verbose: settingsStore.verboseServerLogging
-                )
+                Task {
+                    await MeticulousServer.shared.configure(
+                        port: settingsStore.meticulousPort,
+                        verbose: settingsStore.verboseServerLogging
+                    )
+                }
             }
             .onChange(of: settingsStore.meticulousPort) { _, newPort in
-                MeticulousServer.shared.configure(
-                    port: newPort,
-                    verbose: settingsStore.verboseServerLogging
-                )
+                Task {
+                    await MeticulousServer.shared.configure(
+                        port: newPort,
+                        verbose: settingsStore.verboseServerLogging
+                    )
+                }
             }
             .onChange(of: settingsStore.verboseServerLogging) { _, newVerbose in
-                MeticulousServer.shared.verboseLogging = newVerbose
+                Task {
+                    await MeticulousServer.shared.setVerboseLogging(newVerbose)
+                }
             }
         }
     }

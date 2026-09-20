@@ -71,23 +71,24 @@ public final class BQHandoffCoordinator: ObservableObject {
     /// Stages the completed ShotRecord, transitions to .transferring, starts background assertion (iOS),
     /// and deep-links into Beanconqueror's Add Brew.
     public func addBrewToBeanconqueror(shareCode: String, shot: ShotRecord) {
-        // Prevent concurrent double-dispatch
         guard state != .transferring && state != .transferred else { return }
 
         state = .transferring
 
-        // 1. Stage the shot onto MeticulousServer
-        MeticulousServer.shared.stageShot(shot)
+        // 1. Stage the shot onto MeticulousServer and wire callback (Consistent [weak self] capture)
+        Task { [weak self] in
+            await MeticulousServer.shared.stageShot(shot)
+            await MeticulousServer.shared.setOnShotDelivered { [weak self] in
+                Task { @MainActor [weak self] in
+                    guard let self = self else { return }
+                    print("[BQHandoffCoordinator] Telemetry served to BQ. Updating ledger and scheduling end of background task...")
+                    self.markDelivered(shotId: shot.id)
+                    self.state = .transferred
 
-        // 2. Set up delivery completion hook
-        MeticulousServer.shared.onShotDelivered = { [weak self] in
-            guard let self = self else { return }
-            print("[BQHandoffCoordinator] Telemetry served to BQ. Updating ledger and scheduling end of background task...")
-            self.markDelivered(shotId: shot.id)
-            self.state = .transferred
-
-            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-                self.endBackgroundTask()
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                        self.endBackgroundTask()
+                    }
+                }
             }
         }
 
@@ -98,10 +99,10 @@ public final class BQHandoffCoordinator: ObservableObject {
             return
         }
 
-        // 3. Begin background execution assertion (iOS)
+        // 2. Begin background execution assertion (iOS)
         beginBackgroundTask()
 
-        // 4. Dispatch deep-link (or headless test hook)
+        // 3. Dispatch deep-link (or headless test hook)
         if let openURLHandler = openURLHandler {
             openURLHandler(bqURL)
             return
@@ -124,7 +125,7 @@ public final class BQHandoffCoordinator: ObservableObject {
         }
         #endif
 
-        // 5. Watchdog failsafe timer: transition to .timedOut if user abandons
+        // 4. Watchdog failsafe timer: transition to .timedOut if user abandons
         fallbackItem?.cancel()
         let item = DispatchWorkItem { [weak self] in
             guard let self = self else { return }
@@ -161,7 +162,9 @@ public final class BQHandoffCoordinator: ObservableObject {
     public func endBackgroundTask() {
         fallbackItem?.cancel()
         fallbackItem = nil
-        MeticulousServer.shared.onShotDelivered = nil
+        Task {
+            await MeticulousServer.shared.setOnShotDelivered(nil)
+        }
 
         #if canImport(UIKit)
         if backgroundTaskID != .invalid {
