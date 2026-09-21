@@ -21,6 +21,7 @@ public final class ScenarioStore {
     public var scenarios: [ShotRecord] = []
     
     /// Bundled mock test fixtures reserved exclusively for simulator / desk debugging.
+    /// In RELEASE builds, this is guaranteed to remain empty.
     public var mockScenarios: [ShotRecord] = []
     
     private let mode: StorageMode
@@ -35,7 +36,9 @@ public final class ScenarioStore {
             if let customURL {
                 self.shotLogsDirectory = customURL
             } else {
-                let appSupport = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+                guard let appSupport = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {
+                    fatalError("CRITICAL: Application Support directory is unavailable.")
+                }
                 self.shotLogsDirectory = appSupport
                     .appendingPathComponent("ShotLogs", isDirectory: true)
             }
@@ -70,7 +73,7 @@ public final class ScenarioStore {
     public func clearAllHistory() throws {
         scenarios.removeAll()
         guard case .disk = mode, let dir = shotLogsDirectory else { return }
-        if fileManager.fileExists(atPath: dir.path) {
+        if fileManager.fileExists(atPath: dir.path()) {
             try fileManager.removeItem(at: dir)
             ensureDirectoryExists()
         }
@@ -91,6 +94,7 @@ public final class ScenarioStore {
         decoder.dateDecodingStrategy = .iso8601
         
         // 1. Bundle Scenarios (Isolated for DEBUG simulation only)
+        #if DEBUG
         var bundled: [ShotRecord] = []
         if let urls = bundle.urls(forResourcesWithExtension: "json", subdirectory: nil) {
             for url in urls {
@@ -102,6 +106,10 @@ public final class ScenarioStore {
             }
         }
         self.mockScenarios = bundled
+        #else
+        // Guaranteed zero mock scenarios in production RELEASE builds
+        self.mockScenarios = []
+        #endif
         
         // 2. Real User Shot Logs from Application Support (Sole source of truth for History)
         var recorded: [ShotRecord] = []
@@ -124,7 +132,7 @@ public final class ScenarioStore {
     
     private func ensureDirectoryExists() {
         guard let dir = shotLogsDirectory else { return }
-        if !fileManager.fileExists(atPath: dir.path) {
+        if !fileManager.fileExists(atPath: dir.path()) {
             try? fileManager.createDirectory(at: dir, withIntermediateDirectories: true)
         }
     }
