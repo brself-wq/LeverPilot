@@ -12,12 +12,15 @@ extension ShotRecord {
         let telemetryPoints: [MeticulousDataPoint] = samples.map { sample in
             let elapsedMs = Int((sample.timestamp * 1000.0).rounded())
             
+            // brewTemperature and gravimetricFlow are not useful without sensors.
+            // Supress them in the JSON output as null values or remove the keys entirely.
+            
             let telemetry = MeticulousShotTelemetry(
                 pressure: (sample.pressure * 10.0).rounded() / 10.0,
                 flow: (sample.flow * 10.0).rounded() / 10.0,
                 weight: (sample.weight * 10.0).rounded() / 10.0,
-                temperature: brewTemperature,
-                gravimetricFlow: (sample.flow * 10.0).rounded() / 10.0
+                temperature: nil,
+                gravimetricFlow: nil
             )
             
             return MeticulousDataPoint(

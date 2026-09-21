@@ -96,15 +96,15 @@ public nonisolated struct MeticulousShotTelemetry: Codable, Sendable {
     public let pressure: Double
     public let flow: Double
     public let weight: Double
-    public let temperature: Double
-    public let gravimetricFlow: Double
+    public let temperature: Double?
+    public let gravimetricFlow: Double?
 
     public init(
         pressure: Double,
         flow: Double,
         weight: Double,
-        temperature: Double = 93.0,
-        gravimetricFlow: Double
+        temperature: Double?,
+        gravimetricFlow: Double?
     ) {
         self.pressure = pressure
         self.flow = flow
