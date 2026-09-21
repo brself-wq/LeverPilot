@@ -144,4 +144,58 @@ final class StorePersistenceTests: XCTestCase {
         try scenarioStore.clearAllHistory()
         XCTAssertEqual(scenarioStore.scenarios.count, 0)
     }
+    
+    // MARK: - 5. Directory Boundary Isolation & Path Traversal Prevention
+    
+    func test_profileStore_sanitizesPathTraversal_andConfinesToSandbox() throws {
+        let profileDir = tempDirectory.appendingPathComponent("Profiles", isDirectory: true)
+        let store = ProfileStore(mode: .disk(directory: profileDir))
+        
+        // Keep the malicious input ID as "../../evil_profile" to test sanitization
+        let maliciousProfile = Profile(
+            name: "Traversal Attack Profile",
+            id: "../../evil_profile",
+            author: "Attacker",
+            authorId: "bad-actor",
+            temperature: 90.0,
+            finalWeight: 36.0,
+            stages: []
+        )
+        
+        // Save must not crash and must NOT write outside of profileDir
+        try store.save(profile: maliciousProfile)
+        
+        // 1. Verify it was written inside profileDir as "evil_profile.json"
+        let savedFiles = try FileManager.default.contentsOfDirectory(at: profileDir, includingPropertiesForKeys: nil)
+        XCTAssertEqual(savedFiles.count, 1)
+        XCTAssertEqual(savedFiles.first?.lastPathComponent, "evil_profile.json")
+        
+        // 2. Verify parent directory has no escaped files
+        let parentFiles = try FileManager.default.contentsOfDirectory(at: tempDirectory, includingPropertiesForKeys: nil)
+        // Should only contain the "Profiles" subdirectory
+        XCTAssertEqual(parentFiles.count, 1)
+        XCTAssertEqual(parentFiles.first?.lastPathComponent, "Profiles")
+    }
+    
+    func test_profileStore_delete_sanitizesPathTraversalSafely() throws {
+        let profileDir = tempDirectory.appendingPathComponent("Profiles", isDirectory: true)
+        let store = ProfileStore(mode: .disk(directory: profileDir))
+        
+        let profile = Profile(
+            name: "Delete Me",
+            id: "../../escaped_delete",
+            author: "Tester",
+            authorId: "test-user",
+            temperature: 90.0,
+            finalWeight: 36.0,
+            stages: []
+        )
+        try store.save(profile: profile)
+        
+        // Deleting via traversal ID must safely target the sanitized file
+        try store.delete(profileId: "../../escaped_delete")
+        
+        let remaining = try FileManager.default.contentsOfDirectory(at: profileDir, includingPropertiesForKeys: nil)
+        XCTAssertTrue(remaining.isEmpty, "Sanitized file should have been deleted without touching parent folders")
+    }
 }

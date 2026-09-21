@@ -32,7 +32,9 @@ public final class ProfileStore {
             if let customURL {
                 self.userProfilesDirectory = customURL
             } else {
-                let appSupport = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+                guard let appSupport = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {
+                    fatalError("CRITICAL: Application Support directory is unavailable.")
+                }
                 self.userProfilesDirectory = appSupport
                     .appendingPathComponent("Profiles", isDirectory: true)
             }
@@ -66,30 +68,63 @@ public final class ProfileStore {
         }
     }
     
+    // MARK: - Safe Path Resolution
+    
+    /// Ensures that a profile ID strictly resolves to a file inside the user profiles directory.
+    private func safeFileURL(for profileID: String) throws -> URL {
+        guard let dir = userProfilesDirectory else {
+            throw ProfileError.format("Cannot resolve disk path while operating in in-memory mode.")
+        }
+        
+        // Strip any directory path components or traversal tokens
+        let sanitizedID = (profileID as NSString).lastPathComponent
+            .replacingOccurrences(of: "/", with: "_")
+            .replacingOccurrences(of: "\\", with: "_")
+        
+        guard !sanitizedID.isEmpty, sanitizedID != ".", sanitizedID != ".." else {
+            throw ProfileError.format("Invalid profile identifier: '\(profileID)'")
+        }
+        
+        let candidateURL = dir.appendingPathComponent("\(sanitizedID).json").standardizedFileURL
+        let canonicalDir = dir.standardizedFileURL
+        
+        // Verify candidate stays strictly within the designated profiles root directory
+        guard candidateURL.path().hasPrefix(canonicalDir.path()) else {
+            throw ProfileError.format("Sandbox boundary violation: path traversal detected.")
+        }
+        
+        return candidateURL
+    }
+    
     // MARK: - CRUD Operations
     
     public func save(profile: Profile) throws {
-        // Update in-memory array
-        if let idx = profiles.firstIndex(where: { $0.id == profile.id }) {
-            profiles[idx] = profile
-        } else {
-            profiles.append(profile)
-            sortProfiles()
+        // If in-memory, just update and return
+        guard case .disk = mode, userProfilesDirectory != nil else {
+            updateInMemory(profile: profile)
+            return
         }
         
-        // If in-memory, we are done
-        guard case .disk = mode, let dir = userProfilesDirectory else { return }
-        
-        let fileURL = dir.appendingPathComponent("\(profile.id).json")
+        let fileURL = try safeFileURL(for: profile.id)
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         
         do {
             let data = try encoder.encode(profile)
             try data.write(to: fileURL, options: .atomic)
+            updateInMemory(profile: profile)
         } catch {
             lastErrorMessage = "Save failed: \(error.localizedDescription)"
             throw error
+        }
+    }
+    
+    private func updateInMemory(profile: Profile) {
+        if let idx = profiles.firstIndex(where: { $0.id == profile.id }) {
+            profiles[idx] = profile
+        } else {
+            profiles.append(profile)
+            sortProfiles()
         }
     }
     
@@ -108,9 +143,9 @@ public final class ProfileStore {
         
         profiles.removeAll(where: { $0.id == profileId })
         
-        guard case .disk = mode, let dir = userProfilesDirectory else { return }
-        let fileURL = dir.appendingPathComponent("\(profileId).json")
-        if fileManager.fileExists(atPath: fileURL.path) {
+        guard case .disk = mode else { return }
+        let fileURL = try safeFileURL(for: profileId)
+        if fileManager.fileExists(atPath: fileURL.path()) {
             try fileManager.removeItem(at: fileURL)
         }
     }
@@ -118,7 +153,7 @@ public final class ProfileStore {
     /// Purges all user edits and restores the pristine factory bundle catalog
     public func resetToFactoryDefaults(bundle: Bundle = .main) throws {
         if case .disk = mode, let dir = userProfilesDirectory {
-            if fileManager.fileExists(atPath: dir.path) {
+            if fileManager.fileExists(atPath: dir.path()) {
                 try fileManager.removeItem(at: dir)
                 ensureDirectoryExists()
             }
@@ -173,6 +208,14 @@ public final class ProfileStore {
     }
     
     public func loadProfile(from fileURL: URL) throws -> Profile {
+        // Handle security-scoped document access safely (e.g. UIDocumentPicker / .fileImporter)
+        let didAccess = fileURL.startAccessingSecurityScopedResource()
+        defer {
+            if didAccess {
+                fileURL.stopAccessingSecurityScopedResource()
+            }
+        }
+        
         let data = try Data(contentsOf: fileURL)
         guard let jsonString = String(data: data, encoding: .utf8) else {
             throw ProfileError.format("File at \(fileURL.lastPathComponent) is not valid UTF-8.")
@@ -182,8 +225,12 @@ public final class ProfileStore {
     
     private func ensureDirectoryExists() {
         guard let dir = userProfilesDirectory else { return }
-        if !fileManager.fileExists(atPath: dir.path) {
-            try? fileManager.createDirectory(at: dir, withIntermediateDirectories: true)
+        if !fileManager.fileExists(atPath: dir.path()) {
+            do {
+                try fileManager.createDirectory(at: dir, withIntermediateDirectories: true)
+            } catch {
+                self.lastErrorMessage = "Failed to initialize profiles directory: \(error.localizedDescription)"
+            }
         }
     }
     
