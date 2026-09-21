@@ -18,11 +18,10 @@
   },
   "testTargets" : [
     {
-      "parallelizable" : true,
       "target" : {
-        "containerPath" : "container:VirtualEspressoMachine.xcodeproj",
+        "containerPath" : "container:LeverPilot.xcodeproj",
         "identifier" : "B5996436304F42DF00341BC9",
-        "name" : "VirtualEspressoMachineTests"
+        "name" : "LeverPilotTests"
       }
     }
   ],

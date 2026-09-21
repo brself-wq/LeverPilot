@@ -13,7 +13,7 @@
 
 import XCTest
 import MeticulousProfile
-@testable import VirtualEspressoMachine
+@testable import LeverPilot
 
 @MainActor
 final class StorePersistenceTests: XCTestCase {

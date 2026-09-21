@@ -35,13 +35,13 @@
 		B57F9DAC30532AC10057BAF1 /* ADR-005-FiniteStateMachine.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "ADR-005-FiniteStateMachine.md"; sourceTree = "<group>"; };
 		B57FD03F305F2630001FECFB /* ADR-007-BeanconquerorHandoff.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "ADR-007-BeanconquerorHandoff.md"; sourceTree = "<group>"; };
 		B57FD040305F2699001FECFB /* ADR-008-SettingsAndInvariantBoundaries.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "ADR-008-SettingsAndInvariantBoundaries.md"; sourceTree = "<group>"; };
-		B5996437304F42DF00341BC9 /* VirtualEspressoMachineTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = VirtualEspressoMachineTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		B5996446304F4B9200341BC9 /* VirtualEspressoMachine.xctestplan */ = {isa = PBXFileReference; lastKnownFileType = text; path = VirtualEspressoMachine.xctestplan; sourceTree = "<group>"; };
-		B5B100DE304A370300F70661 /* VirtualEspressoMachine.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = VirtualEspressoMachine.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		B5996437304F42DF00341BC9 /* LeverPilotTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = LeverPilotTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		B5996446304F4B9200341BC9 /* LeverPilot.xctestplan */ = {isa = PBXFileReference; lastKnownFileType = text; path = LeverPilot.xctestplan; sourceTree = "<group>"; };
+		B5B100DE304A370300F70661 /* LeverPilot.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = LeverPilot.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		B57F9D403052F9850057BAF1 /* Exceptions for "meticulous" folder in "VirtualEspressoMachine" target */ = {
+		B57F9D403052F9850057BAF1 /* Exceptions for "meticulous" folder in "LeverPilot" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				"espresso-profile-schema/example_profile.json",
@@ -49,27 +49,27 @@
 				"espresso-profile-schema/rfc.md",
 				"espresso-profile-schema/schema.json",
 			);
-			target = B5B100DD304A370300F70661 /* VirtualEspressoMachine */;
+			target = B5B100DD304A370300F70661 /* LeverPilot */;
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		B5514B22304DB5D800494F6F /* VirtualEspressoMachine */ = {
+		B5514B22304DB5D800494F6F /* LeverPilot */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = VirtualEspressoMachine;
+			path = LeverPilot;
 			sourceTree = "<group>";
 		};
 		B57F2CCE3052D86A009DBA78 /* meticulous */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
-				B57F9D403052F9850057BAF1 /* Exceptions for "meticulous" folder in "VirtualEspressoMachine" target */,
+				B57F9D403052F9850057BAF1 /* Exceptions for "meticulous" folder in "LeverPilot" target */,
 			);
 			path = meticulous;
 			sourceTree = "<group>";
 		};
-		B5996438304F42DF00341BC9 /* VirtualEspressoMachineTests */ = {
+		B5996438304F42DF00341BC9 /* LeverPilotTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = VirtualEspressoMachineTests;
+			path = LeverPilotTests;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -133,11 +133,11 @@
 		B5B100D5304A370300F70661 = {
 			isa = PBXGroup;
 			children = (
-				B5996446304F4B9200341BC9 /* VirtualEspressoMachine.xctestplan */,
+				B5996446304F4B9200341BC9 /* LeverPilot.xctestplan */,
 				B57F2C743052D2B1009DBA78 /* Docs */,
-				B5996438304F42DF00341BC9 /* VirtualEspressoMachineTests */,
+				B5996438304F42DF00341BC9 /* LeverPilotTests */,
 				B5B100DF304A370300F70661 /* Products */,
-				B5514B22304DB5D800494F6F /* VirtualEspressoMachine */,
+				B5514B22304DB5D800494F6F /* LeverPilot */,
 				B5996443304F462100341BC9 /* Frameworks */,
 			);
 			sourceTree = "<group>";
@@ -145,8 +145,8 @@
 		B5B100DF304A370300F70661 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				B5B100DE304A370300F70661 /* VirtualEspressoMachine.app */,
-				B5996437304F42DF00341BC9 /* VirtualEspressoMachineTests.xctest */,
+				B5B100DE304A370300F70661 /* LeverPilot.app */,
+				B5996437304F42DF00341BC9 /* LeverPilotTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -154,9 +154,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		B5996436304F42DF00341BC9 /* VirtualEspressoMachineTests */ = {
+		B5996436304F42DF00341BC9 /* LeverPilotTests */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = B599643D304F42DF00341BC9 /* Build configuration list for PBXNativeTarget "VirtualEspressoMachineTests" */;
+			buildConfigurationList = B599643D304F42DF00341BC9 /* Build configuration list for PBXNativeTarget "LeverPilotTests" */;
 			buildPhases = (
 				B5996433304F42DF00341BC9 /* Sources */,
 				B5996434304F42DF00341BC9 /* Frameworks */,
@@ -168,19 +168,19 @@
 				B599643C304F42DF00341BC9 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
-				B5996438304F42DF00341BC9 /* VirtualEspressoMachineTests */,
+				B5996438304F42DF00341BC9 /* LeverPilotTests */,
 			);
-			name = VirtualEspressoMachineTests;
+			name = LeverPilotTests;
 			packageProductDependencies = (
 				B5996444304F462100341BC9 /* MeticulousProfile */,
 			);
 			productName = VirtualEspressoMachineTests;
-			productReference = B5996437304F42DF00341BC9 /* VirtualEspressoMachineTests.xctest */;
+			productReference = B5996437304F42DF00341BC9 /* LeverPilotTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
-		B5B100DD304A370300F70661 /* VirtualEspressoMachine */ = {
+		B5B100DD304A370300F70661 /* LeverPilot */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = B5B100E9304A370400F70661 /* Build configuration list for PBXNativeTarget "VirtualEspressoMachine" */;
+			buildConfigurationList = B5B100E9304A370400F70661 /* Build configuration list for PBXNativeTarget "LeverPilot" */;
 			buildPhases = (
 				B5B100DA304A370300F70661 /* Sources */,
 				B5B100DB304A370300F70661 /* Frameworks */,
@@ -191,16 +191,16 @@
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
-				B5514B22304DB5D800494F6F /* VirtualEspressoMachine */,
+				B5514B22304DB5D800494F6F /* LeverPilot */,
 				B57F2CCE3052D86A009DBA78 /* meticulous */,
 			);
-			name = VirtualEspressoMachine;
+			name = LeverPilot;
 			packageProductDependencies = (
 				B5B100FF304A37E900F70661 /* MeticulousProfile */,
 				B55B26DB3054331600C1DBE2 /* EspressoBLE */,
 			);
 			productName = VirtualEspressoMachine;
-			productReference = B5B100DE304A370300F70661 /* VirtualEspressoMachine.app */;
+			productReference = B5B100DE304A370300F70661 /* LeverPilot.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -222,7 +222,7 @@
 					};
 				};
 			};
-			buildConfigurationList = B5B100D9304A370300F70661 /* Build configuration list for PBXProject "VirtualEspressoMachine" */;
+			buildConfigurationList = B5B100D9304A370300F70661 /* Build configuration list for PBXProject "LeverPilot" */;
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -240,8 +240,8 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				B5B100DD304A370300F70661 /* VirtualEspressoMachine */,
-				B5996436304F42DF00341BC9 /* VirtualEspressoMachineTests */,
+				B5B100DD304A370300F70661 /* LeverPilot */,
+				B5996436304F42DF00341BC9 /* LeverPilotTests */,
 			);
 		};
 /* End PBXProject section */
@@ -287,7 +287,7 @@
 				macos,
 				xros,
 			);
-			target = B5B100DD304A370300F70661 /* VirtualEspressoMachine */;
+			target = B5B100DD304A370300F70661 /* LeverPilot */;
 			targetProxy = B599643B304F42DF00341BC9 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
@@ -316,7 +316,7 @@
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/VirtualEspressoMachine.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/VirtualEspressoMachine";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/LeverPilot.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/LeverPilot";
 				XROS_DEPLOYMENT_TARGET = 26.5;
 			};
 			name = Debug;
@@ -340,7 +340,7 @@
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/VirtualEspressoMachine.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/VirtualEspressoMachine";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/LeverPilot.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/LeverPilot";
 				VALIDATE_PRODUCT = YES;
 				XROS_DEPLOYMENT_TARGET = 26.5;
 			};
@@ -490,6 +490,7 @@
 				ENABLE_RESOURCE_ACCESS_USB = NO;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Fulcrum;
 				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "Virtual Espresso Machine needs Bluetooth to connect to your coffee scale and pressure gauge.";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
@@ -506,7 +507,7 @@
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 26.5;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.brself.VirtualEspressoMachine;
+				PRODUCT_BUNDLE_IDENTIFIER = com.brself.LeverPilot;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
 				SDKROOT = auto;
@@ -546,6 +547,7 @@
 				ENABLE_RESOURCE_ACCESS_USB = NO;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Fulcrum;
 				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "Virtual Espresso Machine needs Bluetooth to connect to your coffee scale and pressure gauge.";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
@@ -562,7 +564,7 @@
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 26.5;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.brself.VirtualEspressoMachine;
+				PRODUCT_BUNDLE_IDENTIFIER = com.brself.LeverPilot;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
 				SDKROOT = auto;
@@ -581,7 +583,7 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		B599643D304F42DF00341BC9 /* Build configuration list for PBXNativeTarget "VirtualEspressoMachineTests" */ = {
+		B599643D304F42DF00341BC9 /* Build configuration list for PBXNativeTarget "LeverPilotTests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				B599643E304F42DF00341BC9 /* Debug */,
@@ -590,7 +592,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		B5B100D9304A370300F70661 /* Build configuration list for PBXProject "VirtualEspressoMachine" */ = {
+		B5B100D9304A370300F70661 /* Build configuration list for PBXProject "LeverPilot" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				B5B100E7304A370400F70661 /* Debug */,
@@ -599,7 +601,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		B5B100E9304A370400F70661 /* Build configuration list for PBXNativeTarget "VirtualEspressoMachine" */ = {
+		B5B100E9304A370400F70661 /* Build configuration list for PBXNativeTarget "LeverPilot" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				B5B100EA304A370400F70661 /* Debug */,

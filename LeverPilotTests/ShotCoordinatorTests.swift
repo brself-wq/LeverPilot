@@ -6,7 +6,7 @@
 import XCTest
 import MeticulousProfile
 import EspressoBLE
-@testable import VirtualEspressoMachine
+@testable import LeverPilot
 
 @MainActor
 final class ShotCoordinatorTests: XCTestCase {

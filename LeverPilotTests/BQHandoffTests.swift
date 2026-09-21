@@ -4,7 +4,7 @@
 //
 
 import XCTest
-@testable import VirtualEspressoMachine
+@testable import LeverPilot
 
 @MainActor
 final class BQHandoffTests: XCTestCase {

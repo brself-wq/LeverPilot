@@ -16,9 +16,9 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "B5B100DD304A370300F70661"
-               BuildableName = "VirtualEspressoMachine.app"
+               BuildableName = "LeverPilot.app"
                BlueprintName = "VirtualEspressoMachine"
-               ReferencedContainer = "container:VirtualEspressoMachine.xcodeproj">
+               ReferencedContainer = "container:LeverPilot.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
       </BuildActionEntries>
@@ -30,7 +30,7 @@
       shouldUseLaunchSchemeArgsEnv = "YES">
       <TestPlans>
          <TestPlanReference
-            reference = "container:VirtualEspressoMachine.xctestplan"
+            reference = "container:LeverPilot.xctestplan"
             default = "YES">
          </TestPlanReference>
       </TestPlans>
@@ -41,9 +41,9 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "B5996436304F42DF00341BC9"
-               BuildableName = "VirtualEspressoMachineTests.xctest"
+               BuildableName = "LeverPilotTests.xctest"
                BlueprintName = "VirtualEspressoMachineTests"
-               ReferencedContainer = "container:VirtualEspressoMachine.xcodeproj">
+               ReferencedContainer = "container:LeverPilot.xcodeproj">
             </BuildableReference>
          </TestableReference>
       </Testables>
@@ -64,9 +64,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "B5B100DD304A370300F70661"
-            BuildableName = "VirtualEspressoMachine.app"
+            BuildableName = "LeverPilot.app"
             BlueprintName = "VirtualEspressoMachine"
-            ReferencedContainer = "container:VirtualEspressoMachine.xcodeproj">
+            ReferencedContainer = "container:LeverPilot.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </LaunchAction>
@@ -81,9 +81,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "B5B100DD304A370300F70661"
-            BuildableName = "VirtualEspressoMachine.app"
+            BuildableName = "LeverPilot.app"
             BlueprintName = "VirtualEspressoMachine"
-            ReferencedContainer = "container:VirtualEspressoMachine.xcodeproj">
+            ReferencedContainer = "container:LeverPilot.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </ProfileAction>

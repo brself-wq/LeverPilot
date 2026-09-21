@@ -8,7 +8,7 @@ import MeticulousProfile
 import EspressoBLE
 
 @main
-struct VirtualEspressoMachineApp: App {
+struct LeverPilotApp: App {
     
     // MARK: - App-Level Shared Singletons
     @State private var profileStore = ProfileStore()

@@ -6,7 +6,7 @@
 //
 
 import XCTest
-@testable import VirtualEspressoMachine
+@testable import LeverPilot
 import MeticulousProfile
 
 final class ProfileExecutionEngineTests: XCTestCase {

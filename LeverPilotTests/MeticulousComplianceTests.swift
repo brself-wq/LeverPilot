@@ -5,7 +5,7 @@
 
 import XCTest
 import MeticulousProfile
-@testable import VirtualEspressoMachine
+@testable import LeverPilot
 
 final class MeticulousComplianceTests: XCTestCase {
     

@@ -1,6 +1,6 @@
 import XCTest
 import EspressoBLE
-@testable import VirtualEspressoMachine
+@testable import LeverPilot
 
 final class HardwarePersistenceTests: XCTestCase {
     
