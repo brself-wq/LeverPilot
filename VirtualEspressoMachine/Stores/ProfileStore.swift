@@ -34,7 +34,6 @@ public final class ProfileStore {
             } else {
                 let appSupport = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
                 self.userProfilesDirectory = appSupport
-                    .appendingPathComponent("VirtualEspressoMachine", isDirectory: true)
                     .appendingPathComponent("Profiles", isDirectory: true)
             }
             ensureDirectoryExists()

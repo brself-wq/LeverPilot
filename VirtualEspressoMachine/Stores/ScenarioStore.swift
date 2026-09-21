@@ -37,7 +37,6 @@ public final class ScenarioStore {
             } else {
                 let appSupport = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
                 self.shotLogsDirectory = appSupport
-                    .appendingPathComponent("VirtualEspressoMachine", isDirectory: true)
                     .appendingPathComponent("ShotLogs", isDirectory: true)
             }
             ensureDirectoryExists()
