@@ -1,6 +1,6 @@
 //
 //  ProfileVariableOverridesView.swift
-//  VirtualEspressoMachine
+//  LeverPilot
 //
 
 import SwiftUI
@@ -62,7 +62,7 @@ public struct ProfileVariableOverridesView: View {
                 .padding(.vertical, 16)
                 .background(Color.appOverlay)
             
-            Divider().background(Color.appBorderSubtle)
+            Divider().background(Theme.Border.subtle)
             
             // Scrollable Content
             ScrollView {
@@ -80,7 +80,7 @@ public struct ProfileVariableOverridesView: View {
                     .padding(.horizontal, 12)
                     .padding(.vertical, 8)
                     .background(Color.white.opacity(0.03))
-                    .cornerRadius(8)
+                    .clipShape(RoundedRectangle(cornerRadius: Theme.Layout.cardRadius))
                     
                     // Section 1: Targets (Dose -> Target Weight -> Temperature)
                     targetsSection
@@ -93,7 +93,7 @@ public struct ProfileVariableOverridesView: View {
                 .padding(24)
             }
             
-            Divider().background(Color.appBorderSubtle)
+            Divider().background(Theme.Border.subtle)
             
             // Footer Action Bar
             footerBar
@@ -127,8 +127,8 @@ public struct ProfileVariableOverridesView: View {
                 .foregroundStyle(.secondary)
                 .padding(.horizontal, 10)
                 .padding(.vertical, 5)
-                .background(Color.white.opacity(0.06))
-                .cornerRadius(6)
+                .background(Theme.Surface.control)
+                .clipShape(RoundedRectangle(cornerRadius: Theme.Layout.controlRadius))
             }
         }
     }
@@ -218,6 +218,7 @@ public struct ProfileVariableOverridesView: View {
             
             Spacer()
             
+            // High-Contrast Primary Apply Button (White pill)
             Button(action: applyAndConfirm) {
                 HStack(spacing: 6) {
                     Image(systemName: "checkmark")
@@ -226,10 +227,12 @@ public struct ProfileVariableOverridesView: View {
                         .font(.system(size: 12, weight: .bold))
                 }
                 .frame(minWidth: 140)
+                .padding(.vertical, 8)
+                .foregroundStyle(.black)
+                .background(Color.white)
+                .clipShape(RoundedRectangle(cornerRadius: Theme.Layout.cardRadius))
             }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.regular)
-            .tint(.blue)
+            .buttonStyle(.plain)
         }
     }
     
@@ -307,8 +310,8 @@ private struct TargetRowStepper: View {
                     Image(systemName: "minus")
                         .font(.system(size: 11, weight: .bold))
                         .frame(width: 28, height: 28)
-                        .background(Color.white.opacity(0.06))
-                        .cornerRadius(6)
+                        .background(Theme.Surface.control)
+                        .clipShape(RoundedRectangle(cornerRadius: Theme.Layout.controlRadius))
                 }
                 .buttonStyle(.plain)
                 
@@ -327,15 +330,15 @@ private struct TargetRowStepper: View {
                     Image(systemName: "plus")
                         .font(.system(size: 11, weight: .bold))
                         .frame(width: 28, height: 28)
-                        .background(Color.white.opacity(0.06))
-                        .cornerRadius(6)
+                        .background(Theme.Surface.control)
+                        .clipShape(RoundedRectangle(cornerRadius: Theme.Layout.controlRadius))
                 }
                 .buttonStyle(.plain)
             }
         }
         .padding(12)
         .background(Color.white.opacity(0.03))
-        .cornerRadius(10)
+        .clipShape(RoundedRectangle(cornerRadius: Theme.Layout.wellRadius))
     }
     
     private func decrement() {
@@ -393,8 +396,8 @@ private struct VariableRowControl: View {
                         Image(systemName: "minus")
                             .font(.system(size: 10, weight: .bold))
                             .frame(width: 26, height: 26)
-                            .background(Color.white.opacity(0.06))
-                            .cornerRadius(5)
+                            .background(Theme.Surface.control)
+                            .clipShape(RoundedRectangle(cornerRadius: 5))
                     }
                     .buttonStyle(.plain)
                     
@@ -413,8 +416,8 @@ private struct VariableRowControl: View {
                         Image(systemName: "plus")
                             .font(.system(size: 10, weight: .bold))
                             .frame(width: 26, height: 26)
-                            .background(Color.white.opacity(0.06))
-                            .cornerRadius(5)
+                            .background(Theme.Surface.control)
+                            .clipShape(RoundedRectangle(cornerRadius: 5))
                     }
                     .buttonStyle(.plain)
                 }
@@ -426,7 +429,7 @@ private struct VariableRowControl: View {
         }
         .padding(12)
         .background(Color.white.opacity(0.03))
-        .cornerRadius(10)
+        .clipShape(RoundedRectangle(cornerRadius: Theme.Layout.wellRadius))
     }
     
     private func decrement() {
@@ -472,8 +475,8 @@ private struct EditableNumericField: View {
     
     var body: some View {
         let field = TextField("", text: $textInput)
-            .multilineTextAlignment(TextAlignment.center)
-            .font(Font.system(size: 13, weight: .bold, design: .monospaced))
+            .multilineTextAlignment(.center)
+            .font(.system(size: 13, weight: .bold, design: .rounded).monospacedDigit())
             .foregroundStyle(.white)
             .frame(minWidth: 46, maxWidth: 58)
             .padding(.horizontal, 4)

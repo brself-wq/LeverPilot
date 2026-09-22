@@ -1,6 +1,6 @@
 //
 //  HardwareSettingsSheet.swift
-//  VirtualEspressoMachine
+//  LeverPilot
 //
 
 import SwiftUI
@@ -27,7 +27,7 @@ public struct HardwareSettingsSheet: View {
                 .padding(.vertical, 16)
                 .background(Color.appOverlay)
             
-            Divider().background(Color.appBorderSubtle)
+            Divider().background(Theme.Border.subtle)
             
             // Radio Health Banner (if unauthorized or powered off)
             if bleManager.centralState == .unauthorized || bleManager.centralState == .poweredOff {
@@ -95,11 +95,17 @@ public struct HardwareSettingsSheet: View {
             .tint(.secondary)
             .disabled(!bleManager.isBluetoothReady)
             
-            Button("Done") {
-                dismiss()
+            // High-Contrast Primary Done Button
+            Button(action: { dismiss() }) {
+                Text("Done")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundStyle(.black)
+                    .padding(.horizontal, 18)
+                    .padding(.vertical, 7)
+                    .background(Color.white)
+                    .clipShape(RoundedRectangle(cornerRadius: Theme.Layout.cardRadius))
             }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.regular)
+            .buttonStyle(.plain)
             .padding(.leading, 8)
         }
     }
@@ -117,7 +123,7 @@ public struct HardwareSettingsSheet: View {
                     .font(.system(size: 12, weight: .bold))
                     .foregroundStyle(.white)
                 Text(bleManager.centralState == .unauthorized
-                     ? "BaristaPilot requires Bluetooth to stream telemetry from your scale and pressure device."
+                     ? "LeverPilot needs Bluetooth to connect your scale and pressure gauge."
                      : "Enable Bluetooth in Control Center or Settings to connect peripherals.")
                     .font(.system(size: 10))
                     .foregroundStyle(.secondary)
@@ -129,9 +135,13 @@ public struct HardwareSettingsSheet: View {
                 Button("Open Settings") {
                     openSystemSettings()
                 }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.small)
-                .tint(.blue)
+                .font(.system(size: 11, weight: .bold))
+                .foregroundStyle(.black)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(Color.white)
+                .clipShape(RoundedRectangle(cornerRadius: Theme.Layout.controlRadius))
+                .buttonStyle(.plain)
             }
         }
         .padding(.horizontal, 24)
@@ -213,7 +223,7 @@ public struct HardwareSettingsSheet: View {
                 .padding(.horizontal, 6)
                 .padding(.vertical, 3)
                 .background(Color.white.opacity(0.04))
-                .cornerRadius(4)
+                .clipShape(RoundedRectangle(cornerRadius: Theme.Layout.pillRadius))
             }
             
             if isConnected, let slot = slot {
@@ -224,15 +234,15 @@ public struct HardwareSettingsSheet: View {
                     
                     if role == .scale, let weight = slot.lastReading?.weightGrams {
                         Text(String(format: "%.1f g", weight))
-                            .font(.system(size: 28, weight: .black, design: .monospaced))
+                            .font(.system(size: 28, weight: .black, design: .rounded).monospacedDigit())
                             .foregroundStyle(themeColor)
                     } else if role == .pressure, let pressure = slot.lastReading?.pressureBar {
                         Text(String(format: "%.2f bar", pressure))
-                            .font(.system(size: 28, weight: .black, design: .monospaced))
+                            .font(.system(size: 28, weight: .black, design: .rounded).monospacedDigit())
                             .foregroundStyle(themeColor)
                     } else {
                         Text("--")
-                            .font(.system(size: 28, weight: .black, design: .monospaced))
+                            .font(.system(size: 28, weight: .black, design: .rounded).monospacedDigit())
                             .foregroundStyle(.secondary)
                     }
                 }
@@ -259,7 +269,7 @@ public struct HardwareSettingsSheet: View {
                     }
                 }
                 
-                Divider().background(Color.white.opacity(0.06))
+                Divider().background(Theme.Border.hair)
                 
                 HStack {
                     if role == .scale {
@@ -282,7 +292,7 @@ public struct HardwareSettingsSheet: View {
                     }
                     .font(.system(size: 11, weight: .bold))
                     .buttonStyle(.plain)
-                    .foregroundStyle(.red.opacity(0.8))
+                    .foregroundStyle(Color.telemetryAlert)
                 }
             } else if isPaired {
                 VStack(alignment: .leading, spacing: 6) {
@@ -296,7 +306,7 @@ public struct HardwareSettingsSheet: View {
                     Spacer(minLength: 8)
                 }
                 
-                Divider().background(Color.white.opacity(0.06))
+                Divider().background(Theme.Border.hair)
                 
                 HStack {
                     Spacer()
@@ -306,7 +316,7 @@ public struct HardwareSettingsSheet: View {
                     }
                     .font(.system(size: 11, weight: .bold))
                     .buttonStyle(.plain)
-                    .foregroundStyle(.red.opacity(0.8))
+                    .foregroundStyle(Color.telemetryAlert)
                 }
             } else {
                 VStack(spacing: 8) {
@@ -325,10 +335,10 @@ public struct HardwareSettingsSheet: View {
         .padding(14)
         .frame(maxWidth: .infinity, minHeight: 180)
         .background(Color.appCard)
-        .cornerRadius(12)
+        .clipShape(RoundedRectangle(cornerRadius: Theme.Layout.podRadius))
         .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+            RoundedRectangle(cornerRadius: Theme.Layout.podRadius)
+                .strokeBorder(Theme.Border.glassGradient, lineWidth: 1)
         )
     }
     
@@ -370,7 +380,7 @@ public struct HardwareSettingsSheet: View {
                     Spacer()
                 }
                 .background(Color.white.opacity(0.02))
-                .cornerRadius(10)
+                .clipShape(RoundedRectangle(cornerRadius: Theme.Layout.wellRadius))
             } else {
                 VStack(spacing: 8) {
                     ForEach(bleManager.discoveredDevices) { device in
@@ -404,17 +414,22 @@ public struct HardwareSettingsSheet: View {
                 .foregroundStyle(.secondary)
                 .padding(.trailing, 10)
             
+            // High-Contrast Connect Button (Replaces generic blue)
             Button("Connect") {
                 bleManager.select(device: device)
                 UserDefaults.standard.set(device.id.uuidString, forKey: "ble.device.\(device.role.rawValue)")
             }
-            .buttonStyle(.bordered)
-            .controlSize(.small)
-            .tint(.blue)
+            .font(.system(size: 11, weight: .bold))
+            .foregroundStyle(.black)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 5)
+            .background(Color.white)
+            .clipShape(RoundedRectangle(cornerRadius: Theme.Layout.controlRadius))
+            .buttonStyle(.plain)
         }
         .padding(10)
         .background(Color.white.opacity(0.03))
-        .cornerRadius(8)
+        .clipShape(RoundedRectangle(cornerRadius: Theme.Layout.cardRadius))
     }
     
     // MARK: - Helpers

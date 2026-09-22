@@ -1,6 +1,6 @@
 //
-//  VirtualEspressoMachineApp.swift
-//  VirtualEspressoMachine
+//  LeverPilotApp.swift
+//  LeverPilot
 //
 
 import SwiftUI
@@ -90,34 +90,43 @@ struct LeverPilotApp: App {
                         }
                     }
                     .overlay(alignment: .topTrailing) {
-                        Button(action: { showAbortConfirmation = true }) {
+                        Button(action: {
+                            withAnimation(.easeInOut(duration: 0.15)) {
+                                showAbortConfirmation = true
+                            }
+                        }) {
                             Image(systemName: "xmark")
                                 .font(.system(size: 11, weight: .bold))
                                 .foregroundStyle(.secondary.opacity(0.8))
                                 .frame(width: 26, height: 26)
-                                .background(Color.white.opacity(0.08), in: Circle())
+                                .background(Theme.Surface.control, in: Circle())
                                 .contentShape(Circle())
                         }
                         .buttonStyle(.plain)
                         .padding(14)
-                        .confirmationDialog(
-                            "Abort Extraction?",
-                            isPresented: $showAbortConfirmation,
-                            titleVisibility: .visible
-                        ) {
-                            Button("Abort Shot", role: .destructive) {
-                                abortShot()
-                            }
-                            Button("Resume Extraction", role: .cancel) {}
-                        } message: {
-                            Text("Active extraction will be stopped and in-flight telemetry discarded.")
-                        }
                     }
                     .transition(.opacity)
                     .zIndex(10)
                 }
                 
-                // 4. POST-SHOT LAYER: Full-Screen Shot Record / Shot History
+                // 4. ACCESSIBLE ABORT CONFIRMATION MODAL
+                if showAbortConfirmation {
+                    Color.black.opacity(0.65)
+                        .ignoresSafeArea()
+                        .transition(.opacity)
+                        .zIndex(25)
+                        .onTapGesture {
+                            withAnimation(.easeInOut(duration: 0.15)) {
+                                showAbortConfirmation = false
+                            }
+                        }
+                    
+                    abortConfirmationCard
+                        .transition(.scale(scale: 0.95).combined(with: .opacity))
+                        .zIndex(30)
+                }
+                
+                // 5. POST-SHOT LAYER: Full-Screen Shot Record / Shot History
                 if let shotRecord = completedRecordForReview {
                     ShotRecordView(
                         record: shotRecord,
@@ -128,7 +137,7 @@ struct LeverPilotApp: App {
                         }
                     )
                     .transition(.opacity)
-                    .zIndex(20)
+                    .zIndex(40)
                 }
             }
             .preferredColorScheme(.dark)
@@ -193,16 +202,83 @@ struct LeverPilotApp: App {
             }
             .foregroundStyle(.white.opacity(0.85))
             .padding(8)
-            .background(Color.white.opacity(0.06))
-            .cornerRadius(8)
+            .background(Theme.Surface.control)
+            .clipShape(RoundedRectangle(cornerRadius: Theme.Layout.cardRadius))
             .overlay(
-                RoundedRectangle(cornerRadius: 8)
-                    .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                RoundedRectangle(cornerRadius: Theme.Layout.cardRadius)
+                    .strokeBorder(Theme.Border.glassGradient, lineWidth: 1)
             )
         }
         .menuOrder(.fixed)
         .menuStyle(.borderlessButton)
+        .tint(.white)
         .fixedSize()
+    }
+    
+    // MARK: - High-Contrast Abort Dialog
+    
+    private var abortConfirmationCard: some View {
+        VStack(spacing: 16) {
+            VStack(spacing: 6) {
+                Text("Stop Shot?")
+                    .font(.headline.weight(.black))
+                    .foregroundStyle(.white)
+                
+                Text("The current pull will end and will not be saved to your history.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+            .padding(.top, 4)
+            
+            VStack(spacing: 8) {
+                // High-Contrast Destructive Action Button
+                Button(action: {
+                    withAnimation(.easeInOut(duration: 0.15)) {
+                        showAbortConfirmation = false
+                    }
+                    abortShot()
+                }) {
+                    Text("Stop Shot")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(Color(red: 1.0, green: 0.42, blue: 0.42)) // High-luminance coral
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .background(Color.white.opacity(0.08))
+                        .clipShape(RoundedRectangle(cornerRadius: Theme.Layout.cardRadius))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: Theme.Layout.cardRadius)
+                                .strokeBorder(Color(red: 1.0, green: 0.42, blue: 0.42).opacity(0.40), lineWidth: 1)
+                        )
+                }
+                .buttonStyle(.plain)
+                
+                // Neutral Resume Action Button
+                Button(action: {
+                    withAnimation(.easeInOut(duration: 0.15)) {
+                        showAbortConfirmation = false
+                    }
+                }) {
+                    Text("Keep Brewing")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .background(Color.white.opacity(0.06))
+                        .clipShape(RoundedRectangle(cornerRadius: Theme.Layout.cardRadius))
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(20)
+        .frame(width: 300)
+        .background(Theme.Surface.overlay)
+        .clipShape(RoundedRectangle(cornerRadius: Theme.Layout.heroRadius))
+        .overlay(
+            RoundedRectangle(cornerRadius: Theme.Layout.heroRadius)
+                .strokeBorder(Theme.Border.glassGradient, lineWidth: 1)
+        )
+        .shadow(color: .black.opacity(0.55), radius: 24, y: 8)
     }
     
     // MARK: - Machine Lifecycle Handlers

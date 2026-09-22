@@ -1,6 +1,6 @@
 //
 //  SettingsView.swift
-//  VirtualEspressoMachine
+//  LeverPilot
 //
 
 import SwiftUI
@@ -28,7 +28,7 @@ public struct SettingsView: View {
                     .padding(.top, 14)
                     .padding(.bottom, 12)
                 
-                Divider().background(Color.appBorderSubtle)
+                Divider().background(Theme.Border.subtle)
                 
                 ScrollView {
                     VStack(spacing: 20) {
@@ -48,7 +48,6 @@ public struct SettingsView: View {
                         beanconquerorSection
                     }
                     .padding(24)
-                    // Bottom clearance for the universal hamburger menu
                     .padding(.bottom, 60)
                 }
             }
@@ -78,7 +77,7 @@ public struct SettingsView: View {
                 Text("Settings")
                     .font(.title3.weight(.black))
                     .foregroundStyle(.white)
-                Text("Machine thresholds, workflow defaults, and server integrations")
+                Text("Workflow defaults, sensor watchdogs, and integrations")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -116,8 +115,11 @@ public struct SettingsView: View {
         }
         .padding(16)
         .background(Color.appCard)
-        .cornerRadius(12)
-        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.08), lineWidth: 1))
+        .clipShape(RoundedRectangle(cornerRadius: Theme.Layout.podRadius))
+        .overlay(
+            RoundedRectangle(cornerRadius: Theme.Layout.podRadius)
+                .strokeBorder(Theme.Border.glassGradient, lineWidth: 1)
+        )
     }
     
     // MARK: - Section 2: Extraction & Watchdogs
@@ -157,8 +159,11 @@ public struct SettingsView: View {
         }
         .padding(16)
         .background(Color.appCard)
-        .cornerRadius(12)
-        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.08), lineWidth: 1))
+        .clipShape(RoundedRectangle(cornerRadius: Theme.Layout.podRadius))
+        .overlay(
+            RoundedRectangle(cornerRadius: Theme.Layout.podRadius)
+                .strokeBorder(Theme.Border.glassGradient, lineWidth: 1)
+        )
     }
     
     // MARK: - Section 3: Meticulous Server & Logging
@@ -187,8 +192,11 @@ public struct SettingsView: View {
         }
         .padding(16)
         .background(Color.appCard)
-        .cornerRadius(12)
-        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.08), lineWidth: 1))
+        .clipShape(RoundedRectangle(cornerRadius: Theme.Layout.podRadius))
+        .overlay(
+            RoundedRectangle(cornerRadius: Theme.Layout.podRadius)
+                .strokeBorder(Theme.Border.glassGradient, lineWidth: 1)
+        )
     }
     
     // MARK: - Section 4: HUD Dynamics
@@ -208,8 +216,11 @@ public struct SettingsView: View {
         }
         .padding(16)
         .background(Color.appCard)
-        .cornerRadius(12)
-        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.08), lineWidth: 1))
+        .clipShape(RoundedRectangle(cornerRadius: Theme.Layout.podRadius))
+        .overlay(
+            RoundedRectangle(cornerRadius: Theme.Layout.podRadius)
+                .strokeBorder(Theme.Border.glassGradient, lineWidth: 1)
+        )
     }
     
     // MARK: - Section 5: Beanconqueror Archive Link
@@ -245,21 +256,29 @@ public struct SettingsView: View {
                     .controlSize(.small)
                 }
                 
-                Button(bqStorage.isConfigured ? "Change Folder" : "Link Folder") {
-                    isShowingFolderPicker = true
+                // High-Contrast Link / Change Folder Button
+                Button(action: { isShowingFolderPicker = true }) {
+                    Text(bqStorage.isConfigured ? "Change Folder" : "Link Folder")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(bqStorage.isConfigured ? .white : .black)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 6)
+                        .background(bqStorage.isConfigured ? Theme.Surface.control : Color.white)
+                        .clipShape(RoundedRectangle(cornerRadius: Theme.Layout.controlRadius))
                 }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.small)
-                .tint(bqStorage.isConfigured ? .secondary : .blue)
+                .buttonStyle(.plain)
             }
             .padding(12)
             .background(Color.white.opacity(0.03))
-            .cornerRadius(8)
+            .clipShape(RoundedRectangle(cornerRadius: Theme.Layout.cardRadius))
         }
         .padding(16)
         .background(Color.appCard)
-        .cornerRadius(12)
-        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.08), lineWidth: 1))
+        .clipShape(RoundedRectangle(cornerRadius: Theme.Layout.podRadius))
+        .overlay(
+            RoundedRectangle(cornerRadius: Theme.Layout.podRadius)
+                .strokeBorder(Theme.Border.glassGradient, lineWidth: 1)
+        )
     }
     
     // MARK: - Reusable Row Builders
@@ -305,13 +324,13 @@ public struct SettingsView: View {
                     Image(systemName: "minus")
                         .font(.system(size: 11, weight: .bold))
                         .frame(width: 28, height: 28)
-                        .background(Color.white.opacity(0.06))
-                        .cornerRadius(6)
+                        .background(Theme.Surface.control)
+                        .clipShape(RoundedRectangle(cornerRadius: Theme.Layout.controlRadius))
                 }
                 .buttonStyle(.plain)
                 
                 Text(valueString)
-                    .font(.system(size: 13, weight: .bold, design: .monospaced))
+                    .font(.system(size: 13, weight: .bold, design: .rounded).monospacedDigit())
                     .foregroundStyle(.white)
                     .frame(minWidth: 70, alignment: .center)
                 
@@ -319,15 +338,15 @@ public struct SettingsView: View {
                     Image(systemName: "plus")
                         .font(.system(size: 11, weight: .bold))
                         .frame(width: 28, height: 28)
-                        .background(Color.white.opacity(0.06))
-                        .cornerRadius(6)
+                        .background(Theme.Surface.control)
+                        .clipShape(RoundedRectangle(cornerRadius: Theme.Layout.controlRadius))
                 }
                 .buttonStyle(.plain)
             }
         }
         .padding(10)
         .background(Color.white.opacity(0.03))
-        .cornerRadius(8)
+        .clipShape(RoundedRectangle(cornerRadius: Theme.Layout.cardRadius))
     }
     
     private func toggleRow(
@@ -355,10 +374,10 @@ public struct SettingsView: View {
             
             Toggle("", isOn: isOn)
                 .labelsHidden()
-                .tint(.blue)
+                .tint(Color.telemetryFlow) // Cockpit cyan instead of generic blue
         }
         .padding(10)
         .background(Color.white.opacity(0.03))
-        .cornerRadius(8)
+        .clipShape(RoundedRectangle(cornerRadius: Theme.Layout.cardRadius))
     }
 }

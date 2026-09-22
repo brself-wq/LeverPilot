@@ -1,6 +1,6 @@
 //
 //  StageDynamicsChartView.swift
-//  VirtualEspressoMachine
+//  LeverPilot
 //
 
 import SwiftUI
@@ -45,7 +45,6 @@ public struct StageDynamicsChartView: View {
         if currentX <= baselineMax {
             return 0.0...baselineMax
         } else {
-            // Slide viewport to keep active extraction point pinned near the right
             return (currentX - windowSpan)...currentX
         }
     }
@@ -104,12 +103,20 @@ public struct StageDynamicsChartView: View {
                     .lineStyle(StrokeStyle(lineWidth: 3.5))
                 }
                 
+                // Dynamic Leading Tracer Bead (Module 2)
                 if let current = actualHistory.last {
                     PointMark(
                         x: .value("Domain", current.x),
                         y: .value("Value", current.y)
                     )
-                    .symbolSize(80)
+                    .symbolSize(85)
+                    .foregroundStyle(themeColor)
+                    
+                    PointMark(
+                        x: .value("Domain", current.x),
+                        y: .value("Value", current.y)
+                    )
+                    .symbolSize(30)
                     .foregroundStyle(Color.white)
                 }
             }
@@ -118,7 +125,6 @@ public struct StageDynamicsChartView: View {
                 AxisMarks(position: .trailing) { _ in
                     AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5, dash: [2, 2]))
                         .foregroundStyle(Color.white.opacity(0.1))
-                    // Explicit standard anchor eliminates runtime UnitPoint warning
                     AxisValueLabel(anchor: .leading)
                 }
             }
@@ -128,7 +134,6 @@ public struct StageDynamicsChartView: View {
                         .foregroundStyle(Color.white.opacity(0.1))
                     if let val = value.as(Double.self) {
                         let unit = domainLabel.lowercased() == "weight" ? "g" : "s"
-                        // Explicit standard anchor eliminates runtime UnitPoint warning
                         AxisValueLabel("\(Int(val))\(unit)", anchor: .top)
                     }
                 }
@@ -136,6 +141,10 @@ public struct StageDynamicsChartView: View {
         }
         .padding(12)
         .background(Color.white.opacity(0.04))
-        .cornerRadius(12)
+        .clipShape(RoundedRectangle(cornerRadius: Theme.Layout.podRadius))
+        .overlay(
+            RoundedRectangle(cornerRadius: Theme.Layout.podRadius)
+                .strokeBorder(Theme.Border.glassGradient, lineWidth: 1)
+        )
     }
 }

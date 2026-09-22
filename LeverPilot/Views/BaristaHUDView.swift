@@ -1,6 +1,6 @@
 //
 //  BaristaHUDView.swift
-//  VirtualEspressoMachine
+//  LeverPilot
 //
 
 import SwiftUI
@@ -67,13 +67,22 @@ public nonisolated struct StagePillItem: Identifiable, Sendable {
     public let title: String
     public let icon: String
     public let state: StagePillState
+    public let metric: SensorKey
     
-    public init(id: UUID = UUID(), stageNumber: Int, title: String, icon: String, state: StagePillState) {
+    public init(
+        id: UUID = UUID(),
+        stageNumber: Int,
+        title: String,
+        icon: String,
+        state: StagePillState,
+        metric: SensorKey = .pressure
+    ) {
         self.id = id
         self.stageNumber = stageNumber
         self.title = title
         self.icon = icon
         self.state = state
+        self.metric = metric
     }
 }
 
@@ -101,7 +110,7 @@ public struct BaristaHUDView: View {
     let stageTime: Double?
     let actualWeight: Double?
     
-    // Hardware Sensor Health Flags (ADR-009)
+    // Hardware Sensor Health Flags
     let isScaleStale: Bool
     let isPressureStale: Bool
     
@@ -141,7 +150,6 @@ public struct BaristaHUDView: View {
         self.isPressureStale = isPressureStale
     }
     
-    // Resolved Telemetry
     private var displayElapsedTime: Double {
         elapsedTime ?? frame.elapsedTime
     }
@@ -229,7 +237,8 @@ public struct BaristaHUDView: View {
                                 stageNumber: pill.stageNumber,
                                 title: pill.title,
                                 icon: pill.icon,
-                                state: pill.state
+                                state: pill.state,
+                                metric: pill.metric
                             )
                             
                             if pill.stageNumber < stagePills.count {
@@ -245,7 +254,7 @@ public struct BaristaHUDView: View {
             
             Spacer()
             
-            // ADR-009 Sensor Staleness Warning Chips (Fixed trailing alignment; no layout shift)
+            // Sensor Staleness Warning Chips
             HStack(spacing: 8) {
                 if isScaleStale {
                     amberWarningChip(icon: "scalemass.fill", text: "SCALE SIGNAL LOST")
@@ -272,10 +281,10 @@ public struct BaristaHUDView: View {
         .padding(.vertical, 4)
         .background(Color.telemetryWarning.opacity(0.14))
         .overlay(
-            RoundedRectangle(cornerRadius: 6)
+            RoundedRectangle(cornerRadius: Theme.Layout.controlRadius)
                 .stroke(Color.telemetryWarning.opacity(0.35), lineWidth: 1)
         )
-        .cornerRadius(6)
+        .clipShape(RoundedRectangle(cornerRadius: Theme.Layout.controlRadius))
         .transition(.opacity)
     }
 }
@@ -287,6 +296,7 @@ struct StagePill: View {
     let title: String
     let icon: String
     let state: StagePillState
+    let metric: SensorKey
     
     var body: some View {
         HStack(spacing: 6) {
@@ -306,9 +316,17 @@ struct StagePill: View {
             }
             
             VStack(alignment: .leading, spacing: 1) {
-                Text("STAGE \(stageNumber)")
-                    .font(.system(size: 7, weight: .heavy))
-                    .foregroundStyle(state == .active ? .secondary : .tertiary)
+                HStack(spacing: 4) {
+                    Text("STAGE \(stageNumber)")
+                        .font(.system(size: 7, weight: .heavy))
+                        .foregroundStyle(state == .active ? .secondary : .tertiary)
+                    
+                    // Anticipation dot indicating upcoming control parameter
+                    Circle()
+                        .fill(metric.themeColor)
+                        .frame(width: 4, height: 4)
+                }
+                
                 Text(title)
                     .font(.system(size: 10, weight: state == .active ? .bold : .medium))
                     .foregroundStyle(state == .active ? .primary : .secondary)
@@ -317,15 +335,15 @@ struct StagePill: View {
         .padding(.horizontal, 8)
         .padding(.vertical, 4)
         .background(state == .active ? Color.white.opacity(0.08) : Color.white.opacity(0.02))
+        .clipShape(RoundedRectangle(cornerRadius: Theme.Layout.controlRadius))
         .overlay(
-            RoundedRectangle(cornerRadius: 6)
-                .stroke(state == .active ? Color.white.opacity(0.3) : Color.clear, lineWidth: 1)
+            RoundedRectangle(cornerRadius: Theme.Layout.controlRadius)
+                .strokeBorder(state == .active ? metric.themeColor.opacity(0.4) : Color.clear, lineWidth: 1)
         )
-        .cornerRadius(6)
     }
 }
 
-// MARK: - Standalone Xcode Previews (Pure In-Memory, No Sockets / No Disk I/O)
+// MARK: - Standalone Xcode Previews
 
 #Preview("Nominal Pull", traits: .landscapeLeft) {
     BaristaHUDView.previewInstance()
@@ -397,9 +415,9 @@ private extension BaristaHUDView {
         ]
         
         let stagePills = [
-            StagePillItem(stageNumber: 1, title: "Pre-infusion", icon: "gauge.with.dots.needle.bottom.50percent", state: .completed),
-            StagePillItem(stageNumber: 2, title: "Extraction", icon: "gauge.with.dots.needle.bottom.50percent", state: .active),
-            StagePillItem(stageNumber: 3, title: "Decline", icon: "gauge.with.dots.needle.bottom.50percent", state: .upcoming)
+            StagePillItem(stageNumber: 1, title: "Pre-infusion", icon: "gauge.with.dots.needle.bottom.50percent", state: .completed, metric: .pressure),
+            StagePillItem(stageNumber: 2, title: "Extraction", icon: "gauge.with.dots.needle.bottom.50percent", state: .active, metric: .pressure),
+            StagePillItem(stageNumber: 3, title: "Decline", icon: "water.waves", state: .upcoming, metric: .flow)
         ]
         
         return BaristaHUDView(

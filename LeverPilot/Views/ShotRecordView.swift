@@ -1,6 +1,6 @@
 //
 //  ShotRecordView.swift
-//  VirtualEspressoMachine
+//  LeverPilot
 //
 
 import SwiftUI
@@ -33,7 +33,7 @@ public struct ShotRecordView: View {
 
     public var body: some View {
         ZStack {
-            Color.appOverlay
+            Color.appCanvas
                 .ignoresSafeArea()
             
             VStack(spacing: 0) {
@@ -41,31 +41,29 @@ public struct ShotRecordView: View {
                 headerBar
                     .padding(.horizontal, 24)
                     .padding(.vertical, 16)
-                    .background(Color(red: 0.09, green: 0.09, blue: 0.11))
+                    .background(Color.appOverlay)
                 
-                Divider().background(Color.appBorderSubtle)
+                Divider().background(Theme.Border.subtle)
                 
                 // Content: Responsive extraction graph card
                 ViewThatFits(in: .vertical) {
-                    // 1. Dominant full-bleed layout (iPad landscape & expanded viewports)
                     meticulousGraphCard(isFlexible: true)
                         .padding(20)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                     
-                    // 2. Fallback scrolling layout for compact heights / Split View
                     ScrollView {
                         meticulousGraphCard(isFlexible: false)
                             .padding(20)
                     }
                 }
                 
-                Divider().background(Color.appBorderSubtle)
+                Divider().background(Theme.Border.subtle)
                 
                 // Bottom Action Bar: Done gesture & Add to Beanconqueror
                 footerBar
                     .padding(.horizontal, 24)
                     .padding(.vertical, 14)
-                    .background(Color.appCard)
+                    .background(Color.appFooter)
             }
         }
         .sheet(isPresented: $isShowingAddBrewSheet) {
@@ -83,15 +81,15 @@ public struct ShotRecordView: View {
                     .foregroundStyle(.white)
                 
                 Text(String(format: "⏱ %02d:%02ds", Int(record.duration) / 60, Int(record.duration) % 60))
-                    .font(.system(size: 11, weight: .bold, design: .monospaced))
+                    .font(.system(size: 11, weight: .bold, design: .rounded).monospacedDigit())
                     .foregroundStyle(.secondary)
                 
                 Text(String(format: "⚖️ %.1fg", record.finalWeight))
-                    .font(.system(size: 11, weight: .bold, design: .monospaced))
+                    .font(.system(size: 11, weight: .bold, design: .rounded).monospacedDigit())
                     .foregroundStyle(Color.telemetryWeight)
                 
                 Text(String(format: "🌡 %.0f°C", record.brewTemperature))
-                    .font(.system(size: 11, weight: .bold, design: .monospaced))
+                    .font(.system(size: 11, weight: .bold, design: .rounded).monospacedDigit())
                     .foregroundStyle(.secondary)
             }
             
@@ -187,9 +185,12 @@ public struct ShotRecordView: View {
             .background(Color.white.opacity(0.03))
         }
         .frame(maxHeight: isFlexible ? .infinity : nil)
-        .background(Color(red: 0.10, green: 0.10, blue: 0.12))
-        .cornerRadius(12)
-        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.08), lineWidth: 1))
+        .background(Color.appCard)
+        .clipShape(RoundedRectangle(cornerRadius: Theme.Layout.podRadius))
+        .overlay(
+            RoundedRectangle(cornerRadius: Theme.Layout.podRadius)
+                .strokeBorder(Theme.Border.glassGradient, lineWidth: 1)
+        )
     }
     
     // MARK: - Bottom Footer Action Bar
@@ -208,12 +209,18 @@ public struct ShotRecordView: View {
                 .foregroundStyle(.white)
                 .padding(.horizontal, 16)
                 .padding(.vertical, 10)
-                .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 8))
+                .background(Theme.Surface.control)
+                .clipShape(RoundedRectangle(cornerRadius: Theme.Layout.cardRadius))
+                .overlay(
+                    RoundedRectangle(cornerRadius: Theme.Layout.cardRadius)
+                        .strokeBorder(Theme.Border.glassGradient, lineWidth: 1)
+                )
             }
             .buttonStyle(.plain)
             
             Spacer()
             
+            // High-Contrast Primary Done Button
             Button(action: onDismiss) {
                 HStack(spacing: 6) {
                     Image(systemName: "checkmark")
@@ -221,9 +228,11 @@ public struct ShotRecordView: View {
                     Text("Done")
                         .font(.system(size: 13, weight: .bold))
                 }
+                .foregroundStyle(.black)
                 .padding(.horizontal, 24)
                 .padding(.vertical, 10)
-                .background(Color.white.opacity(0.12), in: RoundedRectangle(cornerRadius: 8))
+                .background(Color.white)
+                .clipShape(RoundedRectangle(cornerRadius: Theme.Layout.cardRadius))
             }
             .buttonStyle(.plain)
         }
@@ -241,7 +250,7 @@ public struct ShotRecordView: View {
     private func summaryMetric(label: String, val: String, highlight: Bool = false) -> some View {
         VStack(spacing: 2) {
             Text(val)
-                .font(.system(size: 15, weight: .black, design: .monospaced))
+                .font(.system(size: 15, weight: .black, design: .rounded).monospacedDigit())
                 .foregroundStyle(highlight ? Color.telemetryWeight : .white)
             Text(label.uppercased())
                 .font(.system(size: 8, weight: .heavy, design: .monospaced))

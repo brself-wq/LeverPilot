@@ -1,6 +1,6 @@
 //
 //  AddToBeanconquerorSheet.swift
-//  VirtualEspressoMachine
+//  LeverPilot
 //
 
 import SwiftUI
@@ -68,7 +68,6 @@ public struct AddToBeanconquerorSheet: View {
         }
         .onAppear {
             handoff.resetState()
-            // Auto-refresh bean list when opening sheet to pick up newly minted share codes
             bqStorage.refresh()
             if selectedBean == nil {
                 selectedBean = bqStorage.beans.first(where: \.hasShareCode) ?? bqStorage.beans.first
@@ -94,16 +93,21 @@ public struct AddToBeanconquerorSheet: View {
                 Text("Add Brew to Beanconqueror")
                     .font(.title3.weight(.black))
                     .foregroundStyle(.white)
-                Text("Preselect bean and stage extraction telemetry")
+                Text("Choose a coffee bean to record with this shot")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
             Spacer()
-            Button("Done") {
-                dismiss()
+            Button(action: { dismiss() }) {
+                Text("Done")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundStyle(.black)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 6)
+                    .background(Color.white)
+                    .clipShape(RoundedRectangle(cornerRadius: Theme.Layout.controlRadius))
             }
-            .buttonStyle(.bordered)
-            .tint(.secondary)
+            .buttonStyle(.plain)
         }
     }
     
@@ -137,16 +141,25 @@ public struct AddToBeanconquerorSheet: View {
                 .controlSize(.small)
             }
             
-            Button(bqStorage.isConfigured ? "Change" : "Link Folder") {
-                isShowingFolderPicker = true
+            // High-Contrast Link / Change Folder Button (Replaces blue button)
+            Button(action: { isShowingFolderPicker = true }) {
+                Text(bqStorage.isConfigured ? "Change" : "Link Folder")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(bqStorage.isConfigured ? .white : .black)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 6)
+                    .background(bqStorage.isConfigured ? Theme.Surface.control : Color.white)
+                    .clipShape(RoundedRectangle(cornerRadius: Theme.Layout.controlRadius))
             }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.small)
-            .tint(bqStorage.isConfigured ? .secondary : .blue)
+            .buttonStyle(.plain)
         }
         .padding(12)
         .background(Color.white.opacity(0.03))
-        .cornerRadius(10)
+        .clipShape(RoundedRectangle(cornerRadius: Theme.Layout.wellRadius))
+        .overlay(
+            RoundedRectangle(cornerRadius: Theme.Layout.wellRadius)
+                .strokeBorder(Theme.Border.glassGradient, lineWidth: 1)
+        )
     }
     
     // MARK: - Shot Summary Card
@@ -157,27 +170,31 @@ public struct AddToBeanconquerorSheet: View {
                 Text(record.profileName)
                     .font(.system(size: 14, weight: .bold))
                     .foregroundStyle(.white)
-                Text("Telemetry ready to transfer via loopback")
+                Text("Ready to send to Beanconqueror")
                     .font(.system(size: 10))
                     .foregroundStyle(.secondary)
             }
             Spacer()
             HStack(spacing: 14) {
-                metricPill(label: "Yield", val: String(format: "%.1fg", record.finalWeight))
+                metricPill(label: "Yield", val: String(format: "%.1fg", record.finalWeight), highlight: true)
                 metricPill(label: "Time", val: String(format: "%02ds", Int(record.duration)))
                 metricPill(label: "Temp", val: String(format: "%.0f°C", record.brewTemperature))
             }
         }
         .padding(12)
         .background(Color.white.opacity(0.04))
-        .cornerRadius(10)
+        .clipShape(RoundedRectangle(cornerRadius: Theme.Layout.wellRadius))
+        .overlay(
+            RoundedRectangle(cornerRadius: Theme.Layout.wellRadius)
+                .strokeBorder(Theme.Border.glassGradient, lineWidth: 1)
+        )
     }
     
-    private func metricPill(label: String, val: String) -> some View {
+    private func metricPill(label: String, val: String, highlight: Bool = false) -> some View {
         VStack(spacing: 1) {
             Text(val)
-                .font(.system(size: 11, weight: .black, design: .monospaced))
-                .foregroundStyle(.white)
+                .font(.system(size: 11, weight: .black, design: .rounded).monospacedDigit())
+                .foregroundStyle(highlight ? Color.telemetryWeight : .white)
             Text(label.uppercased())
                 .font(.system(size: 8, weight: .heavy, design: .monospaced))
                 .foregroundStyle(.tertiary)
@@ -211,14 +228,17 @@ public struct AddToBeanconquerorSheet: View {
                 }
             }
             
-            // Prerequisite Guide for beans missing a share code
             if let selected = selectedBean, !selected.hasShareCode {
                 missingShareCodeBanner
             }
         }
         .padding(14)
         .background(Color.white.opacity(0.03))
-        .cornerRadius(12)
+        .clipShape(RoundedRectangle(cornerRadius: Theme.Layout.podRadius))
+        .overlay(
+            RoundedRectangle(cornerRadius: Theme.Layout.podRadius)
+                .strokeBorder(Theme.Border.glassGradient, lineWidth: 1)
+        )
     }
     
     private func beanRow(_ bean: BQBean) -> some View {
@@ -246,12 +266,12 @@ public struct AddToBeanconquerorSheet: View {
             if isSelected {
                 Image(systemName: "checkmark")
                     .font(.system(size: 12, weight: .black))
-                    .foregroundStyle(.blue)
+                    .foregroundStyle(Color.telemetryFlow) // Cockpit cyan
             }
         }
         .padding(10)
         .background(isSelected ? Color.white.opacity(0.08) : Color.white.opacity(0.02))
-        .cornerRadius(8)
+        .clipShape(RoundedRectangle(cornerRadius: Theme.Layout.cardRadius))
         .contentShape(Rectangle())
         .onTapGesture {
             selectedBean = bean
@@ -281,17 +301,22 @@ public struct AddToBeanconquerorSheet: View {
                 .buttonStyle(.bordered)
                 .controlSize(.mini)
                 
-                Button("Refresh") {
-                    bqStorage.refresh()
+                Button(action: { bqStorage.refresh() }) {
+                    Text("Refresh")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundStyle(.black)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 4)
+                        .background(Color.white)
+                        .clipShape(RoundedRectangle(cornerRadius: Theme.Layout.controlRadius))
                 }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.mini)
+                .buttonStyle(.plain)
             }
             .padding(.top, 4)
         }
         .padding(10)
         .background(Color.orange.opacity(0.08))
-        .cornerRadius(8)
+        .clipShape(RoundedRectangle(cornerRadius: Theme.Layout.cardRadius))
     }
     
     // MARK: - Footer
@@ -303,6 +328,7 @@ public struct AddToBeanconquerorSheet: View {
         return HStack {
             Spacer()
             
+            // High-Contrast Primary Transfer Action
             Button {
                 guard let bean = selectedBean, let shareCode = bean.internalShareCode else { return }
                 handoff.addBrewToBeanconqueror(shareCode: shareCode, shot: record)
@@ -312,16 +338,14 @@ public struct AddToBeanconquerorSheet: View {
                     case .transferring:
                         ProgressView()
                             .controlSize(.small)
-                            .tint(.white)
+                            .tint(canAddBrew ? .black : .white)
                         Text("Transferring...")
                             .font(.system(size: 13, weight: .bold))
                     case .transferred:
                         Image(systemName: "checkmark.circle.fill")
                             .font(.system(size: 13, weight: .black))
-                            .foregroundStyle(.green)
                         Text("Transferred!")
                             .font(.system(size: 13, weight: .bold))
-                            .foregroundStyle(.green)
                     case .timedOut:
                         Image(systemName: "arrow.clockwise")
                             .font(.system(size: 12, weight: .black))
@@ -338,9 +362,25 @@ public struct AddToBeanconquerorSheet: View {
                 }
                 .padding(.horizontal, 20)
                 .padding(.vertical, 10)
+                .foregroundStyle(
+                    handoff.state == .transferred ? Color.green :
+                    (canAddBrew && !isBusy ? Color.black : Color.secondary)
+                )
+                .background(
+                    handoff.state == .transferred ? Color.green.opacity(0.16) :
+                    (canAddBrew && !isBusy ? Color.white : Theme.Surface.control)
+                )
+                .clipShape(RoundedRectangle(cornerRadius: Theme.Layout.cardRadius))
+                .overlay(
+                    RoundedRectangle(cornerRadius: Theme.Layout.cardRadius)
+                        .strokeBorder(
+                            handoff.state == .transferred ? Color.green.opacity(0.40) :
+                            (canAddBrew && !isBusy ? Color.clear : Theme.Border.subtle),
+                            lineWidth: 1
+                        )
+                )
             }
-            .buttonStyle(.borderedProminent)
-            .tint(canAddBrew && !isBusy ? (isDelivered ? .secondary : .blue) : .secondary)
+            .buttonStyle(.plain)
             .disabled(!canAddBrew || isBusy)
         }
     }

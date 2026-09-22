@@ -1,6 +1,6 @@
 //
 //  DocumentPickerView.swift
-//  VirtualEspressoMachine
+//  LeverPilot
 //
 
 import SwiftUI
@@ -21,6 +21,7 @@ public struct DocumentPickerView: UIViewControllerRepresentable {
         let picker = UIDocumentPickerViewController(forOpeningContentTypes: [.folder], asCopy: false)
         picker.allowsMultipleSelection = false
         picker.delegate = context.coordinator
+        picker.view.tintColor = UIColor(Color.telemetryFlow) // Cockpit cyan tint
         return picker
     }
 

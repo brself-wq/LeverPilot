@@ -170,9 +170,12 @@ public final class ProfileStore {
         // 1. Layer 1: Read Factory Presets from Bundle
         if let bundleURLs = bundle.urls(forResourcesWithExtension: "json", subdirectory: nil) {
             for url in bundleURLs {
-                if let p = try? loadProfile(from: url) {
+                do {
+                    let p = try loadProfile(from: url)
                     loaded.append(p)
                     factoryIDs.insert(p.id)
+                } catch {
+                    print("⚠️ Skipped factory preset '\(url.lastPathComponent)' due to error: \(error)")
                 }
             }
         }

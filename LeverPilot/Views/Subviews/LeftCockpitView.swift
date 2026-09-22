@@ -1,6 +1,6 @@
 //
 //  LeftCockpitView.swift
-//  VirtualEspressoMachine
+//  LeverPilot
 //
 
 import SwiftUI
@@ -64,11 +64,11 @@ public struct LeftCockpitView: View {
                             .font(.system(size: 9))
                             .foregroundStyle(.secondary)
                         Text(String(format: "%04.1fs", displayElapsedTime))
-                            .font(.system(size: 13, weight: .bold, design: .monospaced))
+                            .font(.system(size: 13, weight: .bold, design: .rounded).monospacedDigit())
                             .foregroundStyle(.primary)
                     }
                     Text("Stage: \(String(format: "%.1fs", displayStageTime))")
-                        .font(.system(size: 9, weight: .medium, design: .monospaced))
+                        .font(.system(size: 9, weight: .medium, design: .rounded).monospacedDigit())
                         .foregroundStyle(.secondary)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -80,11 +80,11 @@ public struct LeftCockpitView: View {
                             .font(.system(size: 9))
                             .foregroundStyle(.secondary)
                         Text(String(format: "%.1fg", displayActualWeight))
-                            .font(.system(size: 13, weight: .bold, design: .monospaced))
+                            .font(.system(size: 13, weight: .bold, design: .rounded).monospacedDigit())
                             .foregroundStyle(Color.telemetryWeight)
                     }
                     Text(finalWeightTarget > 0 ? "Target: \(String(format: "%.1fg", finalWeightTarget))" : "Target: --")
-                        .font(.system(size: 9, weight: .medium, design: .monospaced))
+                        .font(.system(size: 9, weight: .medium, design: .rounded).monospacedDigit())
                         .foregroundStyle(.secondary)
                 }
                 .frame(maxWidth: .infinity, alignment: .trailing)
@@ -92,9 +92,13 @@ public struct LeftCockpitView: View {
             .padding(.horizontal, 8)
             .padding(.vertical, 6)
             .background(Color.white.opacity(0.04))
-            .cornerRadius(8)
+            .clipShape(RoundedRectangle(cornerRadius: Theme.Layout.cardRadius))
+            .overlay(
+                RoundedRectangle(cornerRadius: Theme.Layout.cardRadius)
+                    .strokeBorder(Theme.Border.glassGradient, lineWidth: 1)
+            )
             
-            Divider().background(Color.white.opacity(0.06))
+            Divider().background(Theme.Border.hair)
             
             // Active Stage Maneuver: Title + Mode Badge
             HStack {
@@ -118,7 +122,7 @@ public struct LeftCockpitView: View {
             // Big Actual Reading
             HStack(alignment: .firstTextBaseline, spacing: 4) {
                 Text(String(format: "%.1f", frame.actualValue))
-                    .font(.system(size: 58, weight: .black, design: .monospaced))
+                    .font(.system(size: 58, weight: .black, design: .rounded).monospacedDigit())
                     .foregroundStyle(themeColor)
                 Text(unitString)
                     .font(.title3)
@@ -134,7 +138,7 @@ public struct LeftCockpitView: View {
                         .font(.system(size: 10, weight: .medium))
                         .foregroundStyle(.tertiary)
                     Text(String(format: "%.1f", frame.targetValue))
-                        .font(.system(.body, design: .monospaced, weight: .bold))
+                        .font(.system(.body, design: .rounded, weight: .bold).monospacedDigit())
                         .foregroundStyle(.primary)
                 }
                 
@@ -143,7 +147,7 @@ public struct LeftCockpitView: View {
                 DeltaBadge(delta: frame.delta, metric: frame.activeMetric, unit: unitString)
             }
             
-            Divider().background(Color.appBorderSubtle)
+            Divider().background(Theme.Border.subtle)
             
             // LIMIT / Guardrail
             if let limit = frame.activeLimit {
@@ -163,7 +167,7 @@ public struct LeftCockpitView: View {
                         Spacer()
                         
                         Text("\(limit.metric.description.capitalized) <= \(String(format: "%.1f", limit.limitValue))")
-                            .font(.system(size: 10, weight: .bold, design: .monospaced))
+                            .font(.system(size: 10, weight: .bold, design: .rounded).monospacedDigit())
                             .foregroundStyle(isAlarmActive ? Color.red : limitColor)
                     }
                     
@@ -189,11 +193,15 @@ public struct LeftCockpitView: View {
         }
         .padding(14)
         .background(Color.white.opacity(0.04))
-        .cornerRadius(12)
+        .clipShape(RoundedRectangle(cornerRadius: Theme.Layout.podRadius))
+        .overlay(
+            RoundedRectangle(cornerRadius: Theme.Layout.podRadius)
+                .strokeBorder(Theme.Border.glassGradient, lineWidth: 1)
+        )
     }
 }
 
-// MARK: - DeltaBadge
+// MARK: - DeltaBadge (Channel-Aware Flight Director)
 
 struct DeltaBadge: View {
     let delta: Double
@@ -207,26 +215,26 @@ struct DeltaBadge: View {
     private var isOver: Bool { delta > deadband }
     private var isUnder: Bool { delta < -deadband }
     
+    private var channelColor: Color {
+        metric.themeColor
+    }
+    
     var body: some View {
         HStack(spacing: 5) {
             if isOver {
                 Image(systemName: "arrow.down")
                     .font(.system(size: 9, weight: .black))
-                    .foregroundStyle(Theme.Telemetry.easeOff)
                 Text(String(format: "+%.1f", delta))
-                    .font(.system(.subheadline, design: .monospaced, weight: .bold))
+                    .font(.system(.subheadline, design: .rounded, weight: .bold).monospacedDigit())
                 Text("EASE OFF")
                     .font(.system(size: 9, weight: .heavy))
-                    .foregroundStyle(Theme.Telemetry.easeOff)
             } else if isUnder {
                 Image(systemName: "arrow.up")
                     .font(.system(size: 9, weight: .black))
-                    .foregroundStyle(Theme.Telemetry.pullHarder)
                 Text(String(format: "%.1f", delta))
-                    .font(.system(.subheadline, design: .monospaced, weight: .bold))
+                    .font(.system(.subheadline, design: .rounded, weight: .bold).monospacedDigit())
                 Text("PULL HARDER")
                     .font(.system(size: 9, weight: .heavy))
-                    .foregroundStyle(Theme.Telemetry.pullHarder)
             } else {
                 Image(systemName: "checkmark")
                     .font(.system(size: 9, weight: .black))
@@ -236,9 +244,14 @@ struct DeltaBadge: View {
                     .foregroundStyle(.white)
             }
         }
+        .foregroundStyle(isOver || isUnder ? channelColor : .white)
         .padding(.horizontal, 8)
-        .padding(.vertical, 3)
-        .background(Color.white.opacity(0.06))
-        .cornerRadius(6)
+        .padding(.vertical, 4)
+        .background(isOver || isUnder ? channelColor.opacity(0.14) : Color.white.opacity(0.06))
+        .clipShape(RoundedRectangle(cornerRadius: Theme.Layout.controlRadius))
+        .overlay(
+            RoundedRectangle(cornerRadius: Theme.Layout.controlRadius)
+                .strokeBorder(isOver || isUnder ? channelColor.opacity(0.40) : Color.clear, lineWidth: 1)
+        )
     }
 }
