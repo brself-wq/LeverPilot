@@ -490,7 +490,7 @@
 				ENABLE_RESOURCE_ACCESS_USB = NO;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = Fulcrum;
+				INFOPLIST_KEY_CFBundleDisplayName = LeverPilot;
 				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "LeverPilot needs Bluetooth to connect to your coffee scale and pressure gauge.";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
@@ -548,7 +548,7 @@
 				ENABLE_RESOURCE_ACCESS_USB = NO;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = Fulcrum;
+				INFOPLIST_KEY_CFBundleDisplayName = LeverPilot;
 				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "LeverPilot needs Bluetooth to connect to your coffee scale and pressure gauge.";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
