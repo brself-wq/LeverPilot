@@ -52,7 +52,7 @@ public struct QuickHardwareDockView: View {
         return HStack(spacing: 6) {
             Image(systemName: "scalemass.fill")
                 .font(.system(size: 10))
-                .foregroundStyle(Color(red: 0.90, green: 0.68, blue: 0.28))
+                .foregroundStyle(Color.telemetryWeight)
             
             if isConnected, let w = weight {
                 Text(String(format: "%.1fg", w))
@@ -80,7 +80,7 @@ public struct QuickHardwareDockView: View {
         return HStack(spacing: 6) {
             Image(systemName: "gauge.with.dots.needle.bottom.50percent")
                 .font(.system(size: 10))
-                .foregroundStyle(Color(red: 0.15, green: 0.68, blue: 0.38))
+                .foregroundStyle(Color.telemetryPressure)
             
             if isConnected, let p = pressure {
                 Text(String(format: "%.1f bar", p))

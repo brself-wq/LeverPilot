@@ -25,9 +25,9 @@ public struct HardwareSettingsSheet: View {
             headerBar
                 .padding(.horizontal, 24)
                 .padding(.vertical, 16)
-                .background(Color(red: 0.07, green: 0.07, blue: 0.09))
+                .background(Color.appOverlay)
             
-            Divider().background(Color.white.opacity(0.08))
+            Divider().background(Color.appBorderSubtle)
             
             // Radio Health Banner (if unauthorized or powered off)
             if bleManager.centralState == .unauthorized || bleManager.centralState == .poweredOff {
@@ -47,7 +47,7 @@ public struct HardwareSettingsSheet: View {
             }
         }
         .frame(minWidth: 620, minHeight: 520)
-        .background(Color(red: 0.05, green: 0.05, blue: 0.06))
+        .background(Color.appCanvas)
         .onAppear {
             if bleManager.isBluetoothReady {
                 bleManager.startScanning()
@@ -187,7 +187,7 @@ public struct HardwareSettingsSheet: View {
     private func deviceSlotCard(role: BLEDeviceRole, title: String, icon: String, slot: ActiveDeviceSlot?) -> some View {
         let isConnected = slot?.isConnected == true
         let isPaired = slot?.id != nil
-        let themeColor: Color = role == .scale ? Color(red: 0.90, green: 0.68, blue: 0.28) : Color(red: 0.15, green: 0.68, blue: 0.38)
+        let themeColor: Color = role == .scale ? Color.telemetryWeight : Color.telemetryPressure
         
         VStack(alignment: .leading, spacing: 12) {
             HStack {
@@ -324,7 +324,7 @@ public struct HardwareSettingsSheet: View {
         }
         .padding(14)
         .frame(maxWidth: .infinity, minHeight: 180)
-        .background(Color(red: 0.08, green: 0.08, blue: 0.10))
+        .background(Color.appCard)
         .cornerRadius(12)
         .overlay(
             RoundedRectangle(cornerRadius: 12)

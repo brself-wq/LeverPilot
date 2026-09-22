@@ -18,7 +18,7 @@ public struct SettingsView: View {
     
     public var body: some View {
         ZStack {
-            Color(red: 0.05, green: 0.05, blue: 0.06)
+            Color.appCanvas
                 .ignoresSafeArea()
             
             VStack(spacing: 0) {
@@ -28,7 +28,7 @@ public struct SettingsView: View {
                     .padding(.top, 14)
                     .padding(.bottom, 12)
                 
-                Divider().background(Color.white.opacity(0.08))
+                Divider().background(Color.appBorderSubtle)
                 
                 ScrollView {
                     VStack(spacing: 20) {
@@ -115,7 +115,7 @@ public struct SettingsView: View {
             )
         }
         .padding(16)
-        .background(Color(red: 0.08, green: 0.08, blue: 0.10))
+        .background(Color.appCard)
         .cornerRadius(12)
         .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.08), lineWidth: 1))
     }
@@ -156,7 +156,7 @@ public struct SettingsView: View {
             }
         }
         .padding(16)
-        .background(Color(red: 0.08, green: 0.08, blue: 0.10))
+        .background(Color.appCard)
         .cornerRadius(12)
         .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.08), lineWidth: 1))
     }
@@ -186,7 +186,7 @@ public struct SettingsView: View {
             }
         }
         .padding(16)
-        .background(Color(red: 0.08, green: 0.08, blue: 0.10))
+        .background(Color.appCard)
         .cornerRadius(12)
         .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.08), lineWidth: 1))
     }
@@ -207,7 +207,7 @@ public struct SettingsView: View {
             )
         }
         .padding(16)
-        .background(Color(red: 0.08, green: 0.08, blue: 0.10))
+        .background(Color.appCard)
         .cornerRadius(12)
         .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.08), lineWidth: 1))
     }
@@ -257,7 +257,7 @@ public struct SettingsView: View {
             .cornerRadius(8)
         }
         .padding(16)
-        .background(Color(red: 0.08, green: 0.08, blue: 0.10))
+        .background(Color.appCard)
         .cornerRadius(12)
         .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.08), lineWidth: 1))
     }

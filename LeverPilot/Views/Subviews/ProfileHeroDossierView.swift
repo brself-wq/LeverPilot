@@ -42,7 +42,7 @@ public struct ProfileHeroDossierView: View {
                     RoundedRectangle(cornerRadius: 16)
                         .strokeBorder(accentColor, lineWidth: 3)
                 )
-                .shadow(color: accentColor.opacity(0.35), radius: 16, y: 0)
+                .shadow(color: accentColor.opacity(0.18), radius: 12, y: 4)
                 .allowsHitTesting(false)
             
             // LAYER 2: Interactive Content
@@ -98,7 +98,7 @@ public struct ProfileHeroDossierView: View {
         }
         .padding(24)
         .frame(maxWidth: 1040, minHeight: 380)
-        .background(Color(red: 0.08, green: 0.08, blue: 0.10))
+        .background(Color.appCard)
         .cornerRadius(18)
         .overlay(
             RoundedRectangle(cornerRadius: 18)

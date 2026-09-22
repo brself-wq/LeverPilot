@@ -45,7 +45,7 @@ public struct ShotHistoryBrowserView: View {
     
     public var body: some View {
         ZStack {
-            Color(red: 0.05, green: 0.05, blue: 0.06)
+            Color.appCanvas
                 .ignoresSafeArea()
             
             VStack(spacing: 0) {
@@ -54,7 +54,7 @@ public struct ShotHistoryBrowserView: View {
                     .padding(.top, 14)
                     .padding(.bottom, 12)
                 
-                Divider().background(Color.white.opacity(0.08))
+                Divider().background(Color.appBorderSubtle)
                 
                 if filteredShots.isEmpty {
                     emptyStateView
@@ -64,7 +64,7 @@ public struct ShotHistoryBrowserView: View {
                         masterShotList
                             .frame(width: 320)
                         
-                        Divider().background(Color.white.opacity(0.08))
+                        Divider().background(Color.appBorderSubtle)
                         
                         // DETAIL PANE: Multi-stream telemetry chart & Share
                         if let shot = selectedShot {
@@ -191,10 +191,10 @@ public struct ShotHistoryBrowserView: View {
                         Text("BQ")
                             .font(.system(size: 8, weight: .heavy, design: .monospaced))
                     }
-                    .foregroundStyle(Color(red: 0.20, green: 0.85, blue: 0.65))
+                    .foregroundStyle(Color.telemetryFlow)
                     .padding(.horizontal, 5)
                     .padding(.vertical, 2)
-                    .background(Color(red: 0.20, green: 0.85, blue: 0.65).opacity(0.12), in: Capsule())
+                    .background(Color.telemetryFlow.opacity(0.12), in: Capsule())
                 }
                 
                 if shot.isAborted {
@@ -217,7 +217,7 @@ public struct ShotHistoryBrowserView: View {
                 HStack(spacing: 8) {
                     Text(String(format: "%.1fg", shot.finalWeight))
                         .font(.system(size: 11, weight: .bold, design: .monospaced))
-                        .foregroundStyle(Color(red: 0.90, green: 0.68, blue: 0.28))
+                        .foregroundStyle(Color.telemetryWeight)
                     
                     Text(String(format: "%02d:%02ds", Int(shot.duration) / 60, Int(shot.duration) % 60))
                         .font(.system(size: 10, design: .monospaced))
@@ -267,9 +267,9 @@ public struct ShotHistoryBrowserView: View {
         return VStack(spacing: 12) {
             // Chart Legends
             HStack(spacing: 16) {
-                legendItem(color: Color(red: 0.0, green: 0.70, blue: 0.95), label: "Pressure (bar)")
-                legendItem(color: Color(red: 0.20, green: 0.85, blue: 0.65), label: "Flow (mL/s)")
-                legendItem(color: Color(red: 0.95, green: 0.72, blue: 0.25), label: "Weight (g)")
+                legendItem(color: Color.telemetryPressure, label: "Pressure (bar)")
+                legendItem(color: Color.telemetryFlow, label: "Flow (mL/s)")
+                legendItem(color: Color.telemetryWeight, label: "Weight (g)")
                 Spacer()
             }
             .padding(.horizontal, 14)
@@ -283,7 +283,7 @@ public struct ShotHistoryBrowserView: View {
                         y: .value("Value", sample.pressure),
                         series: .value("Stream", "Pressure")
                     )
-                    .foregroundStyle(Color(red: 0.0, green: 0.70, blue: 0.95))
+                    .foregroundStyle(Color.telemetryPressure)
                     .lineStyle(StrokeStyle(lineWidth: 2.2))
                     .interpolationMethod(.monotone)
                     
@@ -292,7 +292,7 @@ public struct ShotHistoryBrowserView: View {
                         y: .value("Value", sample.flow),
                         series: .value("Stream", "Flow")
                     )
-                    .foregroundStyle(Color(red: 0.20, green: 0.85, blue: 0.65))
+                    .foregroundStyle(Color.telemetryFlow)
                     .lineStyle(StrokeStyle(lineWidth: 1.8))
                     .interpolationMethod(.monotone)
                     
@@ -301,17 +301,17 @@ public struct ShotHistoryBrowserView: View {
                         y: .value("Value", sample.weight * 0.2),
                         series: .value("Stream", "Weight")
                     )
-                    .foregroundStyle(Color(red: 0.95, green: 0.72, blue: 0.25))
+                    .foregroundStyle(Color.telemetryWeight)
                     .lineStyle(StrokeStyle(lineWidth: 2.0))
                     .interpolationMethod(.monotone)
                 }
                 
                 if let last = shot.samples.last {
                     PointMark(x: .value("Time", last.timestamp), y: .value("Value", last.weight * 0.2))
-                        .foregroundStyle(Color(red: 0.95, green: 0.72, blue: 0.25))
+                        .foregroundStyle(Color.telemetryWeight)
                         .symbolSize(50)
                     PointMark(x: .value("Time", last.timestamp), y: .value("Value", last.flow))
-                        .foregroundStyle(Color(red: 0.20, green: 0.85, blue: 0.65))
+                        .foregroundStyle(Color.telemetryFlow)
                         .symbolSize(40)
                 }
             }
@@ -354,7 +354,7 @@ public struct ShotHistoryBrowserView: View {
             .background(Color.white.opacity(0.03))
         }
         .frame(maxHeight: isFlexible ? .infinity : nil)
-        .background(Color(red: 0.08, green: 0.08, blue: 0.10))
+        .background(Color.appCard)
         .cornerRadius(12)
         .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.08), lineWidth: 1))
     }
@@ -419,7 +419,7 @@ public struct ShotHistoryBrowserView: View {
         VStack(spacing: 2) {
             Text(val)
                 .font(.system(size: 14, weight: .black, design: .monospaced))
-                .foregroundStyle(highlight ? Color(red: 0.95, green: 0.72, blue: 0.25) : .white)
+                .foregroundStyle(highlight ? Color.telemetryWeight : .white)
             Text(label.uppercased())
                 .font(.system(size: 8, weight: .heavy, design: .monospaced))
                 .foregroundStyle(.tertiary)

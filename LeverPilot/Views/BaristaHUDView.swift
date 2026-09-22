@@ -82,21 +82,6 @@ extension GuidanceFrame {
     var activeLimit: GuardrailStatus? { guardrail }
 }
 
-// MARK: - Canonical Color Palette Extension
-
-extension SensorKey {
-    var themeColor: Color {
-        switch self {
-        case .pressure: return Color(red: 0.15, green: 0.68, blue: 0.38) // Forest Green
-        case .flow:     return Color(red: 0.0, green: 0.68, blue: 0.94)  // Cyan / Blue
-        case .power:    return Color(red: 1.0, green: 0.48, blue: 0.0)   // Electric Orange
-        case .weight:   return Color(red: 0.90, green: 0.68, blue: 0.28) // Crema Caramel
-        case .time:     return Color(red: 0.65, green: 0.72, blue: 0.85) // Slate Silver
-        default:        return Color.secondary
-        }
-    }
-}
-
 // MARK: - Releasable Barista HUD Presentation View
 
 public struct BaristaHUDView: View {
@@ -171,7 +156,7 @@ public struct BaristaHUDView: View {
     
     public var body: some View {
         ZStack {
-            Color(red: 0.06, green: 0.06, blue: 0.08)
+            Color.appFooter
                 .ignoresSafeArea()
             
             VStack(spacing: 8) {
@@ -282,13 +267,13 @@ public struct BaristaHUDView: View {
             Text(text)
                 .font(.system(size: 8, weight: .heavy, design: .monospaced))
         }
-        .foregroundStyle(Color(red: 0.98, green: 0.72, blue: 0.20))
+        .foregroundStyle(Color.telemetryWarning)
         .padding(.horizontal, 7)
         .padding(.vertical, 4)
-        .background(Color(red: 0.98, green: 0.72, blue: 0.20).opacity(0.14))
+        .background(Color.telemetryWarning.opacity(0.14))
         .overlay(
             RoundedRectangle(cornerRadius: 6)
-                .stroke(Color(red: 0.98, green: 0.72, blue: 0.20).opacity(0.35), lineWidth: 1)
+                .stroke(Color.telemetryWarning.opacity(0.35), lineWidth: 1)
         )
         .cornerRadius(6)
         .transition(.opacity)

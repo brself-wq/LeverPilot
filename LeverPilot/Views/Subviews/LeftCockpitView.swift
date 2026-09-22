@@ -81,7 +81,7 @@ public struct LeftCockpitView: View {
                             .foregroundStyle(.secondary)
                         Text(String(format: "%.1fg", displayActualWeight))
                             .font(.system(size: 13, weight: .bold, design: .monospaced))
-                            .foregroundStyle(Color(red: 0.90, green: 0.68, blue: 0.28))
+                            .foregroundStyle(Color.telemetryWeight)
                     }
                     Text(finalWeightTarget > 0 ? "Target: \(String(format: "%.1fg", finalWeightTarget))" : "Target: --")
                         .font(.system(size: 9, weight: .medium, design: .monospaced))
@@ -143,7 +143,7 @@ public struct LeftCockpitView: View {
                 DeltaBadge(delta: frame.delta, metric: frame.activeMetric, unit: unitString)
             }
             
-            Divider().background(Color.white.opacity(0.08))
+            Divider().background(Color.appBorderSubtle)
             
             // LIMIT / Guardrail
             if let limit = frame.activeLimit {
@@ -212,21 +212,21 @@ struct DeltaBadge: View {
             if isOver {
                 Image(systemName: "arrow.down")
                     .font(.system(size: 9, weight: .black))
-                    .foregroundStyle(Color(red: 0.95, green: 0.40, blue: 0.25))
+                    .foregroundStyle(Theme.Telemetry.easeOff)
                 Text(String(format: "+%.1f", delta))
                     .font(.system(.subheadline, design: .monospaced, weight: .bold))
                 Text("EASE OFF")
                     .font(.system(size: 9, weight: .heavy))
-                    .foregroundStyle(Color(red: 0.95, green: 0.40, blue: 0.25))
+                    .foregroundStyle(Theme.Telemetry.easeOff)
             } else if isUnder {
                 Image(systemName: "arrow.up")
                     .font(.system(size: 9, weight: .black))
-                    .foregroundStyle(Color(red: 0.98, green: 0.68, blue: 0.15))
+                    .foregroundStyle(Theme.Telemetry.pullHarder)
                 Text(String(format: "%.1f", delta))
                     .font(.system(.subheadline, design: .monospaced, weight: .bold))
                 Text("PULL HARDER")
                     .font(.system(size: 9, weight: .heavy))
-                    .foregroundStyle(Color(red: 0.98, green: 0.68, blue: 0.15))
+                    .foregroundStyle(Theme.Telemetry.pullHarder)
             } else {
                 Image(systemName: "checkmark")
                     .font(.system(size: 9, weight: .black))

@@ -30,9 +30,9 @@ public struct AddToBeanconquerorSheet: View {
             headerBar
                 .padding(.horizontal, 24)
                 .padding(.vertical, 16)
-                .background(Color(red: 0.08, green: 0.08, blue: 0.10))
+                .background(Color.appCard)
             
-            Divider().background(Color.white.opacity(0.08))
+            Divider().background(Color.appBorderSubtle)
             
             // Content
             ScrollView {
@@ -51,16 +51,16 @@ public struct AddToBeanconquerorSheet: View {
                 .padding(24)
             }
             
-            Divider().background(Color.white.opacity(0.08))
+            Divider().background(Color.appBorderSubtle)
             
             // Bottom Action Footer
             footerBar
                 .padding(.horizontal, 24)
                 .padding(.vertical, 14)
-                .background(Color(red: 0.06, green: 0.06, blue: 0.08))
+                .background(Color.appFooter)
         }
         .frame(minWidth: 540, minHeight: 480)
-        .background(Color(red: 0.05, green: 0.05, blue: 0.06))
+        .background(Color.appCanvas)
         .sheet(isPresented: $isShowingFolderPicker) {
             DocumentPickerView { url in
                 bqStorage.saveFolderBookmark(url: url)

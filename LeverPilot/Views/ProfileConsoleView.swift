@@ -79,7 +79,7 @@ public struct ProfileConsoleView: View {
     
     public var body: some View {
         ZStack {
-            Color(red: 0.05, green: 0.05, blue: 0.06)
+            Color.appCanvas
                 .ignoresSafeArea()
             
             if profiles.isEmpty {
@@ -374,7 +374,7 @@ public struct ProfileConsoleView: View {
             .tint(.secondary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color(red: 0.08, green: 0.08, blue: 0.10))
+        .background(Color.appCard)
         .cornerRadius(16)
     }
     

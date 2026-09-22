@@ -60,9 +60,9 @@ public struct ProfileVariableOverridesView: View {
             headerBar
                 .padding(.horizontal, 24)
                 .padding(.vertical, 16)
-                .background(Color(red: 0.07, green: 0.07, blue: 0.09))
+                .background(Color.appOverlay)
             
-            Divider().background(Color.white.opacity(0.08))
+            Divider().background(Color.appBorderSubtle)
             
             // Scrollable Content
             ScrollView {
@@ -93,16 +93,16 @@ public struct ProfileVariableOverridesView: View {
                 .padding(24)
             }
             
-            Divider().background(Color.white.opacity(0.08))
+            Divider().background(Color.appBorderSubtle)
             
             // Footer Action Bar
             footerBar
                 .padding(.horizontal, 24)
                 .padding(.vertical, 14)
-                .background(Color(red: 0.06, green: 0.06, blue: 0.08))
+                .background(Color.appFooter)
         }
         .frame(minWidth: 540, minHeight: 480)
-        .background(Color(red: 0.05, green: 0.05, blue: 0.06))
+        .background(Color.appCanvas)
     }
     
     // MARK: - Header

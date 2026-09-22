@@ -33,7 +33,7 @@ public struct ShotRecordView: View {
 
     public var body: some View {
         ZStack {
-            Color(red: 0.07, green: 0.07, blue: 0.09)
+            Color.appOverlay
                 .ignoresSafeArea()
             
             VStack(spacing: 0) {
@@ -43,7 +43,7 @@ public struct ShotRecordView: View {
                     .padding(.vertical, 16)
                     .background(Color(red: 0.09, green: 0.09, blue: 0.11))
                 
-                Divider().background(Color.white.opacity(0.08))
+                Divider().background(Color.appBorderSubtle)
                 
                 // Content: Responsive extraction graph card
                 ViewThatFits(in: .vertical) {
@@ -59,13 +59,13 @@ public struct ShotRecordView: View {
                     }
                 }
                 
-                Divider().background(Color.white.opacity(0.08))
+                Divider().background(Color.appBorderSubtle)
                 
                 // Bottom Action Bar: Done gesture & Add to Beanconqueror
                 footerBar
                     .padding(.horizontal, 24)
                     .padding(.vertical, 14)
-                    .background(Color(red: 0.08, green: 0.08, blue: 0.10))
+                    .background(Color.appCard)
             }
         }
         .sheet(isPresented: $isShowingAddBrewSheet) {
@@ -88,7 +88,7 @@ public struct ShotRecordView: View {
                 
                 Text(String(format: "⚖️ %.1fg", record.finalWeight))
                     .font(.system(size: 11, weight: .bold, design: .monospaced))
-                    .foregroundStyle(Color(red: 0.90, green: 0.68, blue: 0.28))
+                    .foregroundStyle(Color.telemetryWeight)
                 
                 Text(String(format: "🌡 %.0f°C", record.brewTemperature))
                     .font(.system(size: 11, weight: .bold, design: .monospaced))
@@ -104,9 +104,9 @@ public struct ShotRecordView: View {
     private func meticulousGraphCard(isFlexible: Bool) -> some View {
         VStack(spacing: 12) {
             HStack(spacing: 16) {
-                legendItem(color: Color(red: 0.0, green: 0.70, blue: 0.95), label: "Pressure (bar)")
-                legendItem(color: Color(red: 0.20, green: 0.85, blue: 0.65), label: "Flow (mL/s)")
-                legendItem(color: Color(red: 0.95, green: 0.72, blue: 0.25), label: "Weight (g)")
+                legendItem(color: Color.telemetryPressure, label: "Pressure (bar)")
+                legendItem(color: Color.telemetryFlow, label: "Flow (mL/s)")
+                legendItem(color: Color.telemetryWeight, label: "Weight (g)")
                 Spacer()
             }
             .padding(.horizontal, 14)
@@ -119,7 +119,7 @@ public struct ShotRecordView: View {
                         y: .value("Value", sample.pressure),
                         series: .value("Stream", "Pressure")
                     )
-                    .foregroundStyle(Color(red: 0.0, green: 0.70, blue: 0.95))
+                    .foregroundStyle(Color.telemetryPressure)
                     .lineStyle(StrokeStyle(lineWidth: 2.2))
                     .interpolationMethod(.monotone)
                     
@@ -128,7 +128,7 @@ public struct ShotRecordView: View {
                         y: .value("Value", sample.flow),
                         series: .value("Stream", "Flow")
                     )
-                    .foregroundStyle(Color(red: 0.20, green: 0.85, blue: 0.65))
+                    .foregroundStyle(Color.telemetryFlow)
                     .lineStyle(StrokeStyle(lineWidth: 1.8))
                     .interpolationMethod(.monotone)
                     
@@ -137,17 +137,17 @@ public struct ShotRecordView: View {
                         y: .value("Value", sample.weight * 0.2),
                         series: .value("Stream", "Weight")
                     )
-                    .foregroundStyle(Color(red: 0.95, green: 0.72, blue: 0.25))
+                    .foregroundStyle(Color.telemetryWeight)
                     .lineStyle(StrokeStyle(lineWidth: 2.0))
                     .interpolationMethod(.monotone)
                 }
                 
                 if let last = record.samples.last {
                     PointMark(x: .value("Time", last.timestamp), y: .value("Value", last.weight * 0.2))
-                        .foregroundStyle(Color(red: 0.95, green: 0.72, blue: 0.25))
+                        .foregroundStyle(Color.telemetryWeight)
                         .symbolSize(60)
                     PointMark(x: .value("Time", last.timestamp), y: .value("Value", last.flow))
-                        .foregroundStyle(Color(red: 0.20, green: 0.85, blue: 0.65))
+                        .foregroundStyle(Color.telemetryFlow)
                         .symbolSize(50)
                 }
             }
@@ -242,7 +242,7 @@ public struct ShotRecordView: View {
         VStack(spacing: 2) {
             Text(val)
                 .font(.system(size: 15, weight: .black, design: .monospaced))
-                .foregroundStyle(highlight ? Color(red: 0.95, green: 0.72, blue: 0.25) : .white)
+                .foregroundStyle(highlight ? Color.telemetryWeight : .white)
             Text(label.uppercased())
                 .font(.system(size: 8, weight: .heavy, design: .monospaced))
                 .foregroundStyle(.tertiary)
