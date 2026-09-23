@@ -72,7 +72,7 @@ public struct ProfileVariableOverridesView: View {
                         Image(systemName: "info.circle.fill")
                             .font(.system(size: 12))
                             .foregroundStyle(.secondary)
-                        Text("Overrides apply only to this shot session. Profile on disk remains untouched.")
+                        Text("Overrides apply only to this brewing session. Profile on disk remains untouched.")
                             .font(.system(size: 11))
                             .foregroundStyle(.secondary)
                         Spacer()
@@ -150,7 +150,7 @@ public struct ProfileVariableOverridesView: View {
                     value: $doseWeight,
                     step: 0.5,
                     range: 7.0...30.0,
-                    subtitle: "Reference ground coffee dose in portafilter"
+                    subtitle: "Weight of ground coffee in portafilter"
                 )
                 
                 // 2. Target Weight
@@ -172,7 +172,7 @@ public struct ProfileVariableOverridesView: View {
                     value: $targetTemperature,
                     step: 1.0,
                     range: 75.0...100.0,
-                    subtitle: "Machine kettle / chamber water temperature"
+                    subtitle: "Water temperature"
                 )
             }
         }

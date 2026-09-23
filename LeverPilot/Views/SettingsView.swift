@@ -106,8 +106,8 @@ public struct SettingsView: View {
             
             stepperRow(
                 icon: "cup.and.saucer.fill",
-                title: "Default Ground Dose",
-                subtitle: "Initial reference ground coffee dose in portafilter",
+                title: "Default Dose",
+                subtitle: "Weight of ground coffee in portafilter",
                 valueString: String(format: "%.1fg", settings.defaultDose),
                 onDecrement: { settings.defaultDose = max(7.0, (settings.defaultDose - 0.5 * 10).rounded() / 10) },
                 onIncrement: { settings.defaultDose = min(30.0, (settings.defaultDose + 0.5 * 10).rounded() / 10) }
@@ -122,17 +122,17 @@ public struct SettingsView: View {
         )
     }
     
-    // MARK: - Section 2: Extraction & Watchdogs
+    // MARK: - Section 2: Scale & Pressure device
     
     private var extractionWatchdogsSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            sectionHeader(title: "EXTRACTION & WATCHDOGS", subtitle: "Rules governing automated start and dead-flow cutoff")
+            sectionHeader(title: "START & STOP", subtitle: "Rules governing automated start and stop of timer")
             
             VStack(spacing: 8) {
                 stepperRow(
                     icon: "gauge.with.dots.needle.bottom.50percent",
                     title: "Auto-Start Pressure",
-                    subtitle: "Pressure threshold required to trip transition from Armed to Extracting",
+                    subtitle: "Pressure threshold required to start the timer",
                     valueString: String(format: "%.1f bar", settings.autoStartPressure),
                     onDecrement: { settings.autoStartPressure = max(0.2, (settings.autoStartPressure - 0.1 * 10).rounded() / 10) },
                     onIncrement: { settings.autoStartPressure = min(3.0, (settings.autoStartPressure + 0.1 * 10).rounded() / 10) }
@@ -140,8 +140,8 @@ public struct SettingsView: View {
                 
                 stepperRow(
                     icon: "water.waves",
-                    title: "Dead-Flow Cutoff Threshold",
-                    subtitle: "Flow rate below which extraction flow is considered dead",
+                    title: "Auto-Stop Flow Rate",
+                    subtitle: "Flow rate threshold used to trigger the stop sequence",
                     valueString: String(format: "%.2f mL/s", settings.deadFlowThreshold),
                     onDecrement: { settings.deadFlowThreshold = max(0.05, (settings.deadFlowThreshold - 0.05 * 100).rounded() / 100) },
                     onIncrement: { settings.deadFlowThreshold = min(1.0, (settings.deadFlowThreshold + 0.05 * 100).rounded() / 100) }
@@ -149,8 +149,8 @@ public struct SettingsView: View {
                 
                 stepperRow(
                     icon: "clock.arrow.circlepath",
-                    title: "Dead-Flow Sustain Duration",
-                    subtitle: "Seconds flow must stay dead before ending the shot",
+                    title: "Auto-Stop Sustain Duration",
+                    subtitle: "Time the low flow rate must persist before stopping",
                     valueString: String(format: "%.1fs", settings.deadFlowSustainDuration),
                     onDecrement: { settings.deadFlowSustainDuration = max(1.0, settings.deadFlowSustainDuration - 0.5) },
                     onIncrement: { settings.deadFlowSustainDuration = min(10.0, settings.deadFlowSustainDuration + 0.5) }
@@ -203,7 +203,7 @@ public struct SettingsView: View {
     
     private var hudSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            sectionHeader(title: "HUD & VIEWPORT", subtitle: "Live chart rendering and viewport dynamics")
+            sectionHeader(title: "PROFILE CHART", subtitle: "Live chart rendering and viewport dynamics")
             
             stepperRow(
                 icon: "chart.xyaxis.line",
