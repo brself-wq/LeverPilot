@@ -1,6 +1,6 @@
 //
 //  ExitTriggersPanelView.swift
-//  VirtualEspressoMachine
+//  LeverPilot
 //
 
 import SwiftUI

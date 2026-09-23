@@ -1,6 +1,6 @@
 //
 //  ShotCoordinatorTests.swift
-//  VirtualEspressoMachineTests
+//  LeverPilotTests
 //
 
 import XCTest

@@ -1,6 +1,6 @@
 //
 //  ShotHistoryBrowserView.swift
-//  VirtualEspressoMachine
+//  LeverPilot
 //
 
 import SwiftUI

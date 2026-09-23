@@ -1,6 +1,6 @@
 //
 //  ScenarioStore.swift
-//  VirtualEspressoMachine
+//  LeverPilot
 //
 
 import Foundation

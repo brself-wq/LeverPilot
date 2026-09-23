@@ -1,6 +1,6 @@
 //
 //  ProfileHeroDossierView.swift
-//  VirtualEspressoMachine
+//  LeverPilot
 //
 
 import SwiftUI

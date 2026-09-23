@@ -75,7 +75,7 @@ An espresso machine copilot must feel like an industrial appliance, not an engin
 Settings updates take effect immediately without requiring application or server restarts:
 * **Dynamic Log Muting**: Toggling `verboseServerLogging` flips `MeticulousServer.shared.verboseLogging` in memory on the next runloop tick; subsequent HTTP frames immediately stop printing to stdout.
 * **Server Listener Guard**: `MeticulousServer.configure(port:verbose:)` restarts `NWListener` only if the port number has actually changed, eliminating dual-listener port collisions (`Address already in use`).
-* **Shot Synchronization**: `VirtualEspressoMachineApp.launchShot` invokes `coordinator.configure(from: settingsStore)` immediately prior to arming, ensuring every extraction evaluates the latest user thresholds.
+* **Shot Synchronization**: `LeverPilotApp.launchShot` invokes `coordinator.configure(from: settingsStore)` immediately prior to arming, ensuring every extraction evaluates the latest user thresholds.
 
 ### 2.4. Cross-Platform Menu Order Normalization
 To resolve an iPadOS presentation anomaly where upward-expanding menus flip items into `.priority` order (placing the first item at the bottom), all navigation menus declare **`.menuOrder(.fixed)`**, guaranteeing identical top-to-bottom layout across macOS and iPadOS:

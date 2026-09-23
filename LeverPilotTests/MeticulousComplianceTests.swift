@@ -1,6 +1,6 @@
 //
 //  MeticulousComplianceTests.swift
-//  VirtualEspressoMachineTests
+//  LeverPilotTests
 //
 
 import XCTest

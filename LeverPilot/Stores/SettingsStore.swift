@@ -1,6 +1,6 @@
 //
 //  SettingsStore.swift
-//  VirtualEspressoMachine
+//  LeverPilot
 //
 
 import Foundation

@@ -1,6 +1,6 @@
 //
 //  BaristaHUDSimulatorView.swift
-//  VirtualEspressoMachine
+//  LeverPilot
 //
 
 import SwiftUI

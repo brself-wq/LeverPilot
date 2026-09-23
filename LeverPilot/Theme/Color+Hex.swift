@@ -1,6 +1,6 @@
 //
 //  Color+Hex.swift
-//  VirtualEspressoMachine
+//  LeverPilot
 //
 
 import SwiftUI

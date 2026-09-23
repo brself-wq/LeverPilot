@@ -5,7 +5,7 @@ import EspressoBLE
 final class HardwarePersistenceTests: XCTestCase {
     
     private var testDefaults: UserDefaults!
-    private let suiteName = "com.virtualespressomachine.tests"
+    private let suiteName = "com.LeverPilot.tests"
     
     override func setUp() {
         super.setUp()

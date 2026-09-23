@@ -1,6 +1,6 @@
 //
 //  QuickHardwareDockView.swift
-//  VirtualEspressoMachine
+//  LeverPilot
 //
 
 import SwiftUI

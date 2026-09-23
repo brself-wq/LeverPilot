@@ -1,6 +1,6 @@
 //
 //  PreFlightValidatorTests.swift
-//  VirtualEspressoMachineTests
+//  LeverPilotTests
 //
 
 import XCTest

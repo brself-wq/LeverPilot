@@ -1,6 +1,6 @@
 //
 //  MachineFrame.swift
-//  VirtualEspressoMachine
+//  LeverPilot
 //
 
 import Foundation

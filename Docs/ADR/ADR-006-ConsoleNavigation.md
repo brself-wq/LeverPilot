@@ -11,7 +11,7 @@ Status: Accepted / Implemented (Scaffolding on `feature/ui-console-navigation-hu
 1. Single Unified Entry Point: A single `[ ☰ ]` button anchored at the bottom-left corner of the console screen.
 2. Centering Invariance: Pinned inside a `ZStack` alongside `RotaryEncoderDeck` with `padding(.leading, 28)`. This guarantees the rotary dial remains geometrically dead-center on the display.
 3. Visual Language: 44x44 circular button using existing app token values (`Color.white.opacity(0.06)` fill, `0.08` stroke).
-4. Layered App Architecture: `VirtualEspressoMachineApp` manages full-screen view transitions via `ConsoleDestination` (`Layer 4` in root `ZStack`, matching the pattern established for `ShotRecordView`).
+4. Layered App Architecture: `LeverPilotApp` manages full-screen view transitions via `ConsoleDestination` (`Layer 4` in root `ZStack`, matching the pattern established for `ShotRecordView`).
 
 ## Next Steps When Resumed
 1. Implement `ShotHistoryBrowserView` (Master-Detail curve inspector using `ScenarioStore`) to replace the `.history` placeholder.

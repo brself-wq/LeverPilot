@@ -11,7 +11,7 @@
 
 ## 1. Context & Problem Statement
 
-Early prototypes of this application inherited a robotic, multi-step state machine from an early mock (`MockVirtualEspressoMachine`), requiring manual UI interaction:
+Early prototypes of this application inherited a robotic, multi-step state machine from an early mock (`MockLeverPilot`), requiring manual UI interaction:
 
 `ready` -> `select profile` -> `profileSelected` -> `"Set Ready" button` -> `shotReady` -> `"Start" button` -> `extracting` -> `cutoff` -> `shotEnded` -> `"Clean" button` -> `cleaning`
 

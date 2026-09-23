@@ -1,6 +1,6 @@
 //
 //  ProfileConsoleView.swift
-//  VirtualEspressoMachine
+//  LeverPilot
 //
 
 import SwiftUI

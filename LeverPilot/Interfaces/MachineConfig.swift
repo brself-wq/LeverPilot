@@ -1,6 +1,6 @@
 //
 //  MachineConfig.swift
-//  VirtualEspressoMachine
+//  LeverPilot
 //
 
 import Foundation

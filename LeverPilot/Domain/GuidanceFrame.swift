@@ -1,6 +1,6 @@
 //
 //  GuidanceFrame.swift
-//  VirtualEspressoMachine
+//  LeverPilot
 //
 
 import Foundation

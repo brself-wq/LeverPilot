@@ -1,6 +1,6 @@
 //
 //  ScenarioTelemetryProviderTests.swift
-//  VirtualEspressoMachineTests
+//  LeverPilotTests
 //
 
 import XCTest

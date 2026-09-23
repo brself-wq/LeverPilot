@@ -17,7 +17,7 @@
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "B5B100DD304A370300F70661"
                BuildableName = "LeverPilot.app"
-               BlueprintName = "VirtualEspressoMachine"
+               BlueprintName = "LeverPilot"
                ReferencedContainer = "container:LeverPilot.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
@@ -42,7 +42,7 @@
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "B5996436304F42DF00341BC9"
                BuildableName = "LeverPilotTests.xctest"
-               BlueprintName = "VirtualEspressoMachineTests"
+               BlueprintName = "LeverPilotTests"
                ReferencedContainer = "container:LeverPilot.xcodeproj">
             </BuildableReference>
          </TestableReference>
@@ -65,7 +65,7 @@
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "B5B100DD304A370300F70661"
             BuildableName = "LeverPilot.app"
-            BlueprintName = "VirtualEspressoMachine"
+            BlueprintName = "LeverPilot"
             ReferencedContainer = "container:LeverPilot.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
@@ -82,7 +82,7 @@
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "B5B100DD304A370300F70661"
             BuildableName = "LeverPilot.app"
-            BlueprintName = "VirtualEspressoMachine"
+            BlueprintName = "LeverPilot"
             ReferencedContainer = "container:LeverPilot.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>

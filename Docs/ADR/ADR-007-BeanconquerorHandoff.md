@@ -27,7 +27,7 @@ However, handing off extraction data from BaristaPilot to Beanconqueror presente
 
 ### 2.1. The Immutable Flight Recorder Principle
 A `ShotRecord` on disk represents **physical reality as observed by Bluetooth sensors**. 
-* Historical shot logs (`Application Support/VirtualEspressoMachine/ShotLogs/*.json`) are write-once, immutable documents.
+* Historical shot logs (`Application Support/LeverPilot/ShotLogs/*.json`) are write-once, immutable documents.
 * BaristaPilot **never** writes Beanconqueror IDs, external preparation UUIDs, or remote sync timestamps back into historical shot files.
 
 ### 2.2. Sidecar Delivery Ledger

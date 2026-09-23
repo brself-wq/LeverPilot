@@ -5,7 +5,7 @@
 **Date:** September 20, 2026  
 **Author:** Ben Self  
 **Deciders:** Architecture Team, BaristaPilot Core  
-**Target:** `EspressoBLE`, `VirtualEspressoMachine/Engine/BLETelemetryProvider`, `VirtualEspressoMachine/State/ShotCoordinator`, `VirtualEspressoMachine/Views/BaristaHUDView`  
+**Target:** `EspressoBLE`, `LeverPilot/Engine/BLETelemetryProvider`, `LeverPilot/State/ShotCoordinator`, `LeverPilot/Views/BaristaHUDView`  
 
 ---
 

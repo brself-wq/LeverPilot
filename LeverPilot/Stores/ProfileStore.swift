@@ -1,6 +1,6 @@
 //
 //  ProfileStore.swift
-//  VirtualEspressoMachine
+//  LeverPilot
 //
 
 import Foundation

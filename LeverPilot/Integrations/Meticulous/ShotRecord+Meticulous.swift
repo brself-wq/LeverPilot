@@ -1,6 +1,6 @@
 //
 //  ShotRecord+Meticulous.swift
-//  VirtualEspressoMachine
+//  LeverPilot
 //
 
 import Foundation

@@ -1,6 +1,6 @@
 //
 //  PlaybackEngineTests.swift
-//  VirtualEspressoMachineTests
+//  LeverPilotTests
 //
 //  Step 4: Headless Playback State Machine Suite
 //

@@ -1,6 +1,6 @@
 //
 //  ScenarioTelemetryProvider.swift
-//  VirtualEspressoMachine
+//  LeverPilot
 //
 
 import Foundation

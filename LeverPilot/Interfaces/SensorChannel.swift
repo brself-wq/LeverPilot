@@ -1,6 +1,6 @@
 //
 //  SensorChannel.swift
-//  VirtualEspressoMachine
+//  LeverPilot
 //
 
 import Foundation

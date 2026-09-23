@@ -1,6 +1,6 @@
 //
 //  StorePersistenceTests.swift
-//  VirtualEspressoMachine
+//  LeverPilot
 //
 //  Created by Ben Self on 9/11/26.
 //
@@ -8,7 +8,7 @@
 
 //
 //  StorePersistenceTests.swift
-//  VirtualEspressoMachineTests
+//  LeverPilotTests
 //
 
 import XCTest

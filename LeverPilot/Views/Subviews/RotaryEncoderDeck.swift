@@ -1,6 +1,6 @@
 //
 //  RotaryEncoderDeck.swift
-//  VirtualEspressoMachine
+//  LeverPilot
 //
 
 import SwiftUI

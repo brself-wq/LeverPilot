@@ -11,9 +11,9 @@
   "defaultOptions" : {
     "performanceAntipatternCheckerEnabled" : true,
     "targetForVariableExpansion" : {
-      "containerPath" : "container:VirtualEspressoMachine.xcodeproj",
+      "containerPath" : "container:LeverPilot.xcodeproj",
       "identifier" : "B5B100DD304A370300F70661",
-      "name" : "VirtualEspressoMachine"
+      "name" : "LeverPilot"
     }
   },
   "testTargets" : [

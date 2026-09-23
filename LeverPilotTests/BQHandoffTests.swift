@@ -1,6 +1,6 @@
 //
 //  BQHandoffTests.swift
-//  VirtualEspressoMachineTests
+//  LeverPilotTests
 //
 
 import XCTest
@@ -11,7 +11,7 @@ final class BQHandoffTests: XCTestCase {
 
     private var coordinator: BQHandoffCoordinator!
     private var testDefaults: UserDefaults!
-    private let suiteName = "com.virtualespressomachine.tests.handoff"
+    private let suiteName = "com.LeverPilot.tests.handoff"
 
     override func setUp() {
         super.setUp()

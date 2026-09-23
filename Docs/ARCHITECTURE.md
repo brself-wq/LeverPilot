@@ -1,6 +1,6 @@
 # Architecture & Data Topology Specification
 
-**Project:** BaristaPilot (formerly VirtualEspressoMachine)  
+**Project:** BaristaPilot (formerly LeverPilot)  
 **Target Platform:** iOS 17+, macOS 14+  
 **Language / Concurrency:** Swift 5.9 / Swift 6 (Strict Concurrency Checking)  
 **Status:** Accepted Architecture Blueprint  

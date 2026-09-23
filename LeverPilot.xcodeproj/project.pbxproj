@@ -18,7 +18,7 @@
 			containerPortal = B5B100D6304A370300F70661 /* Project object */;
 			proxyType = 1;
 			remoteGlobalIDString = B5B100DD304A370300F70661;
-			remoteInfo = VirtualEspressoMachine;
+			remoteInfo = LeverPilot;
 		};
 /* End PBXContainerItemProxy section */
 
@@ -174,7 +174,7 @@
 			packageProductDependencies = (
 				B5996444304F462100341BC9 /* MeticulousProfile */,
 			);
-			productName = VirtualEspressoMachineTests;
+			productName = LeverPilotTests;
 			productReference = B5996437304F42DF00341BC9 /* LeverPilotTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
@@ -199,7 +199,7 @@
 				B5B100FF304A37E900F70661 /* MeticulousProfile */,
 				B55B26DB3054331600C1DBE2 /* EspressoBLE */,
 			);
-			productName = VirtualEspressoMachine;
+			productName = LeverPilot;
 			productReference = B5B100DE304A370300F70661 /* LeverPilot.app */;
 			productType = "com.apple.product-type.application";
 		};
@@ -305,7 +305,7 @@
 				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.brself.VirtualEspressoMachineTests;
+				PRODUCT_BUNDLE_IDENTIFIER = com.brself.LeverPilotTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
 				SDKROOT = xros;
@@ -330,7 +330,7 @@
 				DEVELOPMENT_TEAM = Y5BFSKQ6PK;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.brself.VirtualEspressoMachineTests;
+				PRODUCT_BUNDLE_IDENTIFIER = com.brself.LeverPilotTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = xros;
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;

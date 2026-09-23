@@ -1,6 +1,6 @@
 //
 //  SimulatorControlDockView.swift
-//  VirtualEspressoMachine
+//  LeverPilot
 //
 //  Created by Ben Self on 9/7/26.
 //

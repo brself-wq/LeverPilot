@@ -1,6 +1,6 @@
 //
 //  ShotCoordinator.swift
-//  VirtualEspressoMachine
+//  LeverPilot
 //
 
 import Foundation
