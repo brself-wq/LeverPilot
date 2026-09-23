@@ -204,6 +204,7 @@ public final class ShotCoordinator {
         
         // 1. Auto-Start: Trip on pressure threshold (ignoring weight artifacts)
         if state == .armed && (machineConfig.autoStartRule.isSatisfied(by: frame) || frame.state == .extracting) {
+            print("[AutoStart] 🚀 Extraction started (P = \(String(format: "%.2f", currentPressure)) bar >= \(machineConfig.autoStartRule.threshold) bar)")
             state = .extracting
         }
         
@@ -224,26 +225,37 @@ public final class ShotCoordinator {
         capturedSamples.append(sample)
         
         // 3. Auto-Stop Dead-Flow Watchdog (ADR-005, ADR-009)
-        // Requires elapsed time >= 5.0s AND (weight >= 5.0g OR weight >= activeDose)
+        // Precondition: Must be pulling for at least 5.0s AND reach 5.0g (or 1:1 dose ratio)
         let isPreconditionMet = frame.timestamp >= 5.0 && (currentWeight >= 5.0 || currentWeight >= activeDose)
         
         if frame.isScaleStale {
             // Telemetry Continuity Policy (ADR-009):
-            // Dead-flow auto-stop is strictly SUSPENDED during scale packet stalls or disconnection.
-            // Evaluates strictly against measured zero flow from an active scale, never sensor silence.
-            deadFlowStartTime = nil
+            // Dead-flow countdown is strictly suspended during scale packet stalls or disconnection.
+            if deadFlowStartTime != nil {
+                print("[AutoStop] ⏸ Countdown SUSPENDED: Scale packet stream became stale at t=\(String(format: "%.1f", frame.timestamp))s.")
+                deadFlowStartTime = nil
+            }
         } else if isPreconditionMet && currentFlow <= machineConfig.autoStop.cutoffRule.threshold {
             if let start = deadFlowStartTime {
-                if (frame.timestamp - start) >= machineConfig.autoStop.sustainDuration {
-                    print("🛑 SHOT ENDED: BLE Dead-Flow Watchdog (Sustained dead flow for \(machineConfig.autoStop.sustainDuration)s at t=\(String(format: "%.1f", frame.timestamp))s, weight=\(String(format: "%.1f", currentWeight))g)")
+                let elapsedDead = frame.timestamp - start
+                if elapsedDead >= machineConfig.autoStop.sustainDuration {
+                    print("🛑 SHOT ENDED: BLE Dead-Flow Watchdog (Sustained dead flow for \(String(format: "%.1f", elapsedDead))s at t=\(String(format: "%.1f", frame.timestamp))s, weight=\(String(format: "%.1f", currentWeight))g)")
                     endExtraction()
                     return
                 }
             } else {
                 deadFlowStartTime = frame.timestamp
+                print("[AutoStop] ⏳ Low flow detected (\(String(format: "%.2f", currentFlow)) mL/s <= \(machineConfig.autoStop.cutoffRule.threshold) mL/s at t=\(String(format: "%.1f", frame.timestamp))s, weight=\(String(format: "%.1f", currentWeight))g). Starting \(String(format: "%.1f", machineConfig.autoStop.sustainDuration))s sustain timer...")
             }
         } else {
-            deadFlowStartTime = nil
+            if deadFlowStartTime != nil {
+                if !isPreconditionMet {
+                    print("[AutoStop] 🔄 Countdown RESET: Preconditions no longer met (t=\(String(format: "%.1f", frame.timestamp))s, weight=\(String(format: "%.1f", currentWeight))g).")
+                } else {
+                    print("[AutoStop] 🔄 Countdown RESET: Flow resumed (\(String(format: "%.2f", currentFlow)) mL/s > \(machineConfig.autoStop.cutoffRule.threshold) mL/s).")
+                }
+                deadFlowStartTime = nil
+            }
         }
         
         // 4. Evaluate Stage Dynamics with Execution Engine
@@ -259,6 +271,7 @@ public final class ShotCoordinator {
         // 5. Evaluate Stage Progression
         if allowAdvance && result.shouldAdvanceStage {
             if activeStageIndex + 1 < profile.stages.count {
+                let oldIndex = activeStageIndex
                 activeStageIndex += 1
                 currentStageBaseline = StageBaseline(
                     startTime: frame.timestamp,
@@ -270,6 +283,7 @@ public final class ShotCoordinator {
                 actualHistory.removeAll()
                 
                 if let nextStage = currentStage {
+                    print("[Coordinator] ⏭ Stage advanced: [\(oldIndex + 1)] \(stage.name) -> [\(activeStageIndex + 1)] \(nextStage.name)")
                     result = executionEngine.evaluate(
                         stage: nextStage,
                         stageIndex: activeStageIndex,
