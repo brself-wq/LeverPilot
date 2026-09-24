@@ -107,10 +107,13 @@ struct LeverPilotApp: App {
                                 .foregroundStyle(.secondary.opacity(0.8))
                                 .frame(width: 26, height: 26)
                                 .background(Theme.Surface.control, in: Circle())
-                                .contentShape(Circle())
+                            // Expands the hit-testing box to 44x44pt while keeping visual circle at 26pt
+                                .frame(width: 44, height: 44)
+                                .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
-                        .padding(14)
+                        // Inset by 5pt so the visual circle stays at the exact same 14pt margin (14 - 9 = 5)
+                        .padding(5)
                     }
                     .transition(.opacity)
                     .zIndex(10)
