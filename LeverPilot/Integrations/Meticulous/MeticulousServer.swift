@@ -97,7 +97,7 @@ public actor MeticulousServer {
         print("[MeticulousServer] Staged Meticulous shot with ID '\(newId)'")
     }
 
-    /// Convenience helper to stage a completed VEM `ShotRecord` directly.
+    /// Convenience helper to stage a completed  LeverPilot `ShotRecord` directly.
     public func stageShot(_ record: ShotRecord) {
         stageShot(record.toMeticulousHistoryEntry())
     }
