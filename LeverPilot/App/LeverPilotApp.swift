@@ -301,7 +301,7 @@ struct LeverPilotApp: App {
                         Text("Discard Shot")
                     }
                     .font(.system(size: 13, weight: .bold))
-                    .foregroundStyle(Color(red: 1.0, green: 0.42, blue: 0.42)) // High-luminance coral
+                    .foregroundStyle(Color(red: 1.0, green: 0.42, blue: 0.42))
                     .frame(maxWidth: .infinity)
                     .frame(height: 44)
                     .background(Color.red.opacity(0.12))
@@ -313,8 +313,8 @@ struct LeverPilotApp: App {
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                
-                // 3. Resume: Keep Brewing (Active, clear neutral button)
+
+                // 3. Resume: Keep Brewing
                 Button(action: {
                     withAnimation(.easeInOut(duration: 0.15)) {
                         showAbortConfirmation = false
@@ -346,6 +346,7 @@ struct LeverPilotApp: App {
         )
         .shadow(color: .black.opacity(0.55), radius: 24, y: 8)
     }
+    
     // MARK: - Machine Lifecycle Handlers
     
     private func launchShot(with profile: Profile, dose: Double? = nil, primedScenario: ShotRecord? = nil) {
@@ -377,6 +378,12 @@ struct LeverPilotApp: App {
     }
     
     private func concludeShot() {
+        guard activeExtractionProfile != nil else { return }
+        
+        if coordinator.completedShotRecord == nil {
+            coordinator.endExtraction()
+        }
+        
         bleManager.stopScaleTimer()
         activeTelemetryProvider?.stop()
         activeTelemetryProvider = nil
