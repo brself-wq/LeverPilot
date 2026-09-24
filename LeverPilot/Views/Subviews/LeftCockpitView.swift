@@ -6,6 +6,11 @@
 import SwiftUI
 import MeticulousProfile
 
+extension Color {
+    /// Warm crema-blonde tone signaling target yield reached/overrun without error alarm
+    public static let blondingAmber = Color(red: 0.90, green: 0.66, blue: 0.34)
+}
+
 public struct LeftCockpitView: View {
     let frame: GuidanceFrame
     let displayElapsedTime: Double
@@ -28,6 +33,18 @@ public struct LeftCockpitView: View {
         self.displayActualWeight = displayActualWeight
         self.finalWeightTarget = finalWeightTarget
         self.isAlarmActive = isAlarmActive
+    }
+    
+    private var isOverrun: Bool {
+        finalWeightTarget > 0 && displayActualWeight >= finalWeightTarget
+    }
+    
+    private var cardStrokeStyle: AnyShapeStyle {
+        if isOverrun {
+            return AnyShapeStyle(Color.blondingAmber.opacity(0.35))
+        } else {
+            return AnyShapeStyle(Theme.Border.glassGradient)
+        }
     }
     
     private var themeColor: Color {
@@ -61,31 +78,31 @@ public struct LeftCockpitView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     HStack(spacing: 4) {
                         Image(systemName: "timer")
-                            .font(.system(size: 9))
+                            .font(.system(size: 10))
                             .foregroundStyle(.secondary)
                         Text(String(format: "%04.1fs", displayElapsedTime))
                             .font(.system(size: 13, weight: .bold, design: .rounded).monospacedDigit())
                             .foregroundStyle(.primary)
                     }
                     Text("Stage: \(String(format: "%.1fs", displayStageTime))")
-                        .font(.system(size: 9, weight: .medium, design: .rounded).monospacedDigit())
+                        .font(.system(size: 10, weight: .medium, design: .rounded).monospacedDigit())
                         .foregroundStyle(.secondary)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 
-                // Weight Card
+                // Weight Card (Blonding Transition on Target Overrun)
                 VStack(alignment: .trailing, spacing: 2) {
                     HStack(spacing: 4) {
                         Image(systemName: "scalemass.fill")
-                            .font(.system(size: 9))
-                            .foregroundStyle(.secondary)
+                            .font(.system(size: 10))
+                            .foregroundStyle(isOverrun ? Color.blondingAmber : .secondary)
                         Text(String(format: "%.1fg", displayActualWeight))
                             .font(.system(size: 13, weight: .bold, design: .rounded).monospacedDigit())
-                            .foregroundStyle(Color.telemetryWeight)
+                            .foregroundStyle(isOverrun ? Color.blondingAmber : Color.telemetryWeight)
                     }
                     Text(finalWeightTarget > 0 ? "Target: \(String(format: "%.1fg", finalWeightTarget))" : "Target: --")
-                        .font(.system(size: 9, weight: .medium, design: .rounded).monospacedDigit())
-                        .foregroundStyle(.secondary)
+                        .font(.system(size: 10, weight: isOverrun ? .bold : .medium, design: .rounded).monospacedDigit())
+                        .foregroundStyle(isOverrun ? Color.blondingAmber.opacity(0.85) : .secondary)
                 }
                 .frame(maxWidth: .infinity, alignment: .trailing)
             }
@@ -95,7 +112,7 @@ public struct LeftCockpitView: View {
             .clipShape(RoundedRectangle(cornerRadius: Theme.Layout.cardRadius))
             .overlay(
                 RoundedRectangle(cornerRadius: Theme.Layout.cardRadius)
-                    .strokeBorder(Theme.Border.glassGradient, lineWidth: 1)
+                    .strokeBorder(cardStrokeStyle, lineWidth: 1)
             )
             
             Divider().background(Theme.Border.hair)
@@ -135,7 +152,7 @@ public struct LeftCockpitView: View {
             HStack(alignment: .center) {
                 HStack(spacing: 4) {
                     Text("Target")
-                        .font(.system(size: 10, weight: .medium))
+                        .font(.system(size: 11, weight: .medium))
                         .foregroundStyle(.tertiary)
                     Text(String(format: "%.1f", frame.targetValue))
                         .font(.system(.body, design: .rounded, weight: .bold).monospacedDigit())
@@ -161,7 +178,7 @@ public struct LeftCockpitView: View {
                             .foregroundStyle(isAlarmActive ? Color.red : limitColor)
                         
                         Text(isAlarmActive ? "LIMIT BREACHED!" : "LIMIT")
-                            .font(.system(size: 9, weight: .black))
+                            .font(.system(size: 10, weight: .black))
                             .foregroundStyle(isAlarmActive ? Color.red : .secondary)
                         
                         Spacer()
