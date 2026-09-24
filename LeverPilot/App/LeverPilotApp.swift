@@ -6,6 +6,9 @@
 import SwiftUI
 import MeticulousProfile
 import EspressoBLE
+#if os(iOS)
+import UIKit
+#endif
 
 @main
 struct LeverPilotApp: App {
@@ -18,6 +21,9 @@ struct LeverPilotApp: App {
     @State private var coordinator = ShotCoordinator()
     @State private var activeTelemetryProvider: (any TelemetryProvider)?
     @State private var showAbortConfirmation: Bool = false
+    
+    // MARK: - Scene Phase & Power Management
+    @Environment(\.scenePhase) private var scenePhase
     
     // MARK: - Root Navigation Destination
     @State private var currentDestination: AppDestination = .brew
@@ -74,7 +80,7 @@ struct LeverPilotApp: App {
                         domainLabel: coordinator.currentStage?.dynamics.over.rawValue.capitalized ?? "Time",
                         finalWeightTarget: coordinator.resolvedTargetWeight,
                         nominalDuration: 32.0,
-                        windowSpan: settingsStore.chartWindowSpan,
+                        windowSpan: StageDynamicsChartView.slidingWindowSpan,
                         isAlarmActive: coordinator.isAlarmActive,
                         elapsedTime: coordinator.elapsedTime,
                         stageTime: coordinator.stageTime,
@@ -88,6 +94,7 @@ struct LeverPilotApp: App {
                         } else if newState == .shotEnded {
                             concludeShot()
                         }
+                        updateIdleTimer()
                     }
                     .overlay(alignment: .topTrailing) {
                         Button(action: {
@@ -148,6 +155,16 @@ struct LeverPilotApp: App {
                         verbose: settingsStore.verboseServerLogging
                     )
                 }
+                updateIdleTimer()
+            }
+            .onChange(of: scenePhase) { _, _ in
+                updateIdleTimer()
+            }
+            .onChange(of: settingsStore.keepDisplayAwake) { _, _ in
+                updateIdleTimer()
+            }
+            .onChange(of: activeExtractionProfile) { _, _ in
+                updateIdleTimer()
             }
             .onChange(of: settingsStore.meticulousPort) { _, newPort in
                 Task {
@@ -163,6 +180,21 @@ struct LeverPilotApp: App {
                 }
             }
         }
+    }
+    
+    // MARK: - Display Idle Timer Management
+    
+    private func updateIdleTimer() {
+        #if os(iOS)
+        let isBrewingActive = activeExtractionProfile != nil
+            && (coordinator.state == .armed || coordinator.state == .extracting)
+        
+        let shouldKeepAwake = settingsStore.keepDisplayAwake
+            && scenePhase == .active
+            && isBrewingActive
+        
+        UIApplication.shared.isIdleTimerDisabled = shouldKeepAwake
+        #endif
     }
     
     // MARK: - Universal Hamburger Menu

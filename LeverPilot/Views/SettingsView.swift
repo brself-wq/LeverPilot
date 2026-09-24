@@ -41,8 +41,8 @@ public struct SettingsView: View {
                         // 3. Meticulous Server & Logging
                         networkSection
                         
-                        // 4. HUD Viewport Dynamics
-                        hudSection
+                        // 4. Cockpit & Display
+                        displaySection
                         
                         // 5. Beanconqueror Integration
                         beanconquerorSection
@@ -199,19 +199,17 @@ public struct SettingsView: View {
         )
     }
     
-    // MARK: - Section 4: HUD Dynamics
+    // MARK: - Section 4: Cockpit & Display
     
-    private var hudSection: some View {
+    private var displaySection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            sectionHeader(title: "PROFILE CHART", subtitle: "Live chart rendering and viewport dynamics")
+            sectionHeader(title: "COCKPIT & DISPLAY", subtitle: "Screen power and display sleep management")
             
-            stepperRow(
-                icon: "chart.xyaxis.line",
-                title: "Chart Sliding Window Span",
-                subtitle: "Visible horizon window (seconds/grams) before chart autoscrolls",
-                valueString: String(format: "%.0fs", settings.chartWindowSpan),
-                onDecrement: { settings.chartWindowSpan = max(10.0, settings.chartWindowSpan - 5.0) },
-                onIncrement: { settings.chartWindowSpan = min(60.0, settings.chartWindowSpan + 5.0) }
+            toggleRow(
+                icon: "sun.max.fill",
+                title: "Keep Display Awake While Brewing",
+                subtitle: "Prevents screen from dimming or locking while armed or extracting",
+                isOn: $settings.keepDisplayAwake
             )
         }
         .padding(16)

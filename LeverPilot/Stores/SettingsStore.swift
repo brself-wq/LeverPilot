@@ -37,9 +37,9 @@ public final class SettingsStore {
         didSet { defaults.set(verboseServerLogging, forKey: "settings.verboseServerLogging") }
     }
     
-    // MARK: - HUD Dynamics
-    public var chartWindowSpan: Double {
-        didSet { defaults.set(chartWindowSpan, forKey: "settings.chartWindowSpan") }
+    // MARK: - Cockpit & Display
+    public var keepDisplayAwake: Bool {
+        didSet { defaults.set(keepDisplayAwake, forKey: "settings.keepDisplayAwake") }
     }
     
     private let defaults: UserDefaults
@@ -53,7 +53,7 @@ public final class SettingsStore {
         self.deadFlowSustainDuration = defaults.object(forKey: "settings.deadFlowSustainDuration") as? Double ?? 2.0
         self.meticulousPort = defaults.object(forKey: "settings.meticulousPort") as? Int ?? 8080
         self.verboseServerLogging = defaults.bool(forKey: "settings.verboseServerLogging")
-        self.chartWindowSpan = defaults.object(forKey: "settings.chartWindowSpan") as? Double ?? 25.0
+        self.keepDisplayAwake = defaults.object(forKey: "settings.keepDisplayAwake") as? Bool ?? true
     }
 
     public func resetToDefaults() {
@@ -63,6 +63,6 @@ public final class SettingsStore {
         deadFlowSustainDuration = 2.0
         meticulousPort = 8080
         verboseServerLogging = false
-        chartWindowSpan = 25.0
+        keepDisplayAwake = true
     }
 }

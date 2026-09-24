@@ -7,7 +7,9 @@ import SwiftUI
 import Charts
 import MeticulousProfile
 
-public struct StageDynamicsChartView: View {
+struct StageDynamicsChartView: View {
+    static let slidingWindowSpan: TimeInterval = 25.0
+
     let planCurve: [PlanPoint]
     let actualHistory: [ActualPoint]
     let domainLabel: String
