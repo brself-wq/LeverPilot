@@ -247,45 +247,74 @@ struct LeverPilotApp: App {
         .fixedSize()
     }
     
-    // MARK: - High-Contrast Abort Dialog
+    // MARK: - High-Contrast End / Abort Dialog
     
     private var abortConfirmationCard: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 18) {
             VStack(spacing: 6) {
-                Text("Stop Shot?")
+                Text("End Shot?")
                     .font(.headline.weight(.black))
                     .foregroundStyle(.white)
                 
-                Text("The current pull will end and will not be saved to your history.")
+                Text("Save telemetry to history and sync to Beanconqueror, discard this pull, or return to brewing.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
             }
             .padding(.top, 4)
             
-            VStack(spacing: 8) {
-                // High-Contrast Destructive Action Button
+            VStack(spacing: 10) {
+                // 1. Primary: Save & Conclude
+                Button(action: {
+                    withAnimation(.easeInOut(duration: 0.15)) {
+                        showAbortConfirmation = false
+                    }
+                    concludeShot()
+                }) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "checkmark.circle.fill")
+                        Text("Save & Finish")
+                    }
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 44)
+                    .background(Theme.Surface.control)
+                    .clipShape(RoundedRectangle(cornerRadius: Theme.Layout.cardRadius))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: Theme.Layout.cardRadius)
+                            .strokeBorder(Theme.Border.glassGradient, lineWidth: 1)
+                    )
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                
+                // 2. Destructive: Discard Everything
                 Button(action: {
                     withAnimation(.easeInOut(duration: 0.15)) {
                         showAbortConfirmation = false
                     }
                     abortShot()
                 }) {
-                    Text("Stop Shot")
-                        .font(.system(size: 13, weight: .bold))
-                        .foregroundStyle(Color(red: 1.0, green: 0.42, blue: 0.42)) // High-luminance coral
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 10)
-                        .background(Color.white.opacity(0.08))
-                        .clipShape(RoundedRectangle(cornerRadius: Theme.Layout.cardRadius))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: Theme.Layout.cardRadius)
-                                .strokeBorder(Color(red: 1.0, green: 0.42, blue: 0.42).opacity(0.40), lineWidth: 1)
-                        )
+                    HStack(spacing: 6) {
+                        Image(systemName: "trash.fill")
+                        Text("Discard Shot")
+                    }
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundStyle(Color(red: 1.0, green: 0.42, blue: 0.42)) // High-luminance coral
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 44)
+                    .background(Color.red.opacity(0.12))
+                    .clipShape(RoundedRectangle(cornerRadius: Theme.Layout.cardRadius))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: Theme.Layout.cardRadius)
+                            .strokeBorder(Color(red: 1.0, green: 0.42, blue: 0.42).opacity(0.4), lineWidth: 1)
+                    )
+                    .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 
-                // Neutral Resume Action Button
+                // 3. Resume: Keep Brewing (Active, clear neutral button)
                 Button(action: {
                     withAnimation(.easeInOut(duration: 0.15)) {
                         showAbortConfirmation = false
@@ -293,17 +322,22 @@ struct LeverPilotApp: App {
                 }) {
                     Text("Keep Brewing")
                         .font(.system(size: 13, weight: .bold))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(.white.opacity(0.9))
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, 10)
-                        .background(Color.white.opacity(0.06))
+                        .frame(height: 44)
+                        .background(Color.white.opacity(0.08))
                         .clipShape(RoundedRectangle(cornerRadius: Theme.Layout.cardRadius))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: Theme.Layout.cardRadius)
+                                .strokeBorder(Color.white.opacity(0.15), lineWidth: 1)
+                        )
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
             }
         }
-        .padding(20)
-        .frame(width: 300)
+        .padding(22)
+        .frame(width: 320)
         .background(Theme.Surface.overlay)
         .clipShape(RoundedRectangle(cornerRadius: Theme.Layout.heroRadius))
         .overlay(
@@ -312,7 +346,6 @@ struct LeverPilotApp: App {
         )
         .shadow(color: .black.opacity(0.55), radius: 24, y: 8)
     }
-    
     // MARK: - Machine Lifecycle Handlers
     
     private func launchShot(with profile: Profile, dose: Double? = nil, primedScenario: ShotRecord? = nil) {
