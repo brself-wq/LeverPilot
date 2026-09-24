@@ -14,6 +14,8 @@ public struct ShotHistoryBrowserView: View {
     @State private var selectedShotID: String? = nil
     @State private var searchQuery: String = ""
     @State private var shotToAddBrew: ShotRecord? = nil
+    @State private var shotPendingDelete: ShotRecord? = nil
+    @State private var showDeleteConfirmation: Bool = false
     
     public init(scenarioStore: ScenarioStore) {
         self.scenarioStore = scenarioStore
@@ -60,7 +62,7 @@ public struct ShotHistoryBrowserView: View {
                     emptyStateView
                 } else {
                     HStack(spacing: 0) {
-                        // MASTER COLUMN: Scrollable shot history cards
+                        // MASTER COLUMN: Scrollable shot history cards with native swipe-to-delete
                         masterShotList
                             .frame(width: 320)
                         
@@ -77,13 +79,25 @@ public struct ShotHistoryBrowserView: View {
         .sheet(item: $shotToAddBrew) { shot in
             AddToBeanconquerorSheet(record: shot)
         }
+        .confirmationDialog(
+            "Delete Shot Record?",
+            isPresented: $showDeleteConfirmation,
+            titleVisibility: .visible,
+            presenting: shotPendingDelete
+        ) { shot in
+            Button("Delete Shot", role: .destructive) {
+                performDelete(shot: shot)
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: { shot in
+            Text("Are you sure you want to delete \"\(shot.profileName)\" (\(formattedDate(shot.timestamp)))? This cannot be undone.")
+        }
         .onAppear {
             if selectedShotID == nil {
                 selectedShotID = filteredShots.first?.id
             }
         }
         .onChange(of: searchQuery) { _, _ in
-            // Auto-select top matching shot when search filter mutates
             selectedShotID = filteredShots.first?.id
         }
     }
@@ -154,22 +168,39 @@ public struct ShotHistoryBrowserView: View {
         }
     }
     
-    // MARK: - Master Shot List
+    // MARK: - Master Shot List (Native Swipe-to-Delete with Custom Theming)
     
     private var masterShotList: some View {
-        ScrollView {
-            LazyVStack(spacing: 6) {
-                ForEach(filteredShots) { shot in
-                    shotRowCard(shot: shot, isSelected: shot.id == selectedShot?.id)
-                        .onTapGesture {
-                            selectedShotID = shot.id
+        List {
+            ForEach(filteredShots) { shot in
+                shotRowCard(shot: shot, isSelected: shot.id == selectedShot?.id)
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        selectedShotID = shot.id
+                    }
+                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                        Button(role: .destructive) {
+                            shotPendingDelete = shot
+                            showDeleteConfirmation = true
+                        } label: {
+                            Label("Delete", systemImage: "trash")
                         }
-                }
+                    }
+                    .listRowInsets(EdgeInsets(top: 3, leading: 14, bottom: 3, trailing: 14))
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
             }
-            .padding(14)
+            
             // Bottom clearance for universal hamburger menu
-            .padding(.bottom, 60)
+            Color.clear
+                .frame(height: 60)
+                .listRowInsets(EdgeInsets())
+                .listRowSeparator(.hidden)
+                .listRowBackground(Color.clear)
         }
+        .listStyle(.plain)
+        .scrollContentBackground(.hidden)
+        .background(Color.clear)
     }
     
     private func shotRowCard(shot: ShotRecord, isSelected: Bool) -> some View {
@@ -184,17 +215,19 @@ public struct ShotHistoryBrowserView: View {
                 
                 Spacer()
 
+                // Authentic Beanconqueror Caramel Bean Badge
                 if isDelivered {
                     HStack(spacing: 3) {
-                        Image(systemName: "cup.and.saucer.fill")
-                            .font(.system(size: 8))
+                        CoffeeBeanGlyph()
+                            .fill(Color.bqCaramel)
+                            .frame(width: 8, height: 8)
                         Text("BQ")
                             .font(.system(size: 8, weight: .heavy, design: .monospaced))
                     }
-                    .foregroundStyle(Color.telemetryFlow)
+                    .foregroundStyle(Color.bqCaramel)
                     .padding(.horizontal, 5)
                     .padding(.vertical, 2)
-                    .background(Color.telemetryFlow.opacity(0.12), in: Capsule())
+                    .background(Color.bqCaramel.opacity(0.14), in: Capsule())
                 }
                 
                 if shot.isAborted {
@@ -369,14 +402,25 @@ public struct ShotHistoryBrowserView: View {
                 shotToAddBrew = shot
             } label: {
                 HStack(spacing: 6) {
-                    Image(systemName: isDelivered ? "arrow.clockwise" : "cup.and.saucer.fill")
+                    if isDelivered {
+                        Image(systemName: "arrow.clockwise")
+                            .font(.system(size: 11, weight: .bold))
+                    } else {
+                        CoffeeBeanGlyph()
+                            .fill(Color.bqCaramel)
+                            .frame(width: 12, height: 12)
+                    }
                     Text(isDelivered ? "Re-send to Beanconqueror" : "Add to Beanconqueror")
+                        .font(.system(size: 11, weight: .bold))
                 }
-                .font(.system(size: 11, weight: .bold))
-                .foregroundStyle(.white)
+                .foregroundStyle(isDelivered ? Color.white : Color.bqCaramel)
                 .padding(.horizontal, 14)
                 .padding(.vertical, 8)
-                .background(Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 6))
+                .background(isDelivered ? Color.white.opacity(0.06) : Color.bqCaramel.opacity(0.12), in: RoundedRectangle(cornerRadius: 6))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 6)
+                        .stroke(isDelivered ? Color.white.opacity(0.10) : Color.bqCaramel.opacity(0.35), lineWidth: 1)
+                )
             }
             .buttonStyle(.plain)
             
@@ -384,7 +428,30 @@ public struct ShotHistoryBrowserView: View {
         }
     }
     
-    // MARK: - Traversal Actions
+    // MARK: - Deletion & Traversal Actions
+    
+    private func performDelete(shot: ShotRecord) {
+        let remaining = filteredShots.filter { $0.id != shot.id }
+        let currentIndex = filteredShots.firstIndex(where: { $0.id == shot.id }) ?? 0
+        
+        let nextSelectedID: String?
+        if remaining.isEmpty {
+            nextSelectedID = nil
+        } else if currentIndex < remaining.count {
+            nextSelectedID = remaining[currentIndex].id
+        } else {
+            nextSelectedID = remaining.last?.id
+        }
+        
+        do {
+            try scenarioStore.deleteShot(withID: shot.id)
+            withAnimation(.easeInOut(duration: 0.2)) {
+                selectedShotID = nextSelectedID
+            }
+        } catch {
+            print("Failed to delete shot record \(shot.id): \(error)")
+        }
+    }
     
     private var canStepBackward: Bool {
         guard let idx = selectedIndex else { return false }
