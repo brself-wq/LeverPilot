@@ -395,6 +395,11 @@ struct LeverPilotApp: App {
         if let finishedRecord = coordinator.completedShotRecord {
             try? scenarioStore.recordCompletedShot(finishedRecord)
             
+            // 🚀 Pre-stage immediately so the shot is already in memory on loopback
+            Task {
+                await MeticulousServer.shared.stageShot(finishedRecord)
+            }
+            
             withAnimation(.easeInOut(duration: 0.25)) {
                 activeExtractionProfile = nil
                 completedRecordForReview = finishedRecord

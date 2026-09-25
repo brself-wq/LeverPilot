@@ -16,6 +16,7 @@ public actor MeticulousServer {
     private var onShotDelivered: (@Sendable () -> Void)?
     private var listener: NWListener?
     private var internalShotCounter: Int = 0
+    private var hasConnectedSocketIO: Bool = false
 
     private init() {
         // Starts via configure() on app launch
@@ -43,6 +44,7 @@ public actor MeticulousServer {
     public func start(port: UInt16 = 8080) {
         stop()
         self.serverPort = port
+        self.hasConnectedSocketIO = false
         do {
             let nwPort = NWEndpoint.Port(rawValue: port)!
             let params = NWParameters.tcp
@@ -74,6 +76,7 @@ public actor MeticulousServer {
         listener?.cancel()
         listener = nil
         isRunning = false
+        hasConnectedSocketIO = false
     }
 
     // MARK: - Shot Staging
@@ -97,7 +100,7 @@ public actor MeticulousServer {
         print("[MeticulousServer] Staged Meticulous shot with ID '\(newId)'")
     }
 
-    /// Convenience helper to stage a completed  LeverPilot `ShotRecord` directly.
+    /// Convenience helper to stage a completed LeverPilot `ShotRecord` directly.
     public func stageShot(_ record: ShotRecord) {
         stageShot(record.toMeticulousHistoryEntry())
     }
@@ -155,37 +158,55 @@ public actor MeticulousServer {
     private func route(request: String) -> Data {
         let lines = request.components(separatedBy: "\r\n")
         guard let firstLine = lines.first else {
-            return httpResponse(statusCode: 400, body: "Bad Request")
+            return httpResponse(statusCode: 400, text: "Bad Request")
         }
 
         logVerbose("[MeticulousServer] >>> \(firstLine)")
         let parts = firstLine.components(separatedBy: " ")
         guard parts.count >= 2 else {
-            return httpResponse(statusCode: 400, body: "Bad Request")
+            return httpResponse(statusCode: 400, text: "Bad Request")
         }
 
         let method = parts[0]
         let path = parts[1]
 
-        // 1. CORS Preflight
+        // 1. Universal CORS Preflight
         if method == "OPTIONS" {
             logVerbose("[MeticulousServer] <<< 204 No Content (OPTIONS Preflight)")
             return corsPreflightResponse()
         }
         
-        // 2. Socket.IO Handshake
+        // 2. Engine.IO / Socket.IO Handshake & Heartbeat
         if path.hasPrefix("/socket.io/") {
-            logVerbose("[MeticulousServer] <<< 200 OK (Socket.IO Handshake)")
-            if path.contains("sid=") {
-                return httpResponse(statusCode: 200, text: "40{\"sid\":\"bb123\"}")
-            } else {
+            // Engine.IO Rule: All client POSTs carrying packets must be answered with "ok"
+            if method == "POST" {
+                logVerbose("[MeticulousServer] <<< 200 OK (Socket.IO POST -> 'ok')")
+                return httpResponse(statusCode: 200, text: "ok")
+            }
+
+            // Engine.IO Rule: Initial handshake GET (no sid) gets the open packet
+            if !path.contains("sid=") {
+                self.hasConnectedSocketIO = false
+                logVerbose("[MeticulousServer] <<< 200 OK (Engine.IO Open Packet)")
                 let openPacket = "0{\"sid\":\"bb123\",\"upgrades\":[],\"pingInterval\":25000,\"pingTimeout\":20000,\"maxPayload\":1000000}"
                 return httpResponse(statusCode: 200, text: openPacket)
             }
+
+            // Engine.IO Rule: Long-poll GET with sid
+            if !self.hasConnectedSocketIO {
+                // First GET poll: emit Socket.IO connect ack for default namespace '/'
+                self.hasConnectedSocketIO = true
+                logVerbose("[MeticulousServer] <<< 200 OK (Socket.IO Namespace Connect)")
+                return httpResponse(statusCode: 200, text: "40{\"sid\":\"bb123\"}")
+            } else {
+                // Subsequent polls: emit Pong (packet type '3') to satisfy heartbeat
+                logVerbose("[MeticulousServer] <<< 200 OK (Engine.IO Pong)")
+                return httpResponse(statusCode: 200, text: "3")
+            }
         }
 
-        // 3. Settings / Presence Handshake from BQ
-        if method == "GET" && path.hasPrefix("/api/v1/settings") {
+        // 3. Settings / Presence Probe from BQ
+        if path.hasPrefix("/api/v1/settings") {
             logVerbose("[MeticulousServer] <<< 200 OK (/api/v1/settings)")
             let settingsPayload = "{\"config\":{\"machine\":\"Flair 58 (Meticulous Emulated)\"},\"heat_on_boot\":true}"
             return httpResponse(statusCode: 200, json: settingsPayload)
@@ -194,11 +215,15 @@ public actor MeticulousServer {
         // 4. Ingestion & Telemetry History Endpoint
         if path.hasPrefix("/api/v1/history") {
             guard let staged = self.stagedShot else {
+                logVerbose("[MeticulousServer] <<< 200 OK (/api/v1/history -> empty)")
                 let emptyResponse = "{\"history\":[]}"
                 return httpResponse(statusCode: 200, json: emptyResponse)
             }
 
-            let isDetailRequest = request.contains("\"dump_data\":true") || request.contains("\"dump_data\": true")
+            // Detect dump_data in URL query param OR in JSON body
+            let isDetailRequest = request.contains("dump_data=true")
+                || request.contains("\"dump_data\":true")
+                || request.contains("\"dump_data\": true")
 
             if isDetailRequest {
                 print("[MeticulousServer] <<< 200 OK: Serving detailed telemetry for '\(staged.id)'")
@@ -206,7 +231,7 @@ public actor MeticulousServer {
                 if let encoded = try? JSONEncoder().encode(response),
                    let jsonString = String(data: encoded, encoding: .utf8) {
                     
-                    // Trigger completion hook safely
+                    // Trigger delivery ledger hook
                     let callback = self.onShotDelivered
                     Task {
                         callback?()
@@ -214,7 +239,7 @@ public actor MeticulousServer {
                     return httpResponse(statusCode: 200, json: jsonString)
                 }
             } else {
-                logVerbose("[MeticulousServer] <<< 200 OK: Serving shot listing (dump_data: false)")
+                logVerbose("[MeticulousServer] <<< 200 OK: Serving shot listing for '\(staged.id)' (dump_data: false)")
                 let listingShot = staged.withoutData()
                 let response = MeticulousHistoryResponse(history: [listingShot])
                 if let encoded = try? JSONEncoder().encode(response),
@@ -231,7 +256,7 @@ public actor MeticulousServer {
         }
 
         logVerbose("[MeticulousServer] <<< 404 Not Handled: \(method) \(path)")
-        return httpResponse(statusCode: 404, body: "Not Found")
+        return httpResponse(statusCode: 404, text: "Not Found")
     }
 
     private func logVerbose(_ message: String) {
@@ -240,14 +265,14 @@ public actor MeticulousServer {
         }
     }
 
-    // MARK: - HTTP Encoders
+    // MARK: - HTTP Encoders (Strict Header Hygiene & Permissive CORS)
 
     private func corsPreflightResponse() -> Data {
         let headers = """
         HTTP/1.1 204 No Content\r
         Access-Control-Allow-Origin: *\r
         Access-Control-Allow-Methods: GET, POST, OPTIONS\r
-        Access-Control-Allow-Headers: Content-Type, Accept, Authorization\r
+        Access-Control-Allow-Headers: *\r
         Connection: close\r
         \r\n
         """
@@ -260,24 +285,12 @@ public actor MeticulousServer {
         Content-Type: application/json\r
         Access-Control-Allow-Origin: *\r
         Access-Control-Allow-Methods: GET, POST, OPTIONS\r
-        Access-Control-Allow-Headers: Content-Type, Accept, Authorization\r
+        Access-Control-Allow-Headers: *\r
         Connection: close\r
         Content-Length: \(json.utf8.count)\r
         \r\n
         """
         return Data((headers + json).utf8)
-    }
-
-    private func httpResponse(statusCode: Int, body: String) -> Data {
-        let headers = """
-        HTTP/1.1 \(statusCode) Status\r
-        Content-Type: text/plain\r
-        Access-Control-Allow-Origin: *\r
-        Connection: close\r
-        Content-Length: \(body.utf8.count)\r
-        \r\n
-        """
-        return Data((headers + body).utf8)
     }
     
     private func httpResponse(statusCode: Int, text: String) -> Data {
@@ -286,7 +299,7 @@ public actor MeticulousServer {
         Content-Type: text/plain; charset=UTF-8\r
         Access-Control-Allow-Origin: *\r
         Access-Control-Allow-Methods: GET, POST, OPTIONS\r
-        Access-Control-Allow-Headers: Content-Type, Accept, Authorization\r
+        Access-Control-Allow-Headers: *\r
         Connection: close\r
         Content-Length: \(text.utf8.count)\r
         \r\n
