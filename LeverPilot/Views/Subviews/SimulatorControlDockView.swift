@@ -2,8 +2,6 @@
 //  SimulatorControlDockView.swift
 //  LeverPilot
 //
-//  Created by Ben Self on 9/7/26.
-//
 
 import SwiftUI
 import MeticulousProfile
