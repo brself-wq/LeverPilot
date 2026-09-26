@@ -1,8 +1,30 @@
+# =========================
+# macOS System Files
+# =========================
 .DS_Store
+.Trashes
+.Spotlight-V100
+
+# =========================
+# Swift Package Manager & Build
+# =========================
 .build/
-Packages/
-xcuserdata/
+.swiftpm/
+
+# =========================
+# Xcode & IDE User Data
+# =========================
 DerivedData/
-.swiftpm/configuration/registries.json
-.swiftpm/xcode/package.xcworkspace/contents.xcworkspacedata
+*.xcodeproj/xcuserdata/
+*.xcodeproj/project.xcworkspace/xcuserdata/
+*.xcworkspace/xcuserdata/
+*.xccache/
+*.xcresult/
+*.ideaproject/
+.idea/
+
+# =========================
+# Secrets & Environment
+# =========================
+.env
 .netrc
