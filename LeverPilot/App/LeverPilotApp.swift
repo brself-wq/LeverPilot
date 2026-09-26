@@ -160,8 +160,18 @@ struct LeverPilotApp: App {
                 }
                 updateIdleTimer()
             }
-            .onChange(of: scenePhase) { _, _ in
+            .onChange(of: scenePhase) { _, newPhase in
                 updateIdleTimer()
+                
+                // Revive the Meticulous server if returning from sleep/background
+                if newPhase == .active {
+                    Task {
+                        await MeticulousServer.shared.configure(
+                            port: settingsStore.meticulousPort,
+                            verbose: settingsStore.verboseServerLogging
+                        )
+                    }
+                }
             }
             .onChange(of: settingsStore.keepDisplayAwake) { _, _ in
                 updateIdleTimer()

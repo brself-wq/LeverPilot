@@ -36,11 +36,20 @@ public final class ScenarioStore {
             if let customURL {
                 self.shotLogsDirectory = customURL
             } else {
-                guard let appSupport = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {
-                    fatalError("CRITICAL: Application Support directory is unavailable.")
+                guard let docs = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first else {
+                    fatalError("CRITICAL: Documents directory is unavailable.")
                 }
-                self.shotLogsDirectory = appSupport
-                    .appendingPathComponent("ShotLogs", isDirectory: true)
+                let targetDir = docs.appendingPathComponent("ShotLogs", isDirectory: true)
+                
+                // One-time silent migration from Application Support -> Documents/ShotLogs
+                if let legacyAppSupport = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first {
+                    let oldDir = legacyAppSupport.appendingPathComponent("ShotLogs", isDirectory: true)
+                    if fileManager.fileExists(atPath: oldDir.path()) && !fileManager.fileExists(atPath: targetDir.path()) {
+                        try? fileManager.moveItem(at: oldDir, to: targetDir)
+                    }
+                }
+                
+                self.shotLogsDirectory = targetDir
             }
             ensureDirectoryExists()
             loadAllScenarios(bundle: bundle)

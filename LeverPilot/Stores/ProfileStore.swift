@@ -32,11 +32,20 @@ public final class ProfileStore {
             if let customURL {
                 self.userProfilesDirectory = customURL
             } else {
-                guard let appSupport = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {
-                    fatalError("CRITICAL: Application Support directory is unavailable.")
+                guard let docs = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first else {
+                    fatalError("CRITICAL: Documents directory is unavailable.")
                 }
-                self.userProfilesDirectory = appSupport
-                    .appendingPathComponent("Profiles", isDirectory: true)
+                let targetDir = docs.appendingPathComponent("Profiles", isDirectory: true)
+                
+                // One-time silent migration from Application Support -> Documents/Profiles
+                if let legacyAppSupport = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first {
+                    let oldDir = legacyAppSupport.appendingPathComponent("Profiles", isDirectory: true)
+                    if fileManager.fileExists(atPath: oldDir.path()) && !fileManager.fileExists(atPath: targetDir.path()) {
+                        try? fileManager.moveItem(at: oldDir, to: targetDir)
+                    }
+                }
+                
+                self.userProfilesDirectory = targetDir
             }
             ensureDirectoryExists()
             loadAllProfiles(bundle: bundle)

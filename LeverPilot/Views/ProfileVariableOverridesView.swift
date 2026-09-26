@@ -141,7 +141,7 @@ public struct ProfileVariableOverridesView: View {
                 .font(.system(size: 10, weight: .heavy, design: .monospaced))
                 .foregroundStyle(.secondary)
             
-            VStack(spacing: 10) {
+            VStack(spacing: 12) {
                 // 1. Dose
                 TargetRowStepper(
                     icon: "cup.and.saucer.fill",
@@ -192,7 +192,7 @@ public struct ProfileVariableOverridesView: View {
                     .foregroundStyle(.secondary)
             }
             
-            VStack(spacing: 10) {
+            VStack(spacing: 12) {
                 ForEach(originalProfile.variables, id: \.key) { variable in
                     if let binding = binding(for: variable.key) {
                         VariableRowControl(
@@ -218,7 +218,7 @@ public struct ProfileVariableOverridesView: View {
             
             Spacer()
             
-            // High-Contrast Primary Apply Button (White pill)
+            // High-Contrast Primary Apply Button
             Button(action: applyAndConfirm) {
                 HStack(spacing: 6) {
                     Image(systemName: "checkmark")
@@ -274,7 +274,7 @@ public struct ProfileVariableOverridesView: View {
     }
 }
 
-// MARK: - Target Stepper Row
+// MARK: - Target Stepper + Slider Row
 
 private struct TargetRowStepper: View {
     let icon: String
@@ -285,56 +285,69 @@ private struct TargetRowStepper: View {
     let range: ClosedRange<Double>
     let subtitle: String
     
+    private var formattedValue: String {
+        step < 1.0 ? String(format: "%.1f", value) : String(format: "%.0f", value)
+    }
+    
     var body: some View {
-        HStack {
-            HStack(spacing: 10) {
-                Image(systemName: icon)
-                    .font(.system(size: 13))
-                    .foregroundStyle(.secondary)
-                    .frame(width: 22)
+        VStack(spacing: 8) {
+            HStack {
+                HStack(spacing: 10) {
+                    Image(systemName: icon)
+                        .font(.system(size: 13))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 22)
+                    
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(label)
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundStyle(.white)
+                        Text(subtitle)
+                            .font(.system(size: 10))
+                            .foregroundStyle(.tertiary)
+                    }
+                }
                 
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(label)
-                        .font(.system(size: 13, weight: .bold))
-                        .foregroundStyle(.white)
-                    Text(subtitle)
-                        .font(.system(size: 10))
-                        .foregroundStyle(.tertiary)
+                Spacer()
+                
+                // Stepper Controls with Large Touch Targets
+                HStack(spacing: 6) {
+                    Button(action: decrement) {
+                        Image(systemName: "minus")
+                            .font(.system(size: 12, weight: .bold))
+                            .frame(width: 36, height: 36)
+                            .background(Theme.Surface.control)
+                            .clipShape(RoundedRectangle(cornerRadius: Theme.Layout.controlRadius))
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    
+                    HStack(spacing: 2) {
+                        Text(formattedValue)
+                            .font(.system(size: 15, weight: .bold, design: .rounded).monospacedDigit())
+                            .foregroundStyle(.white)
+                        Text(unit)
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundStyle(.secondary)
+                    }
+                    .frame(minWidth: 58, alignment: .center)
+                    
+                    Button(action: increment) {
+                        Image(systemName: "plus")
+                            .font(.system(size: 12, weight: .bold))
+                            .frame(width: 36, height: 36)
+                            .background(Theme.Surface.control)
+                            .clipShape(RoundedRectangle(cornerRadius: Theme.Layout.controlRadius))
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
                 }
             }
             
-            Spacer()
-            
-            HStack(spacing: 6) {
-                Button(action: decrement) {
-                    Image(systemName: "minus")
-                        .font(.system(size: 11, weight: .bold))
-                        .frame(width: 28, height: 28)
-                        .background(Theme.Surface.control)
-                        .clipShape(RoundedRectangle(cornerRadius: Theme.Layout.controlRadius))
-                }
-                .buttonStyle(.plain)
-                
-                EditableNumericField(
-                    value: $value,
-                    step: step,
-                    range: range
-                )
-                
-                Text(unit)
-                    .font(.system(size: 11, weight: .bold))
-                    .foregroundStyle(.secondary)
-                    .frame(width: 20, alignment: .leading)
-                
-                Button(action: increment) {
-                    Image(systemName: "plus")
-                        .font(.system(size: 11, weight: .bold))
-                        .frame(width: 28, height: 28)
-                        .background(Theme.Surface.control)
-                        .clipShape(RoundedRectangle(cornerRadius: Theme.Layout.controlRadius))
-                }
-                .buttonStyle(.plain)
-            }
+            // Continuous Scrubbing Slider
+            Slider(value: $value, in: range, step: step)
+                .tint(.white.opacity(0.8))
+                .controlSize(.small)
         }
         .padding(12)
         .background(Color.white.opacity(0.03))
@@ -360,7 +373,7 @@ private struct TargetRowStepper: View {
     }
 }
 
-// MARK: - Variable Row Control
+// MARK: - Variable Stepper + Slider Row
 
 private struct VariableRowControl: View {
     let variable: Variable
@@ -377,6 +390,10 @@ private struct VariableRowControl: View {
         }
     }
     
+    private var formattedValue: String {
+        config.step < 1.0 ? String(format: "%.1f", value) : String(format: "%.0f", value)
+    }
+    
     var body: some View {
         VStack(spacing: 8) {
             HStack {
@@ -391,38 +408,41 @@ private struct VariableRowControl: View {
                 
                 Spacer()
                 
+                // Stepper Controls
                 HStack(spacing: 6) {
                     Button(action: decrement) {
                         Image(systemName: "minus")
-                            .font(.system(size: 10, weight: .bold))
-                            .frame(width: 26, height: 26)
+                            .font(.system(size: 12, weight: .bold))
+                            .frame(width: 36, height: 36)
                             .background(Theme.Surface.control)
-                            .clipShape(RoundedRectangle(cornerRadius: 5))
+                            .clipShape(RoundedRectangle(cornerRadius: Theme.Layout.controlRadius))
+                            .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                     
-                    EditableNumericField(
-                        value: $value,
-                        step: config.step,
-                        range: config.range
-                    )
-                    
-                    Text(config.unit)
-                        .font(.system(size: 10, weight: .bold))
-                        .foregroundStyle(.secondary)
-                        .frame(width: 26, alignment: .leading)
+                    HStack(spacing: 2) {
+                        Text(formattedValue)
+                            .font(.system(size: 15, weight: .bold, design: .rounded).monospacedDigit())
+                            .foregroundStyle(.white)
+                        Text(config.unit)
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundStyle(.secondary)
+                    }
+                    .frame(minWidth: 58, alignment: .center)
                     
                     Button(action: increment) {
                         Image(systemName: "plus")
-                            .font(.system(size: 10, weight: .bold))
-                            .frame(width: 26, height: 26)
+                            .font(.system(size: 12, weight: .bold))
+                            .frame(width: 36, height: 36)
                             .background(Theme.Surface.control)
-                            .clipShape(RoundedRectangle(cornerRadius: 5))
+                            .clipShape(RoundedRectangle(cornerRadius: Theme.Layout.controlRadius))
+                            .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                 }
             }
             
+            // Continuous Scrubbing Slider
             Slider(value: $value, in: config.range, step: config.step)
                 .tint(.white.opacity(0.8))
                 .controlSize(.small)
@@ -448,101 +468,5 @@ private struct VariableRowControl: View {
         } else {
             value = raw.rounded()
         }
-    }
-}
-
-// MARK: - Keyboard-Editable Numeric Field
-
-private struct EditableNumericField: View {
-    @Binding var value: Double
-    let step: Double
-    let range: ClosedRange<Double>
-    
-    @State private var textInput: String = ""
-    @FocusState private var isFocused: Bool
-    
-    private var borderStrokeColor: Color {
-        isFocused ? Color.white.opacity(0.5) : Color.white.opacity(0.1)
-    }
-    
-    private var borderStrokeWidth: CGFloat {
-        isFocused ? 1.5 : 1.0
-    }
-    
-    private var backgroundFillColor: Color {
-        isFocused ? Color.white.opacity(0.12) : Color.white.opacity(0.05)
-    }
-    
-    var body: some View {
-        let field = TextField("", text: $textInput)
-            .multilineTextAlignment(.center)
-            .font(.system(size: 13, weight: .bold, design: .rounded).monospacedDigit())
-            .foregroundStyle(.white)
-            .frame(minWidth: 46, maxWidth: 58)
-            .padding(.horizontal, 4)
-            .padding(.vertical, 3)
-            .background(
-                RoundedRectangle(cornerRadius: 6)
-                    .fill(backgroundFillColor)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 6)
-                    .stroke(borderStrokeColor, lineWidth: borderStrokeWidth)
-            )
-            .focused($isFocused)
-            .onAppear {
-                syncTextFromValue()
-                DispatchQueue.main.async {
-                    isFocused = false
-                }
-            }
-            .onChange(of: value) { _, _ in
-                if !isFocused {
-                    syncTextFromValue()
-                }
-            }
-            .onChange(of: isFocused) { _, focused in
-                if !focused {
-                    commitText()
-                }
-            }
-            .onSubmit {
-                commitText()
-                isFocused = false
-            }
-        
-        #if os(iOS)
-        field.keyboardType(.decimalPad)
-        #else
-        field
-        #endif
-    }
-    
-    private func syncTextFromValue() {
-        let fmt = step < 1.0 ? "%.1f" : "%.0f"
-        textInput = String(format: fmt, value)
-    }
-    
-    private func commitText() {
-        let cleaned = textInput
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-            .replacingOccurrences(of: ",", with: ".")
-        
-        guard let parsed = Double(cleaned) else {
-            syncTextFromValue()
-            return
-        }
-        
-        let minVal = range.lowerBound
-        let maxVal = range.upperBound
-        let clamped = min(max(parsed, minVal), maxVal)
-        
-        if step < 1.0 {
-            value = (clamped * 10.0).rounded() / 10.0
-        } else {
-            value = clamped.rounded()
-        }
-        
-        syncTextFromValue()
     }
 }

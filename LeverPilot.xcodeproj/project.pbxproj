@@ -10,6 +10,8 @@
 		B55B26DC3054331600C1DBE2 /* EspressoBLE in Frameworks */ = {isa = PBXBuildFile; productRef = B55B26DB3054331600C1DBE2 /* EspressoBLE */; };
 		B5996445304F462100341BC9 /* MeticulousProfile in Frameworks */ = {isa = PBXBuildFile; productRef = B5996444304F462100341BC9 /* MeticulousProfile */; };
 		B5B10100304A37E900F70661 /* MeticulousProfile in Frameworks */ = {isa = PBXBuildFile; productRef = B5B100FF304A37E900F70661 /* MeticulousProfile */; };
+		B5DDC0AA3068308F0095F5B5 /* LICENSE in Resources */ = {isa = PBXBuildFile; fileRef = B5DDC0A9306830870095F5B5 /* LICENSE */; };
+		B5DDC0AC306830B10095F5B5 /* README.md in Resources */ = {isa = PBXBuildFile; fileRef = B5DDC0AB306830AA0095F5B5 /* README.md */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -38,6 +40,8 @@
 		B5996437304F42DF00341BC9 /* LeverPilotTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = LeverPilotTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		B5996446304F4B9200341BC9 /* LeverPilot.xctestplan */ = {isa = PBXFileReference; lastKnownFileType = text; path = LeverPilot.xctestplan; sourceTree = "<group>"; };
 		B5B100DE304A370300F70661 /* LeverPilot.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = LeverPilot.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		B5DDC0A9306830870095F5B5 /* LICENSE */ = {isa = PBXFileReference; lastKnownFileType = text; path = LICENSE; sourceTree = "<group>"; };
+		B5DDC0AB306830AA0095F5B5 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -143,6 +147,8 @@
 		B5B100D5304A370300F70661 = {
 			isa = PBXGroup;
 			children = (
+				B5DDC0AB306830AA0095F5B5 /* README.md */,
+				B5DDC0A9306830870095F5B5 /* LICENSE */,
 				B5996446304F4B9200341BC9 /* LeverPilot.xctestplan */,
 				B57F2C743052D2B1009DBA78 /* Docs */,
 				B5996438304F42DF00341BC9 /* LeverPilotTests */,
@@ -268,6 +274,8 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				B5DDC0AA3068308F0095F5B5 /* LICENSE in Resources */,
+				B5DDC0AC306830B10095F5B5 /* README.md in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
