@@ -1,11 +1,11 @@
 # ADR 009: BLE Fault-Tolerance, Telemetry Continuity & Sensor Staleness Policy
 #architecture/adr #ble #telemetry #heuristics #fault-tolerance #beanconqueror
 
-**Status:** Accepted  
-**Date:** September 20, 2026  
+**Status:** Accepted & Implemented  
+**Date:** September 20, 2026 (Updated: September 26, 2026)  
 **Author:** Ben Self  
-**Deciders:** Architecture Team, BaristaPilot Core  
-**Target:** `EspressoBLE`, `LeverPilot/Engine/BLETelemetryProvider`, `LeverPilot/State/ShotCoordinator`, `LeverPilot/Views/BaristaHUDView`  
+**Deciders:** Architecture Team, LeverPilot Core  
+**Target:** `EspressoBLE`, `LeverPilot/Engine/BLETelemetryProvider`, `LeverPilot/Engine/ShotCoordinator`, `LeverPilot/Views/BaristaHUDView`  
 
 ---
 
@@ -47,29 +47,24 @@ To eliminate dw/dt rate-of-change spikes when packet flow resumes after a gap:
 
 ### 2.5. Mid-Flight Reconnection Immunity
 Re-establishing a Bluetooth connection while the machine is in `.extracting` must never corrupt the active extraction:
-* **No Re-Tare**: The manager is strictly forbidden from issuing a hardware tare command (`0x03, 0x0A, 0x01...`) on reconnect.
+* **No Re-Tare**: The manager is strictly forbidden from issuing a hardware tare command on reconnect.
 * **No Timer Reset**: The scale onboard timer must not be zeroed or re-initialized.
 * **No HUD Chart Wipe**: The HUD chart retains its active curve and continues uninterrupted.
-* **Bookoo Transducer Handshake**: The enable-transmission command (`0x02, 0x0C, 0x01...`) is re-asserted cleanly upon GATT discovery to resume pressure streaming without re-arming the coordinator.
 
 ### 2.6. Listener Hygiene on Auto-Reconnect
 To prevent duplicate callback leaks and notification stacking when a peripheral disconnects and reconnects multiple times:
 * Existing characteristic subscriptions and continuation listeners are explicitly torn down before re-attaching notifications.
 
 ### 2.7. Granular CoreBluetooth State Surfacing & User Alerts
-`EspressoBLEManager` exposes an explicit `bluetoothState` enum (`.poweredOn`, `.poweredOff`, `.unauthorized`, `.unsupported`, `.resetting`).
 * **Console Deck Alert**: If Bluetooth is `.poweredOff` or `.unauthorized`, pre-flight arming is blocked with an actionable alert routing the barista to iOS Settings.
-* **HUD Signal Banner**: If a sensor drops during active extraction, an amber non-blocking badge (`SCALE SIGNAL LOST` or `PRESSURE TRANSDUCER OFFLINE`) is displayed on the HUD without shifting layout geometry.
+* **HUD Signal Banner**: If a sensor drops during active extraction, an amber non-blocking badge (`SCALE SIGNAL LOST` or `PRESSURE DEVICE OFFLINE`) is displayed on the HUD without shifting layout geometry.
 
 ---
 
 ## 3. Consequences
 
 ### Positive
-* **Invulnerable Extractions**: Transient radio drops or RF interference will never ruin a shot of espresso through premature auto-stop cutoffs or zero-weight spikes.
+* **Invulnerable Extractions**: Transient radio drops or RF interference will never ruin a shot through premature auto-stop cutoffs or zero-weight spikes.
 * **Continuous Flight Record**: Telemetry graphs remain smooth, monotonic, and physically plausible across packet gaps.
 * **Seamless Hardware Recovery**: Moving a scale out of range and returning it resumes data ingestion without barista intervention.
 * **Swift 6 Strict Concurrency Safe**: Health flags and heartbeat evaluations flow deterministically through the decoupled `MachineFrame` stream.
-
-### Negative / Trade-offs
-* Holding the last known weight during a prolonged scale disconnect means yield and flow flatline until packets resume. If the disconnect is permanent, the shot must ultimately be terminated by profile duration triggers or manual barista abort.

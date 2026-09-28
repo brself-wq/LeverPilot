@@ -1,0 +1,121 @@
+{
+  "name": "ExDos",
+  "id": "e4b34a6e-a4c8-44ac-bf53-0ad4b69a2e23",
+  "author": "John Barry",
+  "author_id": "d9123a0a-d3d7-40fd-a548-b81376e43f23",
+  "previous_authors": [
+    {
+      "name": "Joe D",
+      "author_id": "d9123a0a-d3d7-40fd-a548-b81376e43f23",
+      "profile_id": "0cdf18ca-d72e-4776-8e25-7b3279907dce"
+    }
+  ],
+  "display": {
+    "image": "https://icabvbmlxjosztnrxelf.supabase.co/storage/v1/object/public/bag-images/profiles/158f7c1d-18f4-4d36-9da3-5fb89f0d002a/1781298628470.jpg"
+  },
+  "temperature": 92,
+  "final_weight": 45,
+  "variables": [
+    {
+      "name": "Pressure",
+      "key": "pressure_1",
+      "type": "pressure",
+      "value": 6
+    }
+  ],
+  "stages": [
+    {
+      "name": "Preinfusion",
+      "key": "preinfusion_1",
+      "type": "flow",
+      "dynamics": {
+        "points": [
+          [
+            0,
+            10
+          ]
+        ],
+        "over": "time",
+        "interpolation": "linear"
+      },
+      "exit_triggers": [
+        {
+          "type": "pressure",
+          "value": 4.5,
+          "relative": false,
+          "comparison": ">="
+        },
+        {
+          "type": "time",
+          "value": 20,
+          "relative": true,
+          "comparison": ">="
+        }
+      ],
+      "limits": []
+    },
+    {
+      "name": "Dynamic Bloom",
+      "key": "blooming_1",
+      "type": "flow",
+      "dynamics": {
+        "points": [
+          [
+            0,
+            0
+          ]
+        ],
+        "over": "time",
+        "interpolation": "linear"
+      },
+      "exit_triggers": [
+        {
+          "type": "pressure",
+          "value": 2.2,
+          "relative": false,
+          "comparison": "<="
+        },
+        {
+          "type": "time",
+          "value": 40,
+          "relative": true,
+          "comparison": ">="
+        }
+      ],
+      "limits": []
+    },
+    {
+      "name": "Extractamundo",
+      "key": "extract_1",
+      "type": "pressure",
+      "dynamics": {
+        "points": [
+          [
+            0,
+            "$pressure_1"
+          ],
+          [
+            60,
+            "$pressure_1"
+          ]
+        ],
+        "over": "time",
+        "interpolation": "linear"
+      },
+      "exit_triggers": [
+        {
+          "type": "time",
+          "value": 60,
+          "relative": true,
+          "comparison": ">="
+        }
+      ],
+      "limits": [
+        {
+          "type": "flow",
+          "value": 4
+        }
+      ]
+    }
+  ]
+}

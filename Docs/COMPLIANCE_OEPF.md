@@ -20,7 +20,7 @@
 
 ### A. Global `final_weight` as Supervisor Cutoff
 * **OEPF Ambiguity**: Some profile implementations treat `final_weight` as an implicit exit trigger inside every stage.
-* **Engine Decision**: In LeverStudio / BaristaPilot, `ProfileExecutionEngine` does *not* trip `shouldAdvanceStage` when `final_weight` is reached if explicit stage exit triggers are pending. Doing so on a manual lever machine would advance a pre-infusion stage into a 9-bar infusion stage into an already full cup. Shot completion is strictly supervised by the `ShotCoordinator`.
+* **Engine Decision**: In LeverPilot, `ProfileExecutionEngine` does *not* trip `shouldAdvanceStage` when `final_weight` is reached if explicit stage exit triggers are pending. Doing so on a manual lever machine would advance a pre-infusion stage into a 9-bar infusion stage into an already full cup. Shot completion is strictly supervised by `ShotCoordinator`.
 
 ### B. Unified Decay Trigger Progress Mapping
 * For descending exit triggers (`comparison == "<="`), progress is calculated against the stage entry baseline:
@@ -50,16 +50,16 @@
 
 ## 3. Handling Incompatibilities in Machine Capabilities (OEPF §4 Compliance)
 
-The Flair 58 is a manual, human-powered lever platform equipped with Bluetooth pressure and scale transducers. It lacks a motorized piston actuator and a linear piston displacement sensor. BaristaPilot implements OEPF §4 (*Handling Incompatibilities in Machine Capabilities*) as follows:
+The Flair 58 is a manual, human-powered lever platform equipped with Bluetooth pressure and scale transducers. It lacks a motorized piston actuator and a linear piston displacement sensor. LeverPilot implements OEPF §4 (*Handling Incompatibilities in Machine Capabilities*) as follows:
 
 1. **`piston_position` Dynamics & Triggers**:
    - **Approach**: Interpretation Fallback / Approximation.
    - Manual levers do not possess a linear displacement transducer. Profiles configuring `dynamics.over = pistonPosition` or exit triggers on `piston_position` cannot be directly measured.
-   - For MVP, BaristaPilot will display a pre-flight incompatibility warning when such a profile is selected, informing the user that piston position parameters cannot be monitored or driven.
+   - LeverPilot displays an informational pre-flight notice when such a profile is selected.
 
 2. **`type = power` Stages**:
    - **Approach**: Visual Operator Effort Guidance.
    - Motor current control is mechanically inapplicable to manual levers. Power stages (0–100%) are rendered on the HUD as a suggested relative pulling effort guide for the human operator.
 
 3. **Pre-Flight Validation**:
-   - Profiles requiring capabilities unsupported by the manual lever hardware trigger non-blocking informational warnings in the pre-flight check, maintaining recipe portability without crashing the execution engine.
+   - Profiles requiring capabilities unsupported by manual lever hardware trigger non-blocking informational warnings in pre-flight checks, maintaining recipe portability without crashing the execution engine.

@@ -1,16 +1,15 @@
-
 # ADR 003: OEPF Spec Compliance & Flair 58 Guidance Engine
 #architecture/adr #espresso/copilot/engine #meticulous/spec
 
-**Status:** ::Accepted & Verified::
-**Date:** September 8, 2026
-**Target Target:** `ProfileExecutionEngine.swift`, `MeticulousComplianceTests.swift`
-**Verification:** 31 / 31 tests passing (0 skipped)
+**Status:** Accepted & Verified  
+**Date:** September 8, 2026 (Updated: September 26, 2026)  
+**Target:** `ProfileExecutionEngine.swift`, `MeticulousComplianceTests.swift`  
+**Verification:** 31 / 31 tests passing (0 skipped)  
 
 ---
 
 ## Executive Summary
-This record formalizes the architectural boundary between **macro machine supervision** and **micro stage evaluation**, establishes the mathematical foundation for continuous trigger progress across ascending/decaying sensor channels, defines zero-order hold setpoint dynamics, and documents a critical Swift enum shadowing trap encountered during implementation.
+This record formalizes the architectural boundary between **macro machine supervision** and **micro stage evaluation**, establishes the mathematical foundation for continuous trigger progress across ascending/decaying sensor channels, defines zero-order hold setpoint dynamics, and documents a critical Swift enum shadowing trap resolved during implementation.
 
 ---
 
@@ -24,14 +23,14 @@ In the Open Espresso Profile Format (OEPF) / Meticulous profile schema, `final_w
 ### Firmware Parity & Physical Reality
 1. **Meticulous Firmware Parity:** In physical Meticulous firmware, piston stall, user abort, and target weight cutoff operate as **external supervisor interrupts / kernel exceptions**. They immediately abort stage execution rather than transitioning between stages.
 2. **Flair 58 Manual Lever Reality:** The manual lever has no motor to cut power. Brew termination is governed by sensor-layer heuristics:
-   - Minimum brew time: `t >= 5.0s`
-   - Minimum brew yield: `w >= 5.0g` (or `yield:dose >= 1:1`)
-   - Trailing flow cutoff: `flow < 0.1 g/s`
+   - Minimum brew time: $t \ge 5.0\text{s}$
+   - Minimum brew yield: $w \ge 5.0\text{g}$ (or $\text{yield} : \text{dose} \ge 1:1$)
+   - Trailing flow cutoff: $\text{flow} \le 0.15\text{ mL/s}$ for $2.0\text{s}$
 
 ### Architectural Decision
 * **`ProfileExecutionEngine` remains a pure stage evaluator:** It does *not* treat global `final_weight` as an intra-stage advance trigger when explicit stage triggers are defined.
-* **The Coordinator (`PlaybackEngine` / Sensor Supervisor) owns shot lifecycle:** When target weight or end-of-pull heuristics trip, the coordinator commands transition directly into `.shotEnded` $\to$ `.ready`.
-* **Engine Responsibility:** The engine continues to report `yieldProgress = min(1.0, currentWeight / finalWeightTarget)` on `GuidanceFrame` for HUD progress display without causing stage advancement.
+* **`ShotCoordinator` owns the shot lifecycle:** When target weight or end-of-pull heuristics trip, the coordinator commands transition directly into `.shotEnded`.
+* **Engine Responsibility:** The engine reports `yieldProgress = min(1.0, currentWeight / finalWeightTarget)` on `GuidanceFrame` for HUD progress display without causing stage advancement.
 
 ---
 
@@ -74,12 +73,19 @@ Analogous to Decent Espresso’s **"fast"** (instant step) vs **"smooth"** (ramp
 
 ---
 
-## 4. Critical Swift Gotcha: `Optional.none` Shadowing Bug
+## 4. Swift Optional Shadowing Bug (`Optional.none`)
 
 ### Incident Analysis
 During test verification, `testStepInterpolation_HoldsPreviousKnot_WithoutLerping` unexpectedly returned `5.0` (linear lerp) instead of `2.0` (step hold).
 
-### Root Cause
-The parameter was initially declared as an optional:
+### Root Cause & Resolution
+The parameter was originally declared as an optional enum:
 ```swift
-interpolation: DynamicsInterpolationType?
+interpolation: DynamicsInterpolationType? = .linear
+```
+When callers passed `.none`, the compiler resolved `.none` as `Optional.none` (i.e. `nil`), falling back to the `.linear` path!
+To eliminate this ambiguity, the parameter was made non-optional with a concrete default:
+```swift
+interpolation: DynamicsInterpolationType = .linear
+```
+This ensures `DynamicsInterpolationType.none` is evaluated deterministically as the zero-order hold interpolation case.
