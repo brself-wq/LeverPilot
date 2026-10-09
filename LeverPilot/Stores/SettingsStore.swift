@@ -28,13 +28,17 @@ public final class SettingsStore {
         didSet { defaults.set(deadFlowSustainDuration, forKey: "settings.deadFlowSustainDuration") }
     }
     
-    // MARK: - Network & Emulation Server
+    // MARK: - Meticulous Machine Emulation Server
+    public var enableMeticulousServer: Bool {
+        didSet { defaults.set(enableMeticulousServer, forKey: "settings.enableMeticulousServer") }
+    }
+    
     public var meticulousPort: Int {
         didSet { defaults.set(meticulousPort, forKey: "settings.meticulousPort") }
     }
     
-    public var verboseServerLogging: Bool {
-        didSet { defaults.set(verboseServerLogging, forKey: "settings.verboseServerLogging") }
+    public var traceLogging: Bool {
+        didSet { defaults.set(traceLogging, forKey: "settings.traceLogging") }
     }
     
     // MARK: - Cockpit & Display
@@ -51,8 +55,9 @@ public final class SettingsStore {
         self.autoStartPressure = defaults.object(forKey: "settings.autoStartPressure") as? Double ?? 0.5
         self.deadFlowThreshold = defaults.object(forKey: "settings.deadFlowThreshold") as? Double ?? 0.15
         self.deadFlowSustainDuration = defaults.object(forKey: "settings.deadFlowSustainDuration") as? Double ?? 2.0
+        self.enableMeticulousServer = defaults.object(forKey: "settings.enableMeticulousServer") as? Bool ?? true
         self.meticulousPort = defaults.object(forKey: "settings.meticulousPort") as? Int ?? 8080
-        self.verboseServerLogging = defaults.bool(forKey: "settings.verboseServerLogging")
+        self.traceLogging = defaults.bool(forKey: "settings.traceLogging")
         self.keepDisplayAwake = defaults.object(forKey: "settings.keepDisplayAwake") as? Bool ?? true
     }
 
@@ -61,8 +66,9 @@ public final class SettingsStore {
         autoStartPressure = 0.5
         deadFlowThreshold = 0.15
         deadFlowSustainDuration = 2.0
+        enableMeticulousServer = true
         meticulousPort = 8080
-        verboseServerLogging = false
+        traceLogging = false
         keepDisplayAwake = true
     }
 }

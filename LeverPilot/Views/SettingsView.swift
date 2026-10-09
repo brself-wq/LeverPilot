@@ -7,9 +7,8 @@ import SwiftUI
 
 public struct SettingsView: View {
     @Bindable var settings: SettingsStore
-    @ObservedObject private var bqStorage = BQStorageManager.shared
+    @ObservedObject private var transponder = MeticulousTransponder.shared
     
-    @State private var isShowingFolderPicker: Bool = false
     @State private var showResetConfirmation: Bool = false
     
     public init(settings: SettingsStore) {
@@ -38,23 +37,15 @@ public struct SettingsView: View {
                         // 2. Extraction & Watchdogs
                         extractionWatchdogsSection
                         
-                        // 3. Meticulous Server & Logging
+                        // 3. Meticulous Machine Emulation Server
                         networkSection
                         
                         // 4. Cockpit & Display
                         displaySection
-                        
-                        // 5. Beanconqueror Integration
-                        beanconquerorSection
                     }
                     .padding(24)
                     .padding(.bottom, 60)
                 }
-            }
-        }
-        .sheet(isPresented: $isShowingFolderPicker) {
-            DocumentPickerView { url in
-                bqStorage.saveFolderBookmark(url: url)
             }
         }
         .confirmationDialog(
@@ -77,7 +68,7 @@ public struct SettingsView: View {
                 Text("Settings")
                     .font(.title3.weight(.black))
                     .foregroundStyle(.white)
-                Text("Workflow defaults, sensor watchdogs, and integrations")
+                Text("Workflow defaults, sensor watchdogs, and machine interfaces")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -122,7 +113,7 @@ public struct SettingsView: View {
         )
     }
     
-    // MARK: - Section 2: Scale & Pressure device
+    // MARK: - Section 2: Scale & Pressure Device
     
     private var extractionWatchdogsSection: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -166,28 +157,62 @@ public struct SettingsView: View {
         )
     }
     
-    // MARK: - Section 3: Meticulous Server & Logging
+    // MARK: - Section 3: Meticulous Machine Emulation Server
     
     private var networkSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            sectionHeader(title: "METICULOUS EMULATION SERVER", subtitle: "Local loopback listener configuration for Beanconqueror")
+            HStack {
+                sectionHeader(
+                    title: "METICULOUS EMULATION SERVER",
+                    subtitle: "Local loopback interface emulating the Meticulous machine API"
+                )
+                Spacer()
+                
+                // Live Status Indicator
+                HStack(spacing: 5) {
+                    Circle()
+                        .fill(statusColor)
+                        .frame(width: 6, height: 6)
+                    Text(statusText)
+                        .font(.system(size: 9, weight: .bold, design: .monospaced))
+                        .foregroundStyle(statusColor)
+                }
+                .padding(.horizontal, 7)
+                .padding(.vertical, 3)
+                .background(Color.white.opacity(0.04))
+                .clipShape(Capsule())
+            }
             
             VStack(spacing: 8) {
+                // Master Enable Switch
+                toggleRow(
+                    icon: "power",
+                    title: "Enable Server",
+                    subtitle: "Listens on 127.0.0.1 for external history and profile queries",
+                    isOn: $settings.enableMeticulousServer
+                )
+                
+                // Configurable Port (Dimmed if server disabled)
                 stepperRow(
                     icon: "network",
                     title: "Loopback Port",
-                    subtitle: "Port on 127.0.0.1 serving telemetry and Socket.IO presence",
+                    subtitle: "TCP port serving REST endpoints and Socket.IO presence",
                     valueString: "\(settings.meticulousPort)",
                     onDecrement: { settings.meticulousPort = max(1024, settings.meticulousPort - 1) },
                     onIncrement: { settings.meticulousPort = min(65535, settings.meticulousPort + 1) }
                 )
+                .opacity(settings.enableMeticulousServer ? 1.0 : 0.45)
+                .disabled(!settings.enableMeticulousServer)
                 
+                // Trace Logging Toggle (Dimmed if server disabled)
                 toggleRow(
                     icon: "terminal.fill",
-                    title: "Verbose Server Traffic Logging",
-                    subtitle: "Logs incoming HTTP request lines and Socket.IO heartbeat pings to stdout",
-                    isOn: $settings.verboseServerLogging
+                    title: "Trace Logging",
+                    subtitle: "Writes incoming client requests and heartbeat events to Documents/MeticulousTrace.log",
+                    isOn: $settings.traceLogging
                 )
+                .opacity(settings.enableMeticulousServer ? 1.0 : 0.45)
+                .disabled(!settings.enableMeticulousServer)
             }
         }
         .padding(16)
@@ -197,6 +222,24 @@ public struct SettingsView: View {
             RoundedRectangle(cornerRadius: Theme.Layout.podRadius)
                 .strokeBorder(Theme.Border.glassGradient, lineWidth: 1)
         )
+    }
+    
+    private var statusText: String {
+        guard settings.enableMeticulousServer else { return "OFF" }
+        switch transponder.state {
+        case .disabled: return "OFF"
+        case .standby:  return "READY (PORT \(settings.meticulousPort))"
+        case .active:   return "CLIENT ACTIVE"
+        }
+    }
+    
+    private var statusColor: Color {
+        guard settings.enableMeticulousServer else { return .secondary }
+        switch transponder.state {
+        case .disabled: return .secondary
+        case .standby:  return .green
+        case .active:   return Color(red: 1.0, green: 0.12, blue: 0.0)
+        }
     }
     
     // MARK: - Section 4: Cockpit & Display
@@ -211,64 +254,6 @@ public struct SettingsView: View {
                 subtitle: "Prevents screen from dimming or locking while armed or extracting",
                 isOn: $settings.keepDisplayAwake
             )
-        }
-        .padding(16)
-        .background(Color.appCard)
-        .clipShape(RoundedRectangle(cornerRadius: Theme.Layout.podRadius))
-        .overlay(
-            RoundedRectangle(cornerRadius: Theme.Layout.podRadius)
-                .strokeBorder(Theme.Border.glassGradient, lineWidth: 1)
-        )
-    }
-    
-    // MARK: - Section 5: Beanconqueror Archive Link
-    
-    private var beanconquerorSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            sectionHeader(title: "BEANCONQUEROR INTEGRATION", subtitle: "Security-scoped folder bookmark to Beanconqueror.zip")
-            
-            HStack(spacing: 12) {
-                Circle()
-                    .fill(bqStorage.isConfigured ? Color.green : Color.orange)
-                    .frame(width: 8, height: 8)
-                
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(bqStorage.isConfigured ? "Beanconqueror Folder Linked" : "Folder Not Linked")
-                        .font(.system(size: 13, weight: .bold))
-                        .foregroundStyle(.white)
-                    Text(bqStorage.syncStatusMessage)
-                        .font(.system(size: 10, design: .monospaced))
-                        .foregroundStyle(.secondary)
-                }
-                
-                Spacer()
-                
-                if bqStorage.isConfigured {
-                    Button {
-                        bqStorage.refresh()
-                    } label: {
-                        Image(systemName: "arrow.clockwise")
-                            .font(.system(size: 11, weight: .bold))
-                    }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
-                }
-                
-                // High-Contrast Link / Change Folder Button
-                Button(action: { isShowingFolderPicker = true }) {
-                    Text(bqStorage.isConfigured ? "Change Folder" : "Link Folder")
-                        .font(.system(size: 11, weight: .bold))
-                        .foregroundStyle(bqStorage.isConfigured ? .white : .black)
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 6)
-                        .background(bqStorage.isConfigured ? Theme.Surface.control : Color.white)
-                        .clipShape(RoundedRectangle(cornerRadius: Theme.Layout.controlRadius))
-                }
-                .buttonStyle(.plain)
-            }
-            .padding(12)
-            .background(Color.white.opacity(0.03))
-            .clipShape(RoundedRectangle(cornerRadius: Theme.Layout.cardRadius))
         }
         .padding(16)
         .background(Color.appCard)
@@ -372,7 +357,7 @@ public struct SettingsView: View {
             
             Toggle("", isOn: isOn)
                 .labelsHidden()
-                .tint(Color.telemetryFlow) // Cockpit cyan instead of generic blue
+                .tint(Color.telemetryFlow)
         }
         .padding(10)
         .background(Color.white.opacity(0.03))

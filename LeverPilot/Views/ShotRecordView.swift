@@ -11,8 +11,6 @@ public struct ShotRecordView: View {
     let record: ShotRecord
     let onDismiss: () -> Void
     
-    @State private var isShowingAddBrewSheet: Bool = false
-    
     public init(
         record: ShotRecord,
         onDismiss: @escaping () -> Void
@@ -59,15 +57,12 @@ public struct ShotRecordView: View {
                 
                 Divider().background(Theme.Border.subtle)
                 
-                // Bottom Action Bar: Done gesture & Add to Beanconqueror
+                // Bottom Action Bar: Done gesture
                 footerBar
                     .padding(.horizontal, 24)
                     .padding(.vertical, 14)
                     .background(Color.appFooter)
             }
-        }
-        .sheet(isPresented: $isShowingAddBrewSheet) {
-            AddToBeanconquerorSheet(record: record)
         }
     }
     
@@ -196,28 +191,7 @@ public struct ShotRecordView: View {
     // MARK: - Bottom Footer Action Bar
     
     private var footerBar: some View {
-        let isDelivered = BQHandoffCoordinator.shared.isDelivered(shotId: record.id)
-
-        return HStack {
-            Button(action: { isShowingAddBrewSheet = true }) {
-                HStack(spacing: 6) {
-                    Image(systemName: isDelivered ? "arrow.clockwise" : "cup.and.saucer.fill")
-                        .font(.system(size: 11, weight: .bold))
-                    Text(isDelivered ? "Re-send to Beanconqueror" : "Add to Beanconqueror")
-                        .font(.system(size: 13, weight: .bold))
-                }
-                .foregroundStyle(.white)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 10)
-                .background(Theme.Surface.control)
-                .clipShape(RoundedRectangle(cornerRadius: Theme.Layout.cardRadius))
-                .overlay(
-                    RoundedRectangle(cornerRadius: Theme.Layout.cardRadius)
-                        .strokeBorder(Theme.Border.glassGradient, lineWidth: 1)
-                )
-            }
-            .buttonStyle(.plain)
-            
+        HStack {
             Spacer()
             
             // High-Contrast Primary Done Button
@@ -229,7 +203,7 @@ public struct ShotRecordView: View {
                         .font(.system(size: 13, weight: .bold))
                 }
                 .foregroundStyle(.black)
-                .padding(.horizontal, 24)
+                .padding(.horizontal, 28)
                 .padding(.vertical, 10)
                 .background(Color.white)
                 .clipShape(RoundedRectangle(cornerRadius: Theme.Layout.cardRadius))

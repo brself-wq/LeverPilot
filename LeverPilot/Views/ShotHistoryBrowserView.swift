@@ -9,11 +9,9 @@ import MeticulousProfile
 
 public struct ShotHistoryBrowserView: View {
     let scenarioStore: ScenarioStore
-    @ObservedObject private var handoff = BQHandoffCoordinator.shared
     
     @State private var selectedShotID: String? = nil
     @State private var searchQuery: String = ""
-    @State private var shotToAddBrew: ShotRecord? = nil
     @State private var shotPendingDelete: ShotRecord? = nil
     @State private var showDeleteConfirmation: Bool = false
     
@@ -62,22 +60,17 @@ public struct ShotHistoryBrowserView: View {
                     emptyStateView
                 } else {
                     HStack(spacing: 0) {
-                        // MASTER COLUMN: Scrollable shot history cards with native swipe-to-delete
                         masterShotList
                             .frame(width: 320)
                         
                         Divider().background(Color.appBorderSubtle)
                         
-                        // DETAIL PANE: Multi-stream telemetry chart & Share
                         if let shot = selectedShot {
                             detailView(for: shot)
                         }
                     }
                 }
             }
-        }
-        .sheet(item: $shotToAddBrew) { shot in
-            AddToBeanconquerorSheet(record: shot)
         }
         .confirmationDialog(
             "Delete Shot Record?",
@@ -106,7 +99,6 @@ public struct ShotHistoryBrowserView: View {
     
     private var topBar: some View {
         HStack(spacing: 14) {
-            // Traversal Chevrons
             HStack(spacing: 6) {
                 Button(action: selectPreviousShot) {
                     Image(systemName: "chevron.left")
@@ -168,7 +160,7 @@ public struct ShotHistoryBrowserView: View {
         }
     }
     
-    // MARK: - Master Shot List (Native Swipe-to-Delete with Custom Theming)
+    // MARK: - Master Shot List
     
     private var masterShotList: some View {
         List {
@@ -191,7 +183,6 @@ public struct ShotHistoryBrowserView: View {
                     .listRowBackground(Color.clear)
             }
             
-            // Bottom clearance for universal hamburger menu
             Color.clear
                 .frame(height: 60)
                 .listRowInsets(EdgeInsets())
@@ -204,9 +195,7 @@ public struct ShotHistoryBrowserView: View {
     }
     
     private func shotRowCard(shot: ShotRecord, isSelected: Bool) -> some View {
-        let isDelivered = handoff.isDelivered(shotId: shot.id)
-
-        return VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 6) {
             HStack {
                 Text(shot.profileName)
                     .font(.system(size: 13, weight: .bold))
@@ -214,21 +203,6 @@ public struct ShotHistoryBrowserView: View {
                     .lineLimit(1)
                 
                 Spacer()
-
-                // Authentic Beanconqueror Caramel Bean Badge
-                if isDelivered {
-                    HStack(spacing: 3) {
-                        CoffeeBeanGlyph()
-                            .fill(Color.bqCaramel)
-                            .frame(width: 8, height: 8)
-                        Text("BQ")
-                            .font(.system(size: 8, weight: .heavy, design: .monospaced))
-                    }
-                    .foregroundStyle(Color.bqCaramel)
-                    .padding(.horizontal, 5)
-                    .padding(.vertical, 2)
-                    .background(Color.bqCaramel.opacity(0.14), in: Capsule())
-                }
                 
                 if shot.isAborted {
                     Text("ABORTED")
@@ -267,23 +241,19 @@ public struct ShotHistoryBrowserView: View {
         )
     }
     
-    // MARK: - Detail Pane (Telemetry Chart & Share)
+    // MARK: - Detail Pane
     
     private func detailView(for shot: ShotRecord) -> some View {
         ViewThatFits(in: .vertical) {
-            // 1. Dominant vertical layout for full iPad viewports
             VStack(spacing: 16) {
                 meticulousGraphCard(for: shot, isFlexible: true)
-                exportActionBar(for: shot)
             }
             .padding(20)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             
-            // 2. Fallback scrollable layout for compact / squished viewports
             ScrollView {
                 VStack(spacing: 16) {
                     meticulousGraphCard(for: shot, isFlexible: false)
-                    exportActionBar(for: shot)
                 }
                 .padding(20)
             }
@@ -298,7 +268,6 @@ public struct ShotHistoryBrowserView: View {
         let avgFlow = flows.isEmpty ? 0.0 : flows.reduce(0, +) / Double(flows.count)
         
         return VStack(spacing: 12) {
-            // Chart Legends
             HStack(spacing: 16) {
                 legendItem(color: Color.telemetryPressure, label: "Pressure (bar)")
                 legendItem(color: Color.telemetryFlow, label: "Flow (mL/s)")
@@ -308,7 +277,6 @@ public struct ShotHistoryBrowserView: View {
             .padding(.horizontal, 14)
             .padding(.top, 14)
             
-            // Chart Body
             Chart {
                 ForEach(shot.samples) { sample in
                     LineMark(
@@ -370,7 +338,6 @@ public struct ShotHistoryBrowserView: View {
             .frame(minHeight: isFlexible ? 220 : 280, maxHeight: isFlexible ? .infinity : 280)
             .padding(.horizontal, 14)
             
-            // Summary Metric Footer Strip
             HStack {
                 summaryMetric(label: "Duration", val: String(format: "%02d:%02d", Int(shot.duration) / 60, Int(shot.duration) % 60))
                 Spacer()
@@ -390,42 +357,6 @@ public struct ShotHistoryBrowserView: View {
         .background(Color.appCard)
         .cornerRadius(12)
         .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.08), lineWidth: 1))
-    }
-    
-    // MARK: - Action Bar (Add Brew to Beanconqueror)
-    
-    private func exportActionBar(for shot: ShotRecord) -> some View {
-        let isDelivered = handoff.isDelivered(shotId: shot.id)
-
-        return HStack {
-            Button {
-                shotToAddBrew = shot
-            } label: {
-                HStack(spacing: 6) {
-                    if isDelivered {
-                        Image(systemName: "arrow.clockwise")
-                            .font(.system(size: 11, weight: .bold))
-                    } else {
-                        CoffeeBeanGlyph()
-                            .fill(Color.bqCaramel)
-                            .frame(width: 12, height: 12)
-                    }
-                    Text(isDelivered ? "Re-send to Beanconqueror" : "Add to Beanconqueror")
-                        .font(.system(size: 11, weight: .bold))
-                }
-                .foregroundStyle(isDelivered ? Color.white : Color.bqCaramel)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 8)
-                .background(isDelivered ? Color.white.opacity(0.06) : Color.bqCaramel.opacity(0.12), in: RoundedRectangle(cornerRadius: 6))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 6)
-                        .stroke(isDelivered ? Color.white.opacity(0.10) : Color.bqCaramel.opacity(0.35), lineWidth: 1)
-                )
-            }
-            .buttonStyle(.plain)
-            
-            Spacer()
-        }
     }
     
     // MARK: - Deletion & Traversal Actions

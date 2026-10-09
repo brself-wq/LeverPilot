@@ -8,6 +8,7 @@ import EspressoBLE
 
 public struct QuickHardwareDockView: View {
     @Bindable var bleManager: EspressoBLEManager
+    @ObservedObject private var transponder = MeticulousTransponder.shared
     @State private var showingSettingsSheet: Bool = false
     
     public init(bleManager: EspressoBLEManager) {
@@ -32,6 +33,11 @@ public struct QuickHardwareDockView: View {
                     .clipShape(Circle())
             }
             .buttonStyle(.plain)
+            
+            // 4. Meticulous Machine Interface Status (Trailing Position)
+            if transponder.state != .disabled {
+                meticulousServerPill
+            }
         }
         .sheet(isPresented: $showingSettingsSheet) {
             HardwareSettingsSheet(bleManager: bleManager)
@@ -96,5 +102,38 @@ public struct QuickHardwareDockView: View {
         .padding(.vertical, 4)
         .background(Color.white.opacity(0.04))
         .cornerRadius(6)
+    }
+    
+    // MARK: - Meticulous Emulation Server Pill
+    
+    private var meticulousServerPill: some View {
+        HStack(spacing: 5) {
+            // Meticulous 'M.' Vector Emblem
+            ZStack {
+                MeticulousGlyph()
+                    .fill(Color.white.opacity(transponder.state == .active ? 0.95 : 0.45))
+                    .frame(width: 13, height: 13)
+                
+                // Active dot illuminates in Meticulous Red (#FF1E00) on client activity
+                if transponder.state == .active {
+                    Circle()
+                        .fill(Color(red: 1.0, green: 0.12, blue: 0.0))
+                        .frame(width: 3.5, height: 3.5)
+                        .offset(x: 4.8, y: 4.8)
+                }
+            }
+            
+            Text(transponder.state == .active ? "ACTIVE" : "STANDBY")
+                .font(.system(size: 8, weight: .heavy, design: .monospaced))
+                .foregroundStyle(transponder.state == .active ? .white : .secondary)
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(Color.white.opacity(transponder.state == .active ? 0.08 : 0.03))
+        .clipShape(RoundedRectangle(cornerRadius: 6))
+        .overlay(
+            RoundedRectangle(cornerRadius: 6)
+                .stroke(transponder.state == .active ? Color.white.opacity(0.20) : Color.clear, lineWidth: 1)
+        )
     }
 }

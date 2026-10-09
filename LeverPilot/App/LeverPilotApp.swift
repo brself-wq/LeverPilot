@@ -107,12 +107,10 @@ struct LeverPilotApp: App {
                                 .foregroundStyle(.secondary.opacity(0.8))
                                 .frame(width: 26, height: 26)
                                 .background(Theme.Surface.control, in: Circle())
-                            // Expands the hit-testing box to 44x44pt while keeping visual circle at 26pt
                                 .frame(width: 44, height: 44)
                                 .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
-                        // Inset by 5pt so the visual circle stays at the exact same 14pt margin (14 - 9 = 5)
                         .padding(5)
                     }
                     .transition(.opacity)
@@ -152,10 +150,15 @@ struct LeverPilotApp: App {
             }
             .preferredColorScheme(.dark)
             .onAppear {
+                // One-time container hygiene sweep of legacy keys
+                UserDefaults.standard.removeObject(forKey: "BQ_Folder_Security_Bookmark")
+                UserDefaults.standard.removeObject(forKey: "bq.delivered_shot_ids")
+
                 Task {
                     await MeticulousServer.shared.configure(
                         port: settingsStore.meticulousPort,
-                        verbose: settingsStore.verboseServerLogging
+                        isEnabled: settingsStore.enableMeticulousServer,
+                        isTraceLoggingEnabled: settingsStore.traceLogging
                     )
                 }
                 updateIdleTimer()
@@ -163,12 +166,15 @@ struct LeverPilotApp: App {
             .onChange(of: scenePhase) { _, newPhase in
                 updateIdleTimer()
                 
-                // Revive the Meticulous server if returning from sleep/background
+                MeticulousTraceLogger.log("[Lifecycle] scenePhase changed to: \(newPhase)")
+
+                // Revive the server if returning from sleep/background
                 if newPhase == .active {
                     Task {
                         await MeticulousServer.shared.configure(
                             port: settingsStore.meticulousPort,
-                            verbose: settingsStore.verboseServerLogging
+                            isEnabled: settingsStore.enableMeticulousServer,
+                            isTraceLoggingEnabled: settingsStore.traceLogging
                         )
                     }
                 }
@@ -179,17 +185,31 @@ struct LeverPilotApp: App {
             .onChange(of: activeExtractionProfile) { _, _ in
                 updateIdleTimer()
             }
+            .onChange(of: settingsStore.enableMeticulousServer) { _, newEnabled in
+                Task {
+                    await MeticulousServer.shared.configure(
+                        port: settingsStore.meticulousPort,
+                        isEnabled: newEnabled,
+                        isTraceLoggingEnabled: settingsStore.traceLogging
+                    )
+                }
+            }
             .onChange(of: settingsStore.meticulousPort) { _, newPort in
                 Task {
                     await MeticulousServer.shared.configure(
                         port: newPort,
-                        verbose: settingsStore.verboseServerLogging
+                        isEnabled: settingsStore.enableMeticulousServer,
+                        isTraceLoggingEnabled: settingsStore.traceLogging
                     )
                 }
             }
-            .onChange(of: settingsStore.verboseServerLogging) { _, newVerbose in
+            .onChange(of: settingsStore.traceLogging) { _, newTrace in
                 Task {
-                    await MeticulousServer.shared.setVerboseLogging(newVerbose)
+                    await MeticulousServer.shared.configure(
+                        port: settingsStore.meticulousPort,
+                        isEnabled: settingsStore.enableMeticulousServer,
+                        isTraceLoggingEnabled: newTrace
+                    )
                 }
             }
         }
@@ -269,7 +289,7 @@ struct LeverPilotApp: App {
                     .font(.headline.weight(.black))
                     .foregroundStyle(.white)
                 
-                Text("Save telemetry to history and sync to Beanconqueror, discard this pull, or return to brewing.")
+                Text("Save telemetry to history, discard this pull, or return to brewing.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
@@ -404,11 +424,6 @@ struct LeverPilotApp: App {
         
         if let finishedRecord = coordinator.completedShotRecord {
             try? scenarioStore.recordCompletedShot(finishedRecord)
-            
-            // 🚀 Pre-stage immediately so the shot is already in memory on loopback
-            Task {
-                await MeticulousServer.shared.stageShot(finishedRecord)
-            }
             
             withAnimation(.easeInOut(duration: 0.25)) {
                 activeExtractionProfile = nil

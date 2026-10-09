@@ -6,7 +6,7 @@
 import Foundation
 
 extension ShotRecord {
-    /// Maps an immutable LeverPilot `ShotRecord` and its 10 Hz `ShotSample` series
+    /// Maps an immutable LeverPilot `ShotRecord` and its 10 Hz telemetry series
     /// into the canonical payload structure expected by Meticulous REST endpoints.
     public nonisolated func toMeticulousHistoryEntry() -> MeticulousHistoryEntry {
         let telemetryPoints: [MeticulousDataPoint] = samples.map { sample in
@@ -33,11 +33,19 @@ extension ShotRecord {
             dbKey: 1
         )
         
+        // Formats card title (e.g., "Slinky • 36.2g (07:05 AM)")
+        let timeFormatter = DateFormatter()
+        timeFormatter.dateStyle = .none
+        timeFormatter.timeStyle = .short
+        let timeStr = timeFormatter.string(from: timestamp)
+        let richTitle = "\(profileName) • \(String(format: "%.1fg", finalWeight)) (\(timeStr))"
+
         return MeticulousHistoryEntry(
             id: id,
             dbKey: 1,
+            // Strictly standard Unix epoch seconds (preserves 2026 date parity)
             time: Int64(timestamp.timeIntervalSince1970),
-            name: profileName,
+            name: richTitle,
             profile: profile,
             data: telemetryPoints
         )
