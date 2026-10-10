@@ -1,5 +1,5 @@
 //
-//  PlaybackEngineTests.swift
+//  ShotPlaybackControllerTests.swift
 //  LeverPilotTests
 //
 //  Step 4: Headless Playback State Machine Suite
@@ -9,9 +9,9 @@ import XCTest
 @testable import LeverPilot
 
 @MainActor
-final class PlaybackEngineTests: XCTestCase {
+final class ShotPlaybackControllerTests: XCTestCase {
     
-    private var engine: PlaybackEngine!
+    private var engine: ShotPlaybackController!
     private var mockScenario: ShotRecord!
     
     override func setUp() {
@@ -37,7 +37,7 @@ final class PlaybackEngineTests: XCTestCase {
             samples: samples
         )
         
-        engine = PlaybackEngine()
+        engine = ShotPlaybackController()
         engine.load(scenario: mockScenario)
     }
     
