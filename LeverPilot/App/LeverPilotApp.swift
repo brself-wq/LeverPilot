@@ -7,6 +7,7 @@ import SwiftUI
 import MeticulousProfile
 import EspressoBLE
 #if os(iOS)
+import AVFoundation
 import UIKit
 #endif
 
@@ -32,31 +33,24 @@ struct LeverPilotApp: App {
     @State private var activeExtractionProfile: Profile? = nil
     @State private var completedRecordForReview: ShotRecord? = nil
     
+    init() {
+        #if os(iOS)
+        do {
+            let session = AVAudioSession.sharedInstance()
+            try session.setCategory(.ambient, options: .mixWithOthers)
+            try session.setActive(true)
+        } catch {
+            print("[AudioSession] ⚠️ Failed to configure ambient session: \(error)")
+        }
+        #endif
+    }
+    
     var body: some Scene {
         WindowGroup {
             ZStack {
                 // 1. BASE LAYER: Active Workspace
-                Group {
-                    switch currentDestination {
-                    case .brew:
-                        ProfileConsoleView(
-                            profiles: profileStore.profiles,
-                            bleManager: bleManager,
-                            scenarioStore: scenarioStore,
-                            settings: settingsStore,
-                            onArm: { sessionProfile, dose, primedScenario in
-                                launchShot(with: sessionProfile, dose: dose, primedScenario: primedScenario)
-                            }
-                        )
-                    case .history:
-                        ShotHistoryBrowserView(scenarioStore: scenarioStore)
-                    case .settings:
-                        SettingsView(settings: settingsStore)
-                    case .workbench:
-                        EmptyView()
-                    }
-                }
-                .transition(.opacity)
+                workspaceLayer
+                    .transition(.opacity)
                 
                 // 2. UNIVERSAL BOTTOM-LEFT HAMBURGER MENU
                 VStack {
@@ -70,52 +64,7 @@ struct LeverPilotApp: App {
                 }
                 
                 // 3. EXTRACTION LAYER: Cross-Platform HUD (Visible only in flight)
-                if activeExtractionProfile != nil {
-                    BaristaHUDView(
-                        frame: coordinator.guidanceFrame,
-                        planCurve: coordinator.planCurve,
-                        actualHistory: coordinator.actualHistory,
-                        exitTriggerItems: coordinator.exitTriggerItems,
-                        stagePills: coordinator.stagePills,
-                        domainLabel: coordinator.currentStage?.dynamics.over.rawValue.capitalized ?? "Time",
-                        finalWeightTarget: coordinator.resolvedTargetWeight,
-                        nominalDuration: 32.0,
-                        windowSpan: StageDynamicsChartView.slidingWindowSpan,
-                        isAlarmActive: coordinator.isAlarmActive,
-                        elapsedTime: coordinator.elapsedTime,
-                        stageTime: coordinator.stageTime,
-                        actualWeight: coordinator.actualWeight,
-                        isScaleStale: coordinator.currentFrame.isScaleStale,
-                        isPressureStale: coordinator.currentFrame.isPressureStale
-                    )
-                    .onChange(of: coordinator.state) { _, newState in
-                        if newState == .extracting {
-                            bleManager.startScaleTimer()
-                        } else if newState == .shotEnded {
-                            concludeShot()
-                        }
-                        updateIdleTimer()
-                    }
-                    .overlay(alignment: .topTrailing) {
-                        Button(action: {
-                            withAnimation(.easeInOut(duration: 0.15)) {
-                                showAbortConfirmation = true
-                            }
-                        }) {
-                            Image(systemName: "xmark")
-                                .font(.system(size: 11, weight: .bold))
-                                .foregroundStyle(.secondary.opacity(0.8))
-                                .frame(width: 26, height: 26)
-                                .background(Theme.Surface.control, in: Circle())
-                                .frame(width: 44, height: 44)
-                                .contentShape(Rectangle())
-                        }
-                        .buttonStyle(.plain)
-                        .padding(5)
-                    }
-                    .transition(.opacity)
-                    .zIndex(10)
-                }
+                extractionOverlay
                 
                 // 4. ACCESSIBLE ABORT CONFIRMATION MODAL
                 if showAbortConfirmation {
@@ -212,6 +161,85 @@ struct LeverPilotApp: App {
                     )
                 }
             }
+        }
+    }
+    
+    // MARK: - Extracted Layers for Swift 6 Fast Type-Checking
+    
+    @ViewBuilder
+    private var workspaceLayer: some View {
+        Group {
+            switch currentDestination {
+            case .brew:
+                ProfileConsoleView(
+                    profiles: profileStore.profiles,
+                    bleManager: bleManager,
+                    scenarioStore: scenarioStore,
+                    settings: settingsStore,
+                    onArm: { sessionProfile, dose, primedScenario in
+                        launchShot(with: sessionProfile, dose: dose, primedScenario: primedScenario)
+                    }
+                )
+            case .history:
+                ShotHistoryBrowserView(scenarioStore: scenarioStore)
+            case .settings:
+                SettingsView(settings: settingsStore)
+            case .workbench:
+                EmptyView()
+            }
+        }
+    }
+    
+    @ViewBuilder
+    private var extractionOverlay: some View {
+        if activeExtractionProfile != nil {
+            let domainLabel = coordinator.currentStage?.dynamics.over.rawValue.capitalized ?? "Time"
+            
+            BaristaHUDView(
+                frame: coordinator.guidanceFrame,
+                planCurve: coordinator.planCurve,
+                actualHistory: coordinator.actualHistory,
+                exitTriggerItems: coordinator.exitTriggerItems,
+                stagePills: coordinator.stagePills,
+                domainLabel: domainLabel,
+                finalWeightTarget: coordinator.resolvedTargetWeight,
+                nominalDuration: 32.0,
+                windowSpan: StageDynamicsChartView.slidingWindowSpan,
+                isAlarmActive: coordinator.isAlarmActive,
+                elapsedTime: coordinator.elapsedTime,
+                stageTime: coordinator.stageTime,
+                actualWeight: coordinator.actualWeight,
+                approachProgress: coordinator.approachProgress,
+                isScaleStale: coordinator.currentFrame.isScaleStale,
+                isPressureStale: coordinator.currentFrame.isPressureStale
+            )
+            .onChange(of: coordinator.state) { _, newState in
+                if newState == .extracting {
+                    bleManager.startScaleTimer()
+                } else if newState == .shotEnded {
+                    concludeShot()
+                }
+                updateIdleTimer()
+            }
+            .overlay(alignment: .topTrailing) {
+                Button(action: {
+                    withAnimation(.easeInOut(duration: 0.15)) {
+                        showAbortConfirmation = true
+                    }
+                }) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(.secondary.opacity(0.8))
+                        .frame(width: 26, height: 26)
+                        .background(Theme.Surface.control, in: Circle())
+                        .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .padding(5)
+            }
+            .transition(.opacity)
+            .zIndex(10)
         }
     }
     

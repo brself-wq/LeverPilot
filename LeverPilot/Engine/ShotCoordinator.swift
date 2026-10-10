@@ -36,6 +36,16 @@ public final class ShotCoordinator {
     public private(set) var exitTriggerItems: [ExitTriggerProgressItem] = []
     public private(set) var stagePills: [StagePillItem] = []
     
+    // MARK: - Terminal Approach Guidance (The Closing Reticle & Radar)
+    /// Nil during cruising. Smooth 0.0 -> 1.0 progress across the final 12g acquisition runway.
+    public private(set) var approachProgress: Double? = nil
+    public private(set) var gramsToGo: Double = 0.0
+    
+    // Approach Calibration Thresholds
+    public static let acquisitionWindowGrams: Double = 12.0 // Reticle appears wide (~10s lead)
+    public static let sonarPacerWindowGrams: Double = 4.0   // Radar audio kicks in
+    public static let flareMarginGrams: Double = 1.5        // Decision height / rapid pings
+    
     // MARK: - Clocks & Real-time Telemetry
     public private(set) var elapsedTime: Double = 0.0
     public private(set) var stageTime: Double = 0.0
@@ -48,6 +58,11 @@ public final class ShotCoordinator {
     // MARK: - Configuration & Watchdogs
     public var machineConfig: MachineConfig = .flair58Default
     private var deadFlowStartTime: TimeInterval? = nil
+    
+    // MARK: - Audio & Sensory Engine
+    @ObservationIgnored private let soundEngine = AvionicsSoundEngine()
+    @ObservationIgnored private var lastSonarTickTime: TimeInterval = 0.0
+    @ObservationIgnored private var hasFiredTouchdownChime: Bool = false
     
     // MARK: - Internal Dependencies
     private let executionEngine = ProfileExecutionEngine()
@@ -117,6 +132,13 @@ public final class ShotCoordinator {
         self.capturedSamples.removeAll()
         self.deadFlowStartTime = nil
         
+        // Reset Terminal Guidance & Audio State
+        self.approachProgress = nil
+        self.gramsToGo = resolvedTargetWeight
+        self.lastSonarTickTime = 0.0
+        self.hasFiredTouchdownChime = false
+        self.soundEngine.stop()
+        
         setupInitialStage(stageIndex: 0)
     }
     
@@ -138,6 +160,7 @@ public final class ShotCoordinator {
     public func endExtraction() {
         guard state == .extracting else { return }
         state = .shotEnded
+        soundEngine.stop()
         
         let threshold = machineConfig.autoStop.cutoffRule.threshold
         var trimmedDuration = elapsedTime
@@ -170,6 +193,7 @@ public final class ShotCoordinator {
     
     public func abort() {
         state = .idle
+        soundEngine.stop()
         resetExecutionState()
     }
     
@@ -192,6 +216,7 @@ public final class ShotCoordinator {
         telemetryTask?.cancel()
         telemetryTask = nil
         self.telemetryProvider = nil
+        soundEngine.stop()
     }
     
     // MARK: - Frame Processing & Watchdogs
@@ -225,12 +250,9 @@ public final class ShotCoordinator {
         capturedSamples.append(sample)
         
         // 3. Auto-Stop Dead-Flow Watchdog (ADR-005, ADR-009)
-        // Precondition: Must be pulling for at least 5.0s AND reach 5.0g (or 1:1 dose ratio)
         let isPreconditionMet = frame.timestamp >= 5.0 && (currentWeight >= 5.0 || currentWeight >= activeDose)
         
         if frame.isScaleStale {
-            // Telemetry Continuity Policy (ADR-009):
-            // Dead-flow countdown is strictly suspended during scale packet stalls or disconnection.
             if deadFlowStartTime != nil {
                 print("[AutoStop] ⏸ Countdown SUSPENDED: Scale packet stream became stale at t=\(String(format: "%.1f", frame.timestamp))s.")
                 deadFlowStartTime = nil
@@ -249,16 +271,14 @@ public final class ShotCoordinator {
             }
         } else {
             if deadFlowStartTime != nil {
-                if !isPreconditionMet {
-                    print("[AutoStop] 🔄 Countdown RESET: Preconditions no longer met (t=\(String(format: "%.1f", frame.timestamp))s, weight=\(String(format: "%.1f", currentWeight))g).")
-                } else {
-                    print("[AutoStop] 🔄 Countdown RESET: Flow resumed (\(String(format: "%.2f", currentFlow)) mL/s > \(machineConfig.autoStop.cutoffRule.threshold) mL/s).")
-                }
                 deadFlowStartTime = nil
             }
         }
         
-        // 4. Evaluate Stage Dynamics with Execution Engine
+        // 4. Terminal Approach Guidance & Sonar Radar Pacer
+        evaluateTerminalGuidance(currentWeight: currentWeight, frameTimestamp: frame.timestamp)
+        
+        // 5. Evaluate Stage Dynamics with Execution Engine
         var result = executionEngine.evaluate(
             stage: stage,
             stageIndex: activeStageIndex,
@@ -268,7 +288,7 @@ public final class ShotCoordinator {
             finalWeightTarget: resolvedTargetWeight
         )
         
-        // 5. Evaluate Stage Progression
+        // 6. Evaluate Stage Progression
         if allowAdvance && result.shouldAdvanceStage {
             if activeStageIndex + 1 < profile.stages.count {
                 let oldIndex = activeStageIndex
@@ -281,6 +301,9 @@ public final class ShotCoordinator {
                 )
                 stageBaselines[activeStageIndex] = currentStageBaseline
                 actualHistory.removeAll()
+                
+                // Waypoint Advance Earcon: Subtle E5 chime
+                soundEngine.playBeep(frequency: 659.25, duration: 0.12, volume: 0.18)
                 
                 if let nextStage = currentStage {
                     print("[Coordinator] ⏭ Stage advanced: [\(oldIndex + 1)] \(stage.name) -> [\(activeStageIndex + 1)] \(nextStage.name)")
@@ -301,7 +324,7 @@ public final class ShotCoordinator {
             }
         }
         
-        // 6. Update Guidance Surface Buffers
+        // 7. Update Guidance Surface Buffers
         self.guidanceFrame = result.guidanceFrame
         self.planCurve = result.planCurve
         
@@ -326,7 +349,7 @@ public final class ShotCoordinator {
         self.actualWeight = currentWeight
         self.isAlarmActive = result.guidanceFrame.guardrail?.isBreached ?? false
         
-        // 7. Append Historical Point for Active Stage Chart
+        // 8. Append Historical Point for Active Stage Chart
         let activeStage = currentStage ?? stage
         let metricVal: Double
         switch activeStage.type {
@@ -337,8 +360,59 @@ public final class ShotCoordinator {
         let pointX = max(0.0, frame.timestamp - currentStageBaseline.startTime)
         self.actualHistory.append(ActualPoint(x: pointX, y: metricVal))
         
-        // 8. Update Stage Navigation Pills
+        // 9. Update Stage Navigation Pills
         updateStagePills(for: profile, activeIndex: activeStageIndex)
+    }
+    
+    // MARK: - Terminal Guidance & Sonar Radar Pacer Logic
+    
+    private func evaluateTerminalGuidance(currentWeight: Double, frameTimestamp: Double) {
+        let target = resolvedTargetWeight
+        guard target > 0 else {
+            self.approachProgress = nil
+            self.gramsToGo = 0.0
+            return
+        }
+        
+        self.gramsToGo = max(0.0, target - currentWeight)
+        let acquisitionStart = target - Self.acquisitionWindowGrams
+        
+        // 1. Acquisition Check: Is the reticle active?
+        if currentWeight >= acquisitionStart {
+            let progress = (currentWeight - acquisitionStart) / Self.acquisitionWindowGrams
+            self.approachProgress = min(1.0, max(0.0, progress))
+        } else {
+            self.approachProgress = nil
+            soundEngine.stop()
+            return
+        }
+        
+        // 2. Touchdown Check: Exact Target Cutoff
+        if currentWeight >= target {
+            if !hasFiredTouchdownChime {
+                hasFiredTouchdownChime = true
+                soundEngine.playBeep(frequency: 1046.5, duration: 0.35, volume: 0.30) // High C6 Chime
+            }
+            return
+        }
+        
+        hasFiredTouchdownChime = false
+        
+        // 3. Sonar Radar Pacer: Active in final 4.0g window
+        let sonarStart = target - Self.sonarPacerWindowGrams
+        if currentWeight >= sonarStart {
+            let sonarProgress = min(1.0, max(0.0, (currentWeight - sonarStart) / Self.sonarPacerWindowGrams))
+            
+            // Cadence scales from 0.8s down to 0.15s between ticks
+            let cadenceInterval = max(0.14, 0.80 - (sonarProgress * 0.65))
+            
+            if (frameTimestamp - lastSonarTickTime) >= cadenceInterval {
+                lastSonarTickTime = frameTimestamp
+                // Pitch glides from 440 Hz up to 880 Hz
+                let pingFrequency = Float(440.0 + (sonarProgress * 440.0))
+                soundEngine.playBeep(frequency: pingFrequency, duration: 0.06, volume: 0.20)
+            }
+        }
     }
     
     // MARK: - Rehearsal / Stepping Backward
@@ -352,7 +426,6 @@ public final class ShotCoordinator {
         let stageStart = currentStageBaseline.startTime
         let currentX = max(0.0, frame.timestamp - stageStart)
         actualHistory.removeAll { $0.x > currentX }
-        
         capturedSamples.removeAll { $0.timestamp > frame.timestamp }
         
         processTelemetryFrame(frame, allowAdvance: false)

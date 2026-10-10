@@ -18,18 +18,23 @@ struct StageDynamicsChartView: View {
     /// Maximum time/domain span (in seconds or grams) visible in the viewport window
     let windowSpan: Double
     
+    /// Terminal approach guidance progress (nil = cruising, 0.0 -> 1.0 = closing)
+    let approachProgress: Double?
+    
     public init(
         planCurve: [PlanPoint],
         actualHistory: [ActualPoint],
         domainLabel: String,
         activeMetric: SensorKey,
-        windowSpan: Double = 25.0
+        windowSpan: Double = 25.0,
+        approachProgress: Double? = nil
     ) {
         self.planCurve = planCurve
         self.actualHistory = actualHistory
         self.domainLabel = domainLabel
         self.activeMetric = activeMetric
         self.windowSpan = windowSpan
+        self.approachProgress = approachProgress
     }
     
     private var themeColor: Color {
@@ -105,7 +110,7 @@ struct StageDynamicsChartView: View {
                     .lineStyle(StrokeStyle(lineWidth: 3.5))
                 }
                 
-                // Dynamic Leading Tracer Bead (Module 2)
+                // Dynamic Leading Tracer Bead (With Compass Rose Closing Reticle)
                 if let current = actualHistory.last {
                     PointMark(
                         x: .value("Domain", current.x),
@@ -120,6 +125,11 @@ struct StageDynamicsChartView: View {
                     )
                     .symbolSize(30)
                     .foregroundStyle(Color.white)
+                    .annotation(position: .overlay) {
+                        if let progress = approachProgress {
+                            CompassReticleOverlay(progress: progress)
+                        }
+                    }
                 }
             }
             .chartXScale(domain: xDomain)
@@ -148,5 +158,65 @@ struct StageDynamicsChartView: View {
             RoundedRectangle(cornerRadius: Theme.Layout.podRadius)
                 .strokeBorder(Theme.Border.glassGradient, lineWidth: 1)
         )
+    }
+}
+
+// MARK: - Perfectly Concentric Compass Rose Reticle
+
+private struct CompassReticleOverlay: View {
+    let progress: Double // 0.0 (12g out) to 1.0 (touchdown)
+    
+    // Scale calibrated for the 11" iPad & macOS canvas
+    private let baseDiameter: CGFloat = 110.0
+    private let collapsedDiameter: CGFloat = 20.0
+    
+    private var currentDiameter: CGFloat {
+        baseDiameter - (CGFloat(progress) * (baseDiameter - collapsedDiameter))
+    }
+    
+    private var isFlareActive: Bool {
+        progress >= 0.875 // Final 1.5g
+    }
+    
+    private var reticleColor: Color {
+        if progress >= 1.0 {
+            return Theme.Telemetry.pressure // Solid Emerald Green at touchdown
+        } else if isFlareActive {
+            return Theme.Telemetry.warning  // Tungsten Amber during flare
+        } else {
+            return Theme.Telemetry.weight   // Crema Gold during closing
+        }
+    }
+    
+    // Boosted baseline opacity (0.55 -> 1.0) so it's punchy from the start
+    private var strokeOpacity: Double {
+        0.55 + (progress * 0.45)
+    }
+    
+    private var lineWidth: CGFloat {
+        isFlareActive ? 3.5 : 2.5
+    }
+    
+    var body: some View {
+        ZStack {
+            // 1. Contracting Targeting Ring with subtle avionics glow
+            Circle()
+                .stroke(reticleColor.opacity(strokeOpacity), lineWidth: lineWidth)
+                .frame(width: currentDiameter, height: currentDiameter)
+                .shadow(color: reticleColor.opacity(isFlareActive ? 0.6 : 0.3), radius: 3)
+            
+            // 2. Mathematically Concentric Cardinal Compass Ticks
+            ForEach([0, 90, 180, 270], id: \.self) { angle in
+                Capsule()
+                    .fill(reticleColor.opacity(strokeOpacity))
+                    .frame(width: lineWidth, height: 8)
+                    // Offset radially outward from the ring edge, then rotate
+                    .offset(y: -(currentDiameter / 2 + 6))
+                    .rotationEffect(.degrees(Double(angle)))
+            }
+        }
+        .frame(width: currentDiameter + 30, height: currentDiameter + 30)
+        .allowsHitTesting(false)
+        .animation(.easeOut(duration: 0.1), value: progress)
     }
 }
