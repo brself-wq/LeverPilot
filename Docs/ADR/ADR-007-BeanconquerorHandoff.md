@@ -1,7 +1,7 @@
 # ADR 007: Beanconqueror Integration, Local Loopback REST Emulation & Delivery Ledger Sidecar
 #architecture/adr #integrations #beanconqueror #telemetry #loopback #immutability
 
-**Status:** Accepted & Implemented  
+**Status:** REDACTED! This feature was removed as of Octomber 9 2026. 
 **Date:** September 19, 2026 (Updated: September 26, 2026)  
 **Author:** Ben Self  
 **Deciders:** Architecture Team, LeverPilot Core  

@@ -343,6 +343,7 @@ public actor MeticulousServer {
 
         var entries: [MeticulousHistoryEntry] = []
         let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
 
         for url in sortedURLs {
             if let data = try? Data(contentsOf: url),
