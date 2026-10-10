@@ -1,5 +1,5 @@
 //
-//  SimulatorControlDockView.swift
+//  ShotPlaybackView.swift
 //  LeverPilot
 //
 
@@ -7,164 +7,158 @@ import SwiftUI
 import MeticulousProfile
 
 public struct ShotPlaybackView: View {
-    let scenarios: [ShotRecord]
-    let selectedScenario: ShotRecord?
-    let onSelectScenario: (ShotRecord) -> Void
+    let scenario: ShotRecord
+    @Bindable var controller: ShotPlaybackController
     
-    @Bindable var playbackEngine: ShotPlaybackController
-    @Binding var simulateAlarm: Bool
+    // MARK: - Drag / Movable State
+    @State private var dragOffset: CGSize = .zero
+    @State private var accumulatedOffset: CGSize = .zero
     
-    public init(
-        scenarios: [ShotRecord],
-        selectedScenario: ShotRecord?,
-        playbackEngine: ShotPlaybackController,
-        simulateAlarm: Binding<Bool>,
-        onSelectScenario: @escaping (ShotRecord) -> Void
-    ) {
-        self.scenarios = scenarios
-        self.selectedScenario = selectedScenario
-        self.playbackEngine = playbackEngine
-        self._simulateAlarm = simulateAlarm
-        self.onSelectScenario = onSelectScenario
-    }
-    
-    private var hasScenario: Bool {
-        selectedScenario != nil
+    public init(scenario: ShotRecord, controller: ShotPlaybackController) {
+        self.scenario = scenario
+        self.controller = controller
     }
     
     public var body: some View {
-        VStack(spacing: 6) {
-            // Scrubber Bar
-            if let scenario = selectedScenario, scenario.samples.count > 1 {
+        VStack(spacing: 5) {
+            // Drag Handle Capsule
+            Capsule()
+                .fill(Color.white.opacity(0.25))
+                .frame(width: 32, height: 4)
+                .padding(.top, 4)
+            
+            // 1. Telemetry Scrubber Bar
+            if scenario.samples.count > 1 {
                 HStack(spacing: 8) {
-                    Text(String(format: "%.1fs", playbackEngine.currentTimestamp))
+                    Text(String(format: "%02d:%04.1fs", Int(controller.currentTimestamp) / 60, controller.currentTimestamp.truncatingRemainder(dividingBy: 60)))
                         .font(.system(size: 9, weight: .bold, design: .monospaced))
-                        .foregroundStyle(.secondary)
-                        .frame(width: 36, alignment: .leading)
+                        .foregroundStyle(Color.telemetryWeight)
+                        .frame(width: 52, alignment: .leading)
                     
                     Slider(
                         value: Binding(
-                            get: { Double(playbackEngine.currentSampleIndex) },
-                            set: { playbackEngine.seek(to: Int($0)) }
+                            get: { Double(controller.currentSampleIndex) },
+                            set: { controller.seek(to: Int($0)) }
                         ),
                         in: 0...Double(scenario.samples.count - 1),
                         step: 1.0
                     )
                     .tint(.cyan)
                     
-                    Text(String(format: "%.1fs", scenario.duration))
+                    Text(String(format: "%02d:%04.1fs", Int(scenario.duration) / 60, scenario.duration.truncatingRemainder(dividingBy: 60)))
                         .font(.system(size: 9, weight: .bold, design: .monospaced))
                         .foregroundStyle(.secondary)
-                        .frame(width: 36, alignment: .trailing)
+                        .frame(width: 52, alignment: .trailing)
                 }
                 .padding(.horizontal, 12)
             }
             
-            // Transport Dock
-            HStack(spacing: 10) {
-                // Shot Selector Menu
-                Menu {
-                    ForEach(scenarios) { scenario in
-                        Button(action: { onSelectScenario(scenario) }) {
-                            Text("\(scenario.profileName) (\(formattedDate(scenario.timestamp)))")
-                        }
-                    }
-                } label: {
-                    HStack(spacing: 4) {
-                        Image(systemName: "clock.arrow.circlepath")
-                        Text(selectedScenario?.profileName.isEmpty == false ? selectedScenario!.profileName : "Select Shot Log")
-                            .lineLimit(1)
-                        Image(systemName: "chevron.up.chevron.down")
-                    }
-                    .font(.system(size: 10, weight: .bold))
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(Color.white.opacity(hasScenario ? 0.12 : 0.06))
-                    .foregroundStyle(hasScenario ? .primary : .secondary)
-                    .cornerRadius(6)
+            // 2. Compact Floating Transport Deck
+            HStack(spacing: 8) {
+                // Reset to beginning
+                Button(action: { controller.reset() }) {
+                    Image(systemName: "backward.end.fill")
+                        .font(.system(size: 10, weight: .bold))
+                        .frame(width: 28, height: 28)
+                        .background(Theme.Surface.control)
+                        .clipShape(Circle())
+                        .overlay(Circle().strokeBorder(Theme.Border.glassGradient, lineWidth: 1))
                 }
-                .frame(maxWidth: 240)
+                .buttonStyle(.plain)
                 
-                Divider().frame(height: 16)
-                
-                // Transport Buttons
-                HStack(spacing: 6) {
-                    // Play / Pause
-                    Button(action: { playbackEngine.togglePlayback() }) {
-                        Label(
-                            playbackEngine.isPlaying ? "Pause" : "Play",
-                            systemImage: playbackEngine.isPlaying ? "pause.fill" : "play.fill"
-                        )
+                // Step Backward (-0.1s)
+                Button(action: { controller.stepBackward() }) {
+                    Image(systemName: "backward.frame.fill")
                         .font(.system(size: 11, weight: .bold))
-                        .frame(minWidth: 54)
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.small)
-                    .tint(playbackEngine.isPlaying ? .orange : .blue)
-                    .disabled(!hasScenario)
-                    
-                    // Step Backward (-0.1s)
-                    Button(action: { playbackEngine.stepBackward() }) {
-                        Image(systemName: "backward.frame.fill")
-                            .font(.system(size: 11, weight: .bold))
-                    }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
-                    .disabled(!hasScenario || !playbackEngine.canStepBackward)
-                    
-                    // Step Forward (+0.1s)
-                    Button(action: { playbackEngine.stepForward() }) {
-                        Image(systemName: "forward.frame.fill")
-                            .font(.system(size: 11, weight: .bold))
-                    }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
-                    .disabled(!hasScenario || !playbackEngine.canStepForward)
-                    
-                    // Reset to Beginning
-                    Button(action: { playbackEngine.reset() }) {
-                        Image(systemName: "arrow.counterclockwise")
-                            .font(.system(size: 11, weight: .bold))
-                    }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
-                    .disabled(!hasScenario)
-                    
-                    // Speed Multiplier
-                    Button(action: { playbackEngine.cycleSpeed() }) {
-                        Text(playbackEngine.speedLabel)
-                            .font(.system(size: 10, weight: .black, design: .monospaced))
-                            .frame(minWidth: 38)
-                    }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
-                    .tint(playbackEngine.playbackSpeedMultiplier != 1.0 ? .cyan : .gray)
+                        .frame(width: 30, height: 30)
+                        .background(Theme.Surface.control)
+                        .clipShape(Circle())
+                        .overlay(Circle().strokeBorder(Theme.Border.glassGradient, lineWidth: 1))
                 }
+                .buttonStyle(.plain)
+                .disabled(!controller.canStepBackward)
+                .opacity(controller.canStepBackward ? 1.0 : 0.4)
                 
-                // Tick Counter
-                Text(playbackEngine.tickStatusString)
-                    .font(.system(size: 9, design: .monospaced))
-                    .foregroundStyle(hasScenario ? .secondary : .tertiary)
+                // Play / Pause Primary Button
+                Button(action: { controller.togglePlayback() }) {
+                    Image(systemName: controller.isPlaying ? "pause.fill" : "play.fill")
+                        .font(.system(size: 13, weight: .black))
+                        .foregroundStyle(.white)
+                        .frame(width: 38, height: 38)
+                        .background(controller.isPlaying ? Color.orange : Color.blue)
+                        .clipShape(Circle())
+                        .shadow(color: (controller.isPlaying ? Color.orange : Color.blue).opacity(0.35), radius: 6, y: 2)
+                }
+                .buttonStyle(.plain)
+                
+                // Step Forward (+0.1s)
+                Button(action: { controller.stepForward() }) {
+                    Image(systemName: "forward.frame.fill")
+                        .font(.system(size: 11, weight: .bold))
+                        .frame(width: 30, height: 30)
+                        .background(Theme.Surface.control)
+                        .clipShape(Circle())
+                        .overlay(Circle().strokeBorder(Theme.Border.glassGradient, lineWidth: 1))
+                }
+                .buttonStyle(.plain)
+                .disabled(!controller.canStepForward)
+                .opacity(controller.canStepForward ? 1.0 : 0.4)
+                
+                // Playback Speed Multiplier Pill
+                Button(action: { controller.cycleSpeed() }) {
+                    Text(controller.speedLabel)
+                        .font(.system(size: 9, weight: .black, design: .monospaced))
+                        .foregroundStyle(controller.playbackSpeedMultiplier != 1.0 ? Color.cyan : Color.white.opacity(0.8))
+                        .padding(.horizontal, 8)
+                        .frame(height: 28)
+                        .background(Theme.Surface.control)
+                        .clipShape(Capsule())
+                        .overlay(Capsule().strokeBorder(Theme.Border.glassGradient, lineWidth: 1))
+                }
+                .buttonStyle(.plain)
                 
                 Spacer()
                 
-                // Alarm Toggle
-                Toggle("Alarm", isOn: $simulateAlarm)
-                    .toggleStyle(.switch)
-                    .controlSize(.mini)
-                    .font(.caption2)
-                    .tint(.red)
+                // Telemetry Stage & Tick Status
+                HStack(spacing: 6) {
+                    Text("STAGE \(controller.activeStageIndex + 1)")
+                        .font(.system(size: 8, weight: .heavy, design: .monospaced))
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 2)
+                        .background(Color.white.opacity(0.06), in: Capsule())
+                    
+                    Text("\(controller.currentSampleIndex)/\(scenario.samples.count)")
+                        .font(.system(size: 8, weight: .bold, design: .monospaced))
+                        .foregroundStyle(.tertiary)
+                }
             }
             .padding(.horizontal, 12)
+            .padding(.bottom, 6)
         }
-        .padding(.vertical, 6)
-        .background(Color(red: 0.04, green: 0.04, blue: 0.05))
-    }
-    
-    private func formattedDate(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .short
-        formatter.timeStyle = .short
-        return formatter.string(from: date)
+        .padding(.horizontal, 4)
+        .background(Theme.Surface.overlay)
+        .clipShape(RoundedRectangle(cornerRadius: Theme.Layout.cardRadius))
+        .overlay(
+            RoundedRectangle(cornerRadius: Theme.Layout.cardRadius)
+                .strokeBorder(Theme.Border.glassGradient, lineWidth: 1)
+        )
+        .shadow(color: .black.opacity(0.55), radius: 14, y: 5)
+        // Freeform Movable Offset & Gesture
+        .offset(
+            x: accumulatedOffset.width + dragOffset.width,
+            y: accumulatedOffset.height + dragOffset.height
+        )
+        .simultaneousGesture(
+            DragGesture()
+                .onChanged { value in
+                    dragOffset = value.translation
+                }
+                .onEnded { value in
+                    accumulatedOffset.width += value.translation.width
+                    accumulatedOffset.height += value.translation.height
+                    dragOffset = .zero
+                }
+        )
     }
 }

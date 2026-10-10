@@ -185,7 +185,7 @@ struct LeverPilotApp: App {
             case .settings:
                 SettingsView(settings: settingsStore)
             case .workbench:
-                EmptyView()
+                WorkbenchView(scenarioStore: scenarioStore)
             }
         }
     }
@@ -282,10 +282,11 @@ struct LeverPilotApp: App {
                 Label(AppDestination.history.rawValue, systemImage: AppDestination.history.systemImage)
             }
             
-            Button {} label: {
+            Button {
+                withAnimation(.easeInOut(duration: 0.2)) { currentDestination = .workbench }
+            } label: {
                 Label(AppDestination.workbench.rawValue, systemImage: AppDestination.workbench.systemImage)
             }
-            .disabled(true)
         } label: {
             HStack(spacing: 4) {
                 Image(systemName: "line.3.horizontal")

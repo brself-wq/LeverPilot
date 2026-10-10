@@ -1,5 +1,5 @@
 //
-//  PlaybackEngine.swift
+//  ShotPlaybackController.swift
 //  LeverPilot
 //
 
@@ -9,7 +9,7 @@ import MeticulousProfile
 
 @Observable
 @MainActor
-public final class PlaybackEngine {
+public final class ShotPlaybackController {
     
     // MARK: - Playback State
     public private(set) var isPlaying: Bool = false

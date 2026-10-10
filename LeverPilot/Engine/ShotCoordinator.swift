@@ -415,22 +415,6 @@ public final class ShotCoordinator {
         }
     }
     
-    // MARK: - Rehearsal / Stepping Backward
-    
-    public func stepBackward(to frame: MachineFrame) {
-        if activeStageIndex > 0 && frame.timestamp < currentStageBaseline.startTime {
-            activeStageIndex -= 1
-            currentStageBaseline = stageBaselines[activeStageIndex] ?? StageBaseline()
-        }
-        
-        let stageStart = currentStageBaseline.startTime
-        let currentX = max(0.0, frame.timestamp - stageStart)
-        actualHistory.removeAll { $0.x > currentX }
-        capturedSamples.removeAll { $0.timestamp > frame.timestamp }
-        
-        processTelemetryFrame(frame, allowAdvance: false)
-    }
-    
     // MARK: - Helpers
     
     private func setupInitialStage(stageIndex: Int) {
