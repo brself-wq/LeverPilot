@@ -189,6 +189,7 @@ public actor MeticulousServer {
                 connection.cancel()
             } else {
                 MeticulousTraceLogger.log("[Connection \(endpoint)] Send finished cleanly (\(responseData.count) bytes)")
+                connection.cancel()
             }
         }))
     }
