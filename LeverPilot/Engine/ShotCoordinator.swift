@@ -37,7 +37,7 @@ public final class ShotCoordinator {
     public private(set) var stagePills: [StagePillItem] = []
     
     // MARK: - Terminal Approach Guidance (The Closing Reticle & Radar)
-    /// Nil during cruising. Smooth 0.0 -> 1.0 progress across the final 12g acquisition runway.
+    /// Nil during cruising. Tracks normalized progress from 0.0 (acquisition) past 1.0 (touchdown) into overrun (>1.125).
     public private(set) var approachProgress: Double? = nil
     public private(set) var gramsToGo: Double = 0.0
     
@@ -377,10 +377,10 @@ public final class ShotCoordinator {
         self.gramsToGo = max(0.0, target - currentWeight)
         let acquisitionStart = target - Self.acquisitionWindowGrams
         
-        // 1. Acquisition Check: Is the reticle active?
+        // 1. Acquisition Check: Is the reticle active? (Allows progress to extend past 1.0 into overrun)
         if currentWeight >= acquisitionStart {
             let progress = (currentWeight - acquisitionStart) / Self.acquisitionWindowGrams
-            self.approachProgress = min(1.0, max(0.0, progress))
+            self.approachProgress = max(0.0, progress)
         } else {
             self.approachProgress = nil
             soundEngine.stop()

@@ -300,13 +300,13 @@ public final class ShotPlaybackController {
         }
     }
     
-    /// Closing reticle progress: 0.0 -> 1.0 across the final 12g window.
+    /// Closing reticle progress: 0.0 -> 1.0 (touchdown) -> >1.125 (overrun).
     public var approachProgress: Double? {
         guard let sample = currentSample, resolvedTargetWeight > 0 else { return nil }
         let acquisitionStart = resolvedTargetWeight - ShotCoordinator.acquisitionWindowGrams
         if sample.weight >= acquisitionStart {
             let progress = (sample.weight - acquisitionStart) / ShotCoordinator.acquisitionWindowGrams
-            return min(1.0, max(0.0, progress))
+            return max(0.0, progress)
         }
         return nil
     }

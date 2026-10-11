@@ -18,7 +18,7 @@ struct StageDynamicsChartView: View {
     /// Maximum time/domain span (in seconds or grams) visible in the viewport window
     let windowSpan: Double
     
-    /// Terminal approach guidance progress (nil = cruising, 0.0 -> 1.0 = closing)
+    /// Terminal approach guidance progress (nil = cruising, 0.0 -> 1.0 = closing, >1.125 = overrun)
     let approachProgress: Double?
     
     public init(
@@ -110,7 +110,7 @@ struct StageDynamicsChartView: View {
                     .lineStyle(StrokeStyle(lineWidth: 3.5))
                 }
                 
-                // Dynamic Leading Tracer Bead (With Compass Rose Closing Reticle)
+                // Dynamic Leading Tracer Bead (With Compass Rose Closing Reticle & Overrun Lock)
                 if let current = actualHistory.last {
                     PointMark(
                         x: .value("Domain", current.x),
@@ -161,62 +161,86 @@ struct StageDynamicsChartView: View {
     }
 }
 
-// MARK: - Perfectly Concentric Compass Rose Reticle
+// MARK: - Perfectly Concentric Compass Rose Reticle with Symmetrical Overrun Lock
 
 private struct CompassReticleOverlay: View {
-    let progress: Double // 0.0 (12g out) to 1.0 (touchdown)
+    let progress: Double // 0.0 (12g out) -> 1.0 (Target) -> 1.125 (+1.5g Overrun)
     
     // Scale calibrated for the 11" iPad & macOS canvas
     private let baseDiameter: CGFloat = 110.0
-    private let collapsedDiameter: CGFloat = 20.0
+    private let lockedDiameter: CGFloat = 20.0
+    private let overrunDiameter: CGFloat = 42.0 // Snaps open on overrun
     
-    private var currentDiameter: CGFloat {
-        baseDiameter - (CGFloat(progress) * (baseDiameter - collapsedDiameter))
+    // 1.5g overrun / 12.0g window = 0.125. The Green Pocket spans 1.0 to 1.125
+    private var isOverrun: Bool {
+        progress > 1.125
+    }
+    
+    private var isTouchdownPocket: Bool {
+        progress >= 1.0 && !isOverrun
     }
     
     private var isFlareActive: Bool {
-        progress >= 0.875 // Final 1.5g
+        progress >= 0.875 && progress < 1.0
     }
     
-    private var reticleColor: Color {
-        if progress >= 1.0 {
-            return Theme.Telemetry.pressure // Solid Emerald Green at touchdown
-        } else if isFlareActive {
-            return Theme.Telemetry.warning  // Tungsten Amber during flare
+    private var currentDiameter: CGFloat {
+        if isOverrun {
+            return overrunDiameter
+        } else if isTouchdownPocket {
+            return lockedDiameter
         } else {
-            return Theme.Telemetry.weight   // Crema Gold during closing
+            return baseDiameter - (CGFloat(progress) * (baseDiameter - lockedDiameter))
         }
     }
     
-    // Boosted baseline opacity (0.55 -> 1.0) so it's punchy from the start
-    private var strokeOpacity: Double {
-        0.55 + (progress * 0.45)
+    private var reticleColor: Color {
+        if isOverrun {
+            return Theme.Telemetry.alert     // Ruby Red on overrun
+        } else if isTouchdownPocket {
+            return Theme.Telemetry.pressure  // Emerald Green in the pocket
+        } else if isFlareActive {
+            return Theme.Telemetry.warning   // Tungsten Amber during flare
+        } else {
+            return Theme.Telemetry.weight    // Crema Gold during closing
+        }
     }
     
-    private var lineWidth: CGFloat {
-        isFlareActive ? 3.5 : 2.5
+    private var strokeStyle: StrokeStyle {
+        if isOverrun {
+            return StrokeStyle(lineWidth: 2.0, dash: [4, 4]) // Dashed Lost-Lock
+        } else {
+            return StrokeStyle(lineWidth: (isFlareActive || isTouchdownPocket) ? 3.5 : 2.5)
+        }
+    }
+    
+    private var strokeOpacity: Double {
+        isOverrun ? 0.95 : (0.55 + (min(1.0, progress) * 0.45))
     }
     
     var body: some View {
         ZStack {
-            // 1. Contracting Targeting Ring with subtle avionics glow
+            // 1. Contracting Targeting Ring (Pops to dashed red on overrun)
             Circle()
-                .stroke(reticleColor.opacity(strokeOpacity), lineWidth: lineWidth)
+                .stroke(reticleColor.opacity(strokeOpacity), style: strokeStyle)
                 .frame(width: currentDiameter, height: currentDiameter)
-                .shadow(color: reticleColor.opacity(isFlareActive ? 0.6 : 0.3), radius: 3)
+                .shadow(
+                    color: reticleColor.opacity(isOverrun ? 0.7 : (isFlareActive ? 0.6 : 0.3)),
+                    radius: isOverrun ? 5 : 3
+                )
             
             // 2. Mathematically Concentric Cardinal Compass Ticks
             ForEach([0, 90, 180, 270], id: \.self) { angle in
                 Capsule()
                     .fill(reticleColor.opacity(strokeOpacity))
-                    .frame(width: lineWidth, height: 8)
-                    // Offset radially outward from the ring edge, then rotate
+                    .frame(width: isOverrun ? 2.0 : (isFlareActive ? 3.5 : 2.5), height: 8)
                     .offset(y: -(currentDiameter / 2 + 6))
                     .rotationEffect(.degrees(Double(angle)))
             }
         }
         .frame(width: currentDiameter + 30, height: currentDiameter + 30)
         .allowsHitTesting(false)
+        .animation(.spring(response: 0.28, dampingFraction: 0.62), value: isOverrun)
         .animation(.easeOut(duration: 0.1), value: progress)
     }
 }
