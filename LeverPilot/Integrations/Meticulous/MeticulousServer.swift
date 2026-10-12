@@ -6,6 +6,49 @@
 import Foundation
 import Network
 
+// MARK: - Lightweight Listing Model
+
+/// Fast decodable struct that extracts only shot header metadata,
+/// intentionally skipping heavy time-series `samples` and `profile_snapshot`.
+private nonisolated struct ShotRecordListingHeader: Decodable, Sendable {
+    let id: String
+    let brewTemperature: Double
+    let finalWeight: Double
+    let profileName: String
+    let timestamp: Date
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case brewTemperature = "brew_temperature"
+        case finalWeight = "final_weight"
+        case profileName = "profile_name"
+        case timestamp
+    }
+
+    nonisolated func toMeticulousHistoryEntry() -> MeticulousHistoryEntry {
+        let profile = MeticulousProfile(
+            name: profileName,
+            temperature: brewTemperature,
+            dbKey: 1
+        )
+
+        let timeFormatter = DateFormatter()
+        timeFormatter.dateStyle = .none
+        timeFormatter.timeStyle = .short
+        let timeStr = timeFormatter.string(from: timestamp)
+        let richTitle = "\(profileName) • \(String(format: "%.1fg", finalWeight)) (\(timeStr))"
+
+        return MeticulousHistoryEntry(
+            id: id,
+            dbKey: 1,
+            time: Int64(timestamp.timeIntervalSince1970),
+            name: richTitle,
+            profile: profile,
+            data: nil
+        )
+    }
+}
+
 /// Actor-isolated HTTP & Socket.IO loopback server emulating the Meticulous machine API.
 /// Serves recent shot history directly from disk on demand with re-entrancy protection.
 public actor MeticulousServer {
@@ -256,8 +299,6 @@ public actor MeticulousServer {
 
         // 4. Ingestion & Telemetry History Endpoint (Stateless Disk Catalog)
         if path.hasPrefix("/api/v1/history") {
-            let recentEntries = loadRecentShotEntriesFromDisk()
-
             // Check for specific requested shot ID
             var requestedId: String? = nil
             if let idRange = request.range(of: "\"ids\":[\"") {
@@ -272,18 +313,16 @@ public actor MeticulousServer {
                 || request.contains("\"dump_data\": true")
 
             if isDetailRequest {
-                let matched = recentEntries.first(where: { $0.id == requestedId }) ?? recentEntries.first
-
-                if let matched = matched {
-                    MeticulousTraceLogger.log("[HTTP \(endpoint)] <<< 200 Serving detailed telemetry for '\(matched.id)' (\(matched.data?.count ?? 0) points)")
-                    let response = MeticulousHistoryResponse(history: [matched])
+                if let detailedEntry = loadSingleDetailedShotEntry(forId: requestedId) {
+                    MeticulousTraceLogger.log("[HTTP \(endpoint)] <<< 200 Serving detailed telemetry for '\(detailedEntry.id)' (\(detailedEntry.data?.count ?? 0) points)")
+                    let response = MeticulousHistoryResponse(history: [detailedEntry])
                     if let encoded = try? JSONEncoder().encode(response),
                        let jsonString = String(data: encoded, encoding: .utf8) {
                         return httpResponse(statusCode: 200, json: jsonString)
                     }
                 }
             } else {
-                let listingEntries = recentEntries.map { $0.withoutData() }
+                let listingEntries = loadRecentShotListingHeadersFromDisk()
                 MeticulousTraceLogger.log("[HTTP \(endpoint)] <<< 200 Serving history listing (\(listingEntries.count) shots)")
                 let response = MeticulousHistoryResponse(history: listingEntries)
                 if let encoded = try? JSONEncoder().encode(response),
@@ -297,7 +336,7 @@ public actor MeticulousServer {
 
         // 5. Profile Catalog Endpoint
         if path.hasPrefix("/api/v1/profile") {
-            let latest = loadRecentShotEntriesFromDisk().first
+            let latest = loadRecentShotListingHeadersFromDisk().first
             let profileId = latest?.id ?? "leverpilot-profile"
             let profileName = latest?.profile.name ?? "LeverPilot Profile"
             let temp = latest?.profile.temperature ?? 93.0
@@ -317,43 +356,128 @@ public actor MeticulousServer {
         return httpResponse(statusCode: 404, text: "Not Found")
     }
 
-    // MARK: - Disk Catalog Provider
+    // MARK: - Disk Catalog Providers
 
-    private func loadRecentShotEntriesFromDisk() -> [MeticulousHistoryEntry] {
+    /// Returns lightweight history entries (data: nil) filtered to recent pulls (capped at 20),
+    /// or falling back to the 2 most recent pulls if none occurred today.
+    private func loadRecentShotListingHeadersFromDisk() -> [MeticulousHistoryEntry] {
+        let candidateURLs = fetchCandidateShotURLs()
+        var entries: [MeticulousHistoryEntry] = []
+
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+
+        for url in candidateURLs {
+            if let data = try? Data(contentsOf: url),
+               let header = try? decoder.decode(ShotRecordListingHeader.self, from: data) {
+                entries.append(header.toMeticulousHistoryEntry())
+            }
+        }
+
+        return entries
+    }
+
+    /// Loads and fully decodes a single shot file for full 10 Hz telemetry detail.
+    private func loadSingleDetailedShotEntry(forId requestedId: String?) -> MeticulousHistoryEntry? {
         guard let documentsURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else {
-            return []
+            return nil
         }
         let shotLogsURL = documentsURL.appendingPathComponent("ShotLogs")
 
         guard let fileURLs = try? FileManager.default.contentsOfDirectory(
             at: shotLogsURL,
-            includingPropertiesForKeys: [.contentModificationDateKey],
+            includingPropertiesForKeys: nil,
+            options: .skipsHiddenFiles
+        ) else {
+            return nil
+        }
+
+        // Sort chronologically descending purely by filename
+        let jsonURLs = fileURLs
+            .filter { $0.pathExtension.lowercased() == "json" && $0.lastPathComponent.hasPrefix("shot_") }
+            .sorted { $0.lastPathComponent > $1.lastPathComponent }
+
+        var targetURL: URL? = nil
+
+        // 1. Fast match: lookup by 8-character UUID prefix in filename
+        if let requestedId = requestedId {
+            let shortId = String(requestedId.prefix(8))
+            targetURL = jsonURLs.first { $0.lastPathComponent.localizedCaseInsensitiveContains(shortId) }
+        }
+
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+
+        // 2. Fallback: Check lightweight header if filename match was not found
+        if targetURL == nil, let requestedId = requestedId {
+            for url in jsonURLs {
+                if let data = try? Data(contentsOf: url),
+                   let header = try? decoder.decode(ShotRecordListingHeader.self, from: data),
+                   header.id == requestedId {
+                    targetURL = url
+                    break
+                }
+            }
+        }
+
+        // 3. Fallback: Most recent file if no ID specified
+        if targetURL == nil {
+            targetURL = jsonURLs.first
+        }
+
+        guard let url = targetURL,
+              let data = try? Data(contentsOf: url) else {
+            return nil
+        }
+
+        if let record = try? decoder.decode(ShotRecord.self, from: data) {
+            return record.toMeticulousHistoryEntry()
+        }
+
+        return nil
+    }
+
+    /// Selects candidate shot URLs using a robust operational window:
+    /// Any shots pulled within the last 48 hours, falling back to the 5 most recent pulls,
+    /// with a strict ceiling of 20 shots.
+    private func fetchCandidateShotURLs(maxCeiling: Int = 20) -> [URL] {
+        guard let documentsURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else {
+            return []
+        }
+        let shotLogsURL = documentsURL.appendingPathComponent("ShotLogs")
+        
+        guard let fileURLs = try? FileManager.default.contentsOfDirectory(
+            at: shotLogsURL,
+            includingPropertiesForKeys: nil,
             options: .skipsHiddenFiles
         ) else {
             return []
         }
-
-        let sortedURLs = fileURLs
-            .filter { $0.pathExtension.lowercased() == "json" }
-            .sorted { url1, url2 in
-                let date1 = (try? url1.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? Date.distantPast
-                let date2 = (try? url2.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? Date.distantPast
-                return date1 > date2
-            }
-            .prefix(20)
-
-        var entries: [MeticulousHistoryEntry] = []
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
-
-        for url in sortedURLs {
-            if let data = try? Data(contentsOf: url),
-               let record = try? decoder.decode(ShotRecord.self, from: data) {
-                entries.append(record.toMeticulousHistoryEntry())
-            }
+        
+        // Chronologically descending by filename (ISO-8601 alphabetical ordering)
+        let sorted = fileURLs
+            .filter { $0.pathExtension.lowercased() == "json" && $0.lastPathComponent.hasPrefix("shot_") }
+            .sorted { $0.lastPathComponent > $1.lastPathComponent }
+        
+        guard !sorted.isEmpty else { return [] }
+        
+        // 48-hour cutoff prefix in UTC to match ISO-8601 filename ordering
+        let cutoffDate = Date().addingTimeInterval(-48 * 3600)
+        let isoFormatter = DateFormatter()
+        isoFormatter.dateFormat = "yyyy-MM-dd'T'HHmmss"
+        isoFormatter.locale = Locale(identifier: "en_US_POSIX")
+        isoFormatter.timeZone = TimeZone(secondsFromGMT: 0)
+        let cutoffPrefix = "shot_" + isoFormatter.string(from: cutoffDate)
+        
+        // Lexicographical string comparison: any file >= cutoffPrefix was created within 48h
+        let recent48hURLs = sorted.filter { $0.lastPathComponent >= cutoffPrefix }
+        
+        if !recent48hURLs.isEmpty {
+            return Array(recent48hURLs.prefix(maxCeiling))
+        } else {
+            // Fallback: If nothing was pulled in the last 48 hours, provide the 5 most recent
+            return Array(sorted.prefix(min(5, maxCeiling)))
         }
-
-        return entries
     }
 
     // MARK: - HTTP Encoders
