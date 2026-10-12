@@ -99,67 +99,29 @@ struct LeverPilotApp: App {
             }
             .preferredColorScheme(.dark)
             .onAppear {
-                // One-time container hygiene sweep of legacy keys
                 UserDefaults.standard.removeObject(forKey: "BQ_Folder_Security_Bookmark")
                 UserDefaults.standard.removeObject(forKey: "bq.delivered_shot_ids")
-
-                Task {
-                    await MeticulousServer.shared.configure(
-                        port: settingsStore.meticulousPort,
-                        isEnabled: settingsStore.enableMeticulousServer,
-                        isTraceLoggingEnabled: settingsStore.traceLogging
-                    )
-                }
                 updateIdleTimer()
             }
             .onChange(of: scenePhase) { _, newPhase in
                 updateIdleTimer()
-                
                 MeticulousTraceLogger.log("[Lifecycle] scenePhase changed to: \(newPhase)")
-
-                // Revive the server if returning from sleep/background
                 if newPhase == .active {
+                    syncMeticulousServer()
+                } else if newPhase == .background {
                     Task {
-                        await MeticulousServer.shared.configure(
-                            port: settingsStore.meticulousPort,
-                            isEnabled: settingsStore.enableMeticulousServer,
-                            isTraceLoggingEnabled: settingsStore.traceLogging
-                        )
+                        await MeticulousServer.shared.stop()
                     }
                 }
             }
-            .onChange(of: settingsStore.keepDisplayAwake) { _, _ in
-                updateIdleTimer()
+            .onChange(of: settingsStore.enableMeticulousServer) { _, _ in
+                syncMeticulousServer()
             }
-            .onChange(of: activeExtractionProfile) { _, _ in
-                updateIdleTimer()
+            .onChange(of: settingsStore.meticulousPort) { _, _ in
+                syncMeticulousServer()
             }
-            .onChange(of: settingsStore.enableMeticulousServer) { _, newEnabled in
-                Task {
-                    await MeticulousServer.shared.configure(
-                        port: settingsStore.meticulousPort,
-                        isEnabled: newEnabled,
-                        isTraceLoggingEnabled: settingsStore.traceLogging
-                    )
-                }
-            }
-            .onChange(of: settingsStore.meticulousPort) { _, newPort in
-                Task {
-                    await MeticulousServer.shared.configure(
-                        port: newPort,
-                        isEnabled: settingsStore.enableMeticulousServer,
-                        isTraceLoggingEnabled: settingsStore.traceLogging
-                    )
-                }
-            }
-            .onChange(of: settingsStore.traceLogging) { _, newTrace in
-                Task {
-                    await MeticulousServer.shared.configure(
-                        port: settingsStore.meticulousPort,
-                        isEnabled: settingsStore.enableMeticulousServer,
-                        isTraceLoggingEnabled: newTrace
-                    )
-                }
+            .onChange(of: settingsStore.traceLogging) { _, _ in
+                syncMeticulousServer()
             }
         }
     }
@@ -474,6 +436,18 @@ struct LeverPilotApp: App {
         
         withAnimation(.easeInOut(duration: 0.25)) {
             activeExtractionProfile = nil
+        }
+    }
+    
+    // MARK: - Centralized Meticulous Server Sync
+    
+    private func syncMeticulousServer() {
+        Task {
+            await MeticulousServer.shared.configure(
+                port: settingsStore.meticulousPort,
+                isEnabled: settingsStore.enableMeticulousServer,
+                isTraceLoggingEnabled: settingsStore.traceLogging
+            )
         }
     }
     
