@@ -67,72 +67,32 @@ struct LeverPilotApp: App {
                 extractionOverlay
                 
                 // 4. ACCESSIBLE ABORT CONFIRMATION MODAL
-                if showAbortConfirmation {
-                    Color.black.opacity(0.65)
-                        .ignoresSafeArea()
-                        .transition(.opacity)
-                        .zIndex(25)
-                        .onTapGesture {
-                            withAnimation(.easeInOut(duration: 0.15)) {
-                                showAbortConfirmation = false
-                            }
-                        }
-                    
-                    abortConfirmationCard
-                        .transition(.scale(scale: 0.95).combined(with: .opacity))
-                        .zIndex(30)
-                }
+                abortConfirmationOverlay
                 
                 // 5. POST-SHOT LAYER: Full-Screen Shot Record / Shot History
-                if let shotRecord = completedRecordForReview {
-                    ShotRecordView(
-                        record: shotRecord,
-                        onDismiss: {
-                            withAnimation(.easeInOut(duration: 0.2)) {
-                                completedRecordForReview = nil
-                            }
-                        }
-                    )
-                    .transition(.opacity)
-                    .zIndex(40)
-                }
+                postShotReviewOverlay
             }
             .preferredColorScheme(.dark)
-            .onAppear {
-                UserDefaults.standard.removeObject(forKey: "BQ_Folder_Security_Bookmark")
-                UserDefaults.standard.removeObject(forKey: "bq.delivered_shot_ids")
-                updateIdleTimer()
-            }
-            .onChange(of: scenePhase) { _, newPhase in
-                updateIdleTimer()
-                MeticulousTraceLogger.log("[Lifecycle] scenePhase changed to: \(newPhase)")
-                if newPhase == .active {
-                    syncMeticulousServer()
-                } else if newPhase == .background {
-                    Task {
-                        await MeticulousServer.shared.stop()
+            .modifier(
+                AppLifecycleModifier(
+                    scenePhase: scenePhase,
+                    settingsStore: settingsStore,
+                    isBrewingActive: activeExtractionProfile != nil && (coordinator.state == .armed || coordinator.state == .extracting),
+                    onSceneActive: {
+                        syncMeticulousServer()
+                    },
+                    onSceneBackground: {
+                        Task { await MeticulousServer.shared.stop() }
+                    },
+                    onServerSettingsChanged: {
+                        syncMeticulousServer()
                     }
-                }
-            }
-            .onChange(of: settingsStore.enableMeticulousServer) { _, _ in
-                syncMeticulousServer()
-            }
-            .onChange(of: settingsStore.meticulousPort) { _, _ in
-                syncMeticulousServer()
-            }
-            .onChange(of: settingsStore.traceLogging) { _, _ in
-                syncMeticulousServer()
-            }
-            .onChange(of: settingsStore.keepDisplayAwake) { _, _ in
-                updateIdleTimer()
-            }
-            .onChange(of: activeExtractionProfile) { _, _ in
-                updateIdleTimer()
-            }
+                )
+            )
         }
     }
     
-    // MARK: - Extracted Layers for Swift 6 Fast Type-Checking
+    // MARK: - Workspace Routing
     
     @ViewBuilder
     private var workspaceLayer: some View {
@@ -152,9 +112,48 @@ struct LeverPilotApp: App {
                 ShotHistoryBrowserView(scenarioStore: scenarioStore)
             case .settings:
                 SettingsView(settings: settingsStore)
+            #if ENABLE_WORKBENCH
             case .workbench:
                 WorkbenchView(scenarioStore: scenarioStore)
+            #endif
             }
+        }
+    }
+    
+    // MARK: - Extracted Modal Overlays
+    
+    @ViewBuilder
+    private var abortConfirmationOverlay: some View {
+        if showAbortConfirmation {
+            Color.black.opacity(0.65)
+                .ignoresSafeArea()
+                .transition(.opacity)
+                .zIndex(25)
+                .onTapGesture {
+                    withAnimation(.easeInOut(duration: 0.15)) {
+                        showAbortConfirmation = false
+                    }
+                }
+            
+            abortConfirmationCard
+                .transition(.scale(scale: 0.95).combined(with: .opacity))
+                .zIndex(30)
+        }
+    }
+    
+    @ViewBuilder
+    private var postShotReviewOverlay: some View {
+        if let shotRecord = completedRecordForReview {
+            ShotRecordView(
+                record: shotRecord,
+                onDismiss: {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        completedRecordForReview = nil
+                    }
+                }
+            )
+            .transition(.opacity)
+            .zIndex(40)
         }
     }
     
@@ -211,21 +210,6 @@ struct LeverPilotApp: App {
         }
     }
     
-    // MARK: - Display Idle Timer Management
-    
-    private func updateIdleTimer() {
-        #if os(iOS)
-        let isBrewingActive = activeExtractionProfile != nil
-            && (coordinator.state == .armed || coordinator.state == .extracting)
-        
-        let shouldKeepAwake = settingsStore.keepDisplayAwake
-            && scenePhase == .active
-            && isBrewingActive
-        
-        UIApplication.shared.isIdleTimerDisabled = shouldKeepAwake
-        #endif
-    }
-    
     // MARK: - Universal Hamburger Menu
     
     private var universalHamburgerMenu: some View {
@@ -250,11 +234,13 @@ struct LeverPilotApp: App {
                 Label(AppDestination.history.rawValue, systemImage: AppDestination.history.systemImage)
             }
             
+            #if ENABLE_WORKBENCH
             Button {
                 withAnimation(.easeInOut(duration: 0.2)) { currentDestination = .workbench }
             } label: {
                 Label(AppDestination.workbench.rawValue, systemImage: AppDestination.workbench.systemImage)
             }
+            #endif
         } label: {
             HStack(spacing: 4) {
                 Image(systemName: "line.3.horizontal")
@@ -294,7 +280,6 @@ struct LeverPilotApp: App {
             .padding(.top, 4)
             
             VStack(spacing: 10) {
-                // 1. Primary: Save & Conclude
                 Button(action: {
                     withAnimation(.easeInOut(duration: 0.15)) {
                         showAbortConfirmation = false
@@ -319,7 +304,6 @@ struct LeverPilotApp: App {
                 }
                 .buttonStyle(.plain)
                 
-                // 2. Destructive: Discard Everything
                 Button(action: {
                     withAnimation(.easeInOut(duration: 0.15)) {
                         showAbortConfirmation = false
@@ -344,7 +328,6 @@ struct LeverPilotApp: App {
                 }
                 .buttonStyle(.plain)
 
-                // 3. Resume: Keep Brewing
                 Button(action: {
                     withAnimation(.easeInOut(duration: 0.15)) {
                         showAbortConfirmation = false
@@ -445,7 +428,18 @@ struct LeverPilotApp: App {
         }
     }
     
-    // MARK: - Centralized Meticulous Server Sync
+    private func updateIdleTimer() {
+        #if os(iOS)
+        let isBrewingActive = activeExtractionProfile != nil
+            && (coordinator.state == .armed || coordinator.state == .extracting)
+        
+        let shouldKeepAwake = settingsStore.keepDisplayAwake
+            && scenePhase == .active
+            && isBrewingActive
+        
+        UIApplication.shared.isIdleTimerDisabled = shouldKeepAwake
+        #endif
+    }
     
     private func syncMeticulousServer() {
         Task {
@@ -466,5 +460,59 @@ struct LeverPilotApp: App {
             }
         }
         return saved
+    }
+}
+
+// MARK: - Extracted App Lifecycle & Settings Modifier
+
+private struct AppLifecycleModifier: ViewModifier {
+    let scenePhase: ScenePhase
+    let settingsStore: SettingsStore
+    let isBrewingActive: Bool
+    let onSceneActive: () -> Void
+    let onSceneBackground: () -> Void
+    let onServerSettingsChanged: () -> Void
+    
+    func body(content: Content) -> some View {
+        content
+            .onAppear {
+                UserDefaults.standard.removeObject(forKey: "BQ_Folder_Security_Bookmark")
+                UserDefaults.standard.removeObject(forKey: "bq.delivered_shot_ids")
+                updateIdleTimer()
+            }
+            .onChange(of: scenePhase) { _, newPhase in
+                updateIdleTimer()
+                MeticulousTraceLogger.log("[Lifecycle] scenePhase changed to: \(newPhase)")
+                if newPhase == .active {
+                    onSceneActive()
+                } else if newPhase == .background {
+                    onSceneBackground()
+                }
+            }
+            .onChange(of: settingsStore.enableMeticulousServer) { _, _ in
+                onServerSettingsChanged()
+            }
+            .onChange(of: settingsStore.meticulousPort) { _, _ in
+                onServerSettingsChanged()
+            }
+            .onChange(of: settingsStore.traceLogging) { _, _ in
+                onServerSettingsChanged()
+            }
+            .onChange(of: settingsStore.keepDisplayAwake) { _, _ in
+                updateIdleTimer()
+            }
+            .onChange(of: isBrewingActive) { _, _ in
+                updateIdleTimer()
+            }
+    }
+    
+    private func updateIdleTimer() {
+        #if os(iOS)
+        let shouldKeepAwake = settingsStore.keepDisplayAwake
+            && scenePhase == .active
+            && isBrewingActive
+        
+        UIApplication.shared.isIdleTimerDisabled = shouldKeepAwake
+        #endif
     }
 }
