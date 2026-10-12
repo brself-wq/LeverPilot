@@ -17,24 +17,19 @@ public struct QuickHardwareDockView: View {
     
     public var body: some View {
         HStack(spacing: 8) {
-            // 1. Scale Quick Pill
             scalePill
-            
-            // 2. Pressure Quick Pill
             pressurePill
             
-            // 3. Hardware Manager Antenna Button (Sole trigger for pairing sheet)
             Button(action: { showingSettingsSheet = true }) {
                 Image(systemName: "antenna.radiowaves.left.and.right")
                     .font(.system(size: 11, weight: .bold))
                     .foregroundStyle(isAnyConnected ? .green : .secondary)
                     .padding(6)
-                    .background(Color.white.opacity(0.06))
+                    .background(Color.white.opacity(0.04))
                     .clipShape(Circle())
             }
             .buttonStyle(.plain)
             
-            // 4. Meticulous Machine Interface Status (Trailing Position)
             if transponder.state != .disabled {
                 meticulousServerPill
             }
@@ -107,33 +102,27 @@ public struct QuickHardwareDockView: View {
     // MARK: - Meticulous Emulation Server Pill
     
     private var meticulousServerPill: some View {
-        HStack(spacing: 5) {
-            // Meticulous 'M.' Vector Emblem
-            ZStack {
-                MeticulousGlyph()
-                    .fill(Color.white.opacity(transponder.state == .active ? 0.95 : 0.45))
-                    .frame(width: 13, height: 13)
-                
-                // Active dot illuminates in Meticulous Red (#FF1E00) on client activity
-                if transponder.state == .active {
-                    Circle()
-                        .fill(Color(red: 1.0, green: 0.12, blue: 0.0))
-                        .frame(width: 3.5, height: 3.5)
-                        .offset(x: 4.8, y: 4.8)
-                }
-            }
+        let isActive = transponder.state == .active
+        let pipColor = isActive
+            ? Color(red: 0.18, green: 0.80, blue: 0.44)
+            : Color.white.opacity(0.55)
+
+        return ZStack {
+            MeticulousGlyph(includePeriod: false)
+                .fill(Color.white.opacity(isActive ? 0.98 : 0.70))
+                .frame(width: 13, height: 13)
             
-            Text(transponder.state == .active ? "ACTIVE" : "STANDBY")
-                .font(.system(size: 8, weight: .heavy, design: .monospaced))
-                .foregroundStyle(transponder.state == .active ? .white : .secondary)
+            Circle()
+                .fill(pipColor)
+                .frame(width: 3.5, height: 3.5)
+                .offset(x: 4.8, y: 4.8)
+                .shadow(color: isActive ? pipColor.opacity(0.8) : Color.clear, radius: isActive ? 2.5 : 0)
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 4)
-        .background(Color.white.opacity(transponder.state == .active ? 0.08 : 0.03))
-        .clipShape(RoundedRectangle(cornerRadius: 6))
-        .overlay(
-            RoundedRectangle(cornerRadius: 6)
-                .stroke(transponder.state == .active ? Color.white.opacity(0.20) : Color.clear, lineWidth: 1)
-        )
+        .background(Color.white.opacity(0.04))
+        .cornerRadius(6)
+        .animation(.easeInOut(duration: 0.25), value: transponder.state)
+        .accessibilityLabel("Meticulous Transponder: \(isActive ? "Active" : "Standby")")
     }
 }
