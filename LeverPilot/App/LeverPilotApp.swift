@@ -123,6 +123,12 @@ struct LeverPilotApp: App {
             .onChange(of: settingsStore.traceLogging) { _, _ in
                 syncMeticulousServer()
             }
+            .onChange(of: settingsStore.keepDisplayAwake) { _, _ in
+                updateIdleTimer()
+            }
+            .onChange(of: activeExtractionProfile) { _, _ in
+                updateIdleTimer()
+            }
         }
     }
     
