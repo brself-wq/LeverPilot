@@ -97,7 +97,6 @@ public nonisolated struct ProfileExecutionEngine: Sendable {
             if timeTrigger.relative ?? false {
                 timeTriggerVal = rawVal
             } else {
-                // Absolute shot time: remaining stage horizon is bounded by (target - baseline.startTime)
                 timeTriggerVal = max(0.0, rawVal - baseline.startTime)
             }
         } else {
@@ -111,7 +110,7 @@ public nonisolated struct ProfileExecutionEngine: Sendable {
             interpolation: stage.dynamics.interpolation
         )
         
-        // 5. Interpolate Commanded Target Setpoint (Step vs. Lerp)
+        // 5. Interpolate Commanded Target Setpoint (Step vs. Curve vs. Lerp)
         let targetValue = evaluateTarget(
             at: domainValue,
             knots: rawKnots,
@@ -171,7 +170,6 @@ public nonisolated struct ProfileExecutionEngine: Sendable {
             let y = knots[0].y
             return [PlanPoint(x: 0, y: y), PlanPoint(x: horizon, y: y)]
         } else if interpolation == DynamicsInterpolationType.none {
-            // Piecewise-constant step curve rendering for HUD chart
             var points: [PlanPoint] = []
             for i in 0..<(knots.count - 1) {
                 let p0 = knots[i]
@@ -186,9 +184,29 @@ public nonisolated struct ProfileExecutionEngine: Sendable {
                 }
             }
             return points
+        } else if interpolation == DynamicsInterpolationType.curve {
+            let spline = MonotoneCubicSpline(knots: knots)
+            var points: [PlanPoint] = []
+            let step = 0.1
+            
+            for i in 0..<(knots.count - 1) {
+                let startX = knots[i].x
+                let endX = knots[i + 1].x
+                var currX = startX
+                while currX < endX {
+                    points.append(PlanPoint(x: currX, y: spline.evaluate(at: currX)))
+                    currX += step
+                }
+            }
+            if let last = knots.last {
+                points.append(PlanPoint(x: last.x, y: last.y))
+                if last.x < horizon {
+                    points.append(PlanPoint(x: horizon, y: last.y))
+                }
+            }
+            return points
         } else {
             var points = knots.map { PlanPoint(x: $0.x, y: $0.y) }
-            // Infinite flatline hold past last defined knot
             if let last = knots.last, last.x < horizon {
                 points.append(PlanPoint(x: horizon, y: last.y))
             }
@@ -203,23 +221,32 @@ public nonisolated struct ProfileExecutionEngine: Sendable {
     ) -> Double {
         guard let first = knots.first else { return 0.0 }
         if knots.count == 1 || x <= first.x { return first.y }
-        if let last = knots.last, x >= last.x { return last.y } // Flatline hold!
+        if let last = knots.last, x >= last.x { return last.y }
         
-        for i in 0..<(knots.count - 1) {
-            let p0 = knots[i]
-            let p1 = knots[i + 1]
-            if x >= p0.x && x <= p1.x {
-                if interpolation == DynamicsInterpolationType.none {
-                    // Zero-order hold: maintain setpoint of interval start without lerping
+        if interpolation == DynamicsInterpolationType.none {
+            for i in 0..<(knots.count - 1) {
+                let p0 = knots[i]
+                let p1 = knots[i + 1]
+                if x >= p0.x && x <= p1.x {
                     return p0.y
-                } else {
+                }
+            }
+            return knots.last?.y ?? first.y
+        } else if interpolation == DynamicsInterpolationType.curve {
+            let spline = MonotoneCubicSpline(knots: knots)
+            return spline.evaluate(at: x)
+        } else {
+            for i in 0..<(knots.count - 1) {
+                let p0 = knots[i]
+                let p1 = knots[i + 1]
+                if x >= p0.x && x <= p1.x {
                     guard p1.x > p0.x else { return p0.y }
                     let ratio = (x - p0.x) / (p1.x - p0.x)
                     return p0.y + ratio * (p1.y - p0.y)
                 }
             }
+            return knots.last?.y ?? first.y
         }
-        return knots.last?.y ?? first.y
     }
     
     // MARK: - Limits & Exit Trigger Evaluation
@@ -293,7 +320,6 @@ public nonisolated struct ProfileExecutionEngine: Sendable {
                     if isRelative {
                         startVal = 0.0
                     } else if trigger.resolvedComparison == .lessThanOrEqual {
-                        // Decay trigger: baseline is stage entry pressure, fallback to initial knot setpoint
                         startVal = baseline.entryPressure > 0
                             ? baseline.entryPressure
                             : (stage.dynamics.points.first?.y.numericValue ?? currentVal)
@@ -324,7 +350,6 @@ public nonisolated struct ProfileExecutionEngine: Sendable {
                     startVal = 0.0
                 }
                 
-                // Check satisfaction (>= or <=)
                 let isSatisfied = trigger.resolvedComparison == .greaterThanOrEqual
                     ? currentVal >= targetVal
                     : currentVal <= targetVal
@@ -333,7 +358,6 @@ public nonisolated struct ProfileExecutionEngine: Sendable {
                     shouldAdvance = true
                 }
                 
-                // Continuous progress calculation for HUD racetrack (unified ramp & decay math)
                 let progress: Double
                 if isSatisfied {
                     progress = 1.0
@@ -358,7 +382,6 @@ public nonisolated struct ProfileExecutionEngine: Sendable {
                 ))
             }
             
-            // Mark the leading trigger in the race
             if let maxProgress = items.map(\.progress).max(), maxProgress > 0 {
                 if let leadingIdx = items.firstIndex(where: { $0.progress == maxProgress }) {
                     let old = items[leadingIdx]
@@ -374,7 +397,6 @@ public nonisolated struct ProfileExecutionEngine: Sendable {
                 }
             }
         } else {
-            // Universal Final Weight Cutoff (When stage has no explicit triggers)
             let currentWeight = frame[.weight] ?? 0.0
             let progress = finalWeightTarget > 0 ? min(1.0, currentWeight / finalWeightTarget) : 0.0
             let isSatisfied = currentWeight >= finalWeightTarget
@@ -395,5 +417,76 @@ public nonisolated struct ProfileExecutionEngine: Sendable {
         }
         
         return (items, shouldAdvance)
+    }
+}
+
+// MARK: - Monotone Cubic Spline (PCHIP) Evaluator
+
+private nonisolated struct MonotoneCubicSpline: Sendable {
+    let xs: [Double]
+    let ys: [Double]
+    let ms: [Double]
+    
+    init(knots: [(x: Double, y: Double)]) {
+        self.xs = knots.map(\.x)
+        self.ys = knots.map(\.y)
+        let n = knots.count
+        guard n >= 2 else {
+            self.ms = Array(repeating: 0.0, count: n)
+            return
+        }
+        
+        // 1. Calculate secant slopes between adjacent knots
+        var deltas: [Double] = []
+        deltas.reserveCapacity(n - 1)
+        for i in 0..<(n - 1) {
+            let dx = knots[i + 1].x - knots[i].x
+            let dy = knots[i + 1].y - knots[i].y
+            deltas.append(dx > 1e-9 ? dy / dx : 0.0)
+        }
+        
+        // 2. Compute PCHIP tangents with flat boundaries for ease-in/ease-out
+        var tangents = Array(repeating: 0.0, count: n)
+        tangents[0] = 0.0
+        tangents[n - 1] = 0.0
+        
+        for i in 1..<(n - 1) {
+            let d0 = deltas[i - 1]
+            let d1 = deltas[i]
+            if (d0 > 0 && d1 > 0) || (d0 < 0 && d1 < 0) {
+                // Harmonic mean enforces strict local monotonicity
+                tangents[i] = (2.0 * d0 * d1) / (d0 + d1)
+            } else {
+                // Flat hold or slope reversal: clamp to zero to prevent overshoot
+                tangents[i] = 0.0
+            }
+        }
+        self.ms = tangents
+    }
+    
+    func evaluate(at x: Double) -> Double {
+        guard let firstX = xs.first, let firstY = ys.first else { return 0.0 }
+        if xs.count == 1 || x <= firstX { return firstY }
+        if let lastX = xs.last, let lastY = ys.last, x >= lastX { return lastY }
+        
+        for i in 0..<(xs.count - 1) {
+            let x0 = xs[i]
+            let x1 = xs[i + 1]
+            if x >= x0 && x <= x1 {
+                let h = x1 - x0
+                guard h > 1e-9 else { return ys[i] }
+                let t = (x - x0) / h
+                let t2 = t * t
+                let t3 = t2 * t
+                
+                let h00 = 2.0 * t3 - 3.0 * t2 + 1.0
+                let h10 = t3 - 2.0 * t2 + t
+                let h01 = -2.0 * t3 + 3.0 * t2
+                let h11 = t3 - t2
+                
+                return h00 * ys[i] + h10 * h * ms[i] + h01 * ys[i + 1] + h11 * h * ms[i + 1]
+            }
+        }
+        return ys.last ?? firstY
     }
 }
