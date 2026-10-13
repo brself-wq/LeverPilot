@@ -17,6 +17,7 @@ extension Profile: @retroactive Identifiable {}
 
 public struct ProfileConsoleView: View {
     let profiles: [Profile]
+    let profileStore: ProfileStore
     let bleManager: EspressoBLEManager
     let scenarioStore: ScenarioStore
     let settings: SettingsStore
@@ -45,12 +46,14 @@ public struct ProfileConsoleView: View {
     
     public init(
         profiles: [Profile],
+        profileStore: ProfileStore,
         bleManager: EspressoBLEManager,
         scenarioStore: ScenarioStore,
         settings: SettingsStore,
         onArm: @escaping (Profile, Double, ShotRecord?) -> Void
     ) {
         self.profiles = profiles
+        self.profileStore = profileStore
         self.bleManager = bleManager
         self.scenarioStore = scenarioStore
         self.settings = settings
@@ -99,6 +102,7 @@ public struct ProfileConsoleView: View {
                             profile: profile,
                             accentColor: accentColor,
                             dose: sessionDose,
+                            isOverridden: profileStore.hasOverride(for: profile.id), // <--- Pass this
                             onCustomize: {
                                 isShowingOverridesSheet = true
                             }
@@ -141,13 +145,41 @@ public struct ProfileConsoleView: View {
             .opacity(0)
         }
         .sheet(isPresented: $isShowingOverridesSheet) {
-            if let profile = sessionProfile {
+            if let catalog = catalogProfile, let session = sessionProfile {
                 ProfileVariableOverridesView(
-                    profile: profile,
-                    initialDose: sessionDose,
-                    onApply: { modified, newDose in
+                    baseProfile: catalog,
+                    defaultDose: settings.defaultDose,
+                    workingProfile: session,
+                    workingDose: sessionDose,
+                    hasPersistedOverride: profileStore.hasOverride(for: catalog.id),
+                    onRevert: {
+                        profileStore.clearOverride(for: catalog.id)
+                        syncSessionProfile()
+                        self.isShowingOverridesSheet = false
+                    },
+                    onApply: { modified, newDose, mode in
                         self.sessionProfile = modified
                         self.sessionDose = newDose
+                        
+                        if mode == .persist {
+                            var workingVars: [String: Double] = [:]
+                            for v in modified.variables {
+                                workingVars[v.key] = v.value
+                            }
+                            if let sparseDelta = ProfileOverride.createSparse(
+                                baseProfile: catalog,
+                                baseDose: settings.defaultDose,
+                                workingDose: newDose,
+                                workingTargetWeight: modified.finalWeight,
+                                workingTemperature: modified.temperature,
+                                workingVariables: workingVars
+                            ) {
+                                profileStore.saveOverride(sparseDelta, for: catalog.id)
+                            } else {
+                                profileStore.clearOverride(for: catalog.id)
+                            }
+                        }
+                        
                         self.isShowingOverridesSheet = false
                     },
                     onCancel: {
@@ -326,8 +358,12 @@ public struct ProfileConsoleView: View {
     
     private func syncSessionProfile() {
         if let current = catalogProfile {
-            self.sessionProfile = current
-            self.sessionDose = settings.defaultDose
+            let (effective, dose) = profileStore.effectiveProfile(
+                for: current,
+                fallbackDose: settings.defaultDose
+            )
+            self.sessionProfile = effective
+            self.sessionDose = dose
             self.lastSelectedProfileID = current.id
         } else {
             self.sessionProfile = nil

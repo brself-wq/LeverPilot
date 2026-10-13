@@ -16,9 +16,14 @@ public final class ProfileStore {
         case inMemory
     }
     
+    private static let overridesStorageKey = "profile_dial_in_overrides"
+    
     public var profiles: [Profile] = []
     public private(set) var factoryProfileIDs: Set<String> = []
     public var lastErrorMessage: String? = nil
+    
+    /// Active dial-in overrides indexed by profile UUID.
+    public private(set) var overrides: [String: ProfileOverride] = [:]
     
     private let mode: StorageMode
     private let fileManager = FileManager.default
@@ -48,10 +53,12 @@ public final class ProfileStore {
                 self.userProfilesDirectory = targetDir
             }
             ensureDirectoryExists()
+            loadOverrides()
             loadAllProfiles(bundle: bundle)
             
         case .inMemory:
             self.userProfilesDirectory = nil
+            loadOverrides()
             loadBundledOnly(bundle: bundle)
         }
     }
@@ -75,6 +82,42 @@ public final class ProfileStore {
             self.lastErrorMessage = "Failed to resolve profile variables: \(error.localizedDescription)"
             throw error
         }
+    }
+    
+    // MARK: - Dial-In Configuration Overrides
+    
+    public func hasOverride(for profileID: String) -> Bool {
+        overrides[profileID] != nil
+    }
+    
+    public func override(for profileID: String) -> ProfileOverride? {
+        overrides[profileID]
+    }
+    
+    /// Resolves the effective execution profile and dose for a given base profile.
+    /// If an override exists in UserDefaults/memory, it bakes the sparse targets onto a copy of the base profile.
+    public func effectiveProfile(for base: Profile, fallbackDose: Double) -> (profile: Profile, dose: Double) {
+        guard let dialIn = overrides[base.id] else {
+            return (base, fallbackDose)
+        }
+        return dialIn.applying(to: base, fallbackDose: fallbackDose)
+    }
+    
+    /// Persists a new or updated dial-in override for a profile ID.
+    /// If the override is empty (no fields changed), it automatically clears any existing record.
+    public func saveOverride(_ override: ProfileOverride, for profileID: String) {
+        if override.isEmpty {
+            clearOverride(for: profileID)
+            return
+        }
+        overrides[profileID] = override
+        persistOverrides()
+    }
+    
+    /// Removes the override for the given profile ID, reverting it to author factory specs.
+    public func clearOverride(for profileID: String) {
+        guard overrides.removeValue(forKey: profileID) != nil else { return }
+        persistOverrides()
     }
     
     // MARK: - Safe Path Resolution
@@ -151,6 +194,7 @@ public final class ProfileStore {
         }
         
         profiles.removeAll(where: { $0.id == profileId })
+        clearOverride(for: profileId)
         
         guard case .disk = mode else { return }
         let fileURL = try safeFileURL(for: profileId)
@@ -167,6 +211,8 @@ public final class ProfileStore {
                 ensureDirectoryExists()
             }
         }
+        overrides.removeAll()
+        persistOverrides()
         loadAllProfiles(bundle: bundle)
     }
     
@@ -213,6 +259,9 @@ public final class ProfileStore {
         self.factoryProfileIDs = factoryIDs
         self.profiles = loaded
         sortProfiles()
+        
+        // Reconcile and prune any lingering overrides for deleted profile IDs
+        reconcileOrphanedOverrides(validIDs: Set(loaded.map(\.id)))
     }
     
     private func loadBundledOnly(bundle: Bundle) {
@@ -233,6 +282,48 @@ public final class ProfileStore {
             throw ProfileError.format("File at \(fileURL.lastPathComponent) is not valid UTF-8.")
         }
         return try parseProfile(from: jsonString)
+    }
+    
+    // MARK: - Overrides Persistence & Garbage Collection
+    
+    private func loadOverrides() {
+        guard case .disk = mode else {
+            self.overrides = [:]
+            return
+        }
+        guard let data = UserDefaults.standard.data(forKey: Self.overridesStorageKey) else {
+            self.overrides = [:]
+            return
+        }
+        do {
+            let decoded = try JSONDecoder().decode([String: ProfileOverride].self, from: data)
+            self.overrides = decoded
+        } catch {
+            print("⚠️ [ProfileStore] Failed to decode dial-in overrides: \(error)")
+            self.overrides = [:]
+        }
+    }
+    
+    private func persistOverrides() {
+        guard case .disk = mode else { return }
+        do {
+            let data = try JSONEncoder().encode(self.overrides)
+            UserDefaults.standard.set(data, forKey: Self.overridesStorageKey)
+        } catch {
+            print("❌ [ProfileStore] Failed to persist dial-in overrides: \(error)")
+        }
+    }
+    
+    /// Audits stored overrides against current catalog IDs, pruning and logging any orphaned entries.
+    private func reconcileOrphanedOverrides(validIDs: Set<String>) {
+        let orphanedIDs = overrides.keys.filter { !validIDs.contains($0) }
+        guard !orphanedIDs.isEmpty else { return }
+        
+        for id in orphanedIDs {
+            overrides.removeValue(forKey: id)
+            print("🧹 [ProfileStore] Pruned orphaned dial-in override for deleted profile: '\(id)'")
+        }
+        persistOverrides()
     }
     
     private func ensureDirectoryExists() {

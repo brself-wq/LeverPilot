@@ -101,11 +101,12 @@ struct LeverPilotApp: App {
             case .brew:
                 ProfileConsoleView(
                     profiles: profileStore.profiles,
+                    profileStore: profileStore, // <--- Add this
                     bleManager: bleManager,
                     scenarioStore: scenarioStore,
                     settings: settingsStore,
-                    onArm: { sessionProfile, dose, primedScenario in
-                        launchShot(with: sessionProfile, dose: dose, primedScenario: primedScenario)
+                    onArm: { profile, dose, scenario in
+                        launchShot(with: profile, dose: dose, primedScenario: scenario)
                     }
                 )
             case .history:

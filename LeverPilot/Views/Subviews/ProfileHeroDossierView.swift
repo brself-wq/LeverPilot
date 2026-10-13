@@ -10,26 +10,21 @@ public struct ProfileHeroDossierView: View {
     let profile: Profile
     let accentColor: Color
     let dose: Double
+    let isOverridden: Bool
     let onCustomize: () -> Void
     
     public init(
         profile: Profile,
         accentColor: Color,
         dose: Double = 18.0,
+        isOverridden: Bool = false,
         onCustomize: @escaping () -> Void
     ) {
         self.profile = profile
         self.accentColor = accentColor
         self.dose = dose
+        self.isOverridden = isOverridden
         self.onCustomize = onCustomize
-    }
-    
-    private var configureButtonLabel: String {
-        if profile.variables.isEmpty {
-            return "Configure"
-        } else {
-            return "Configure (\(profile.variables.count))"
-        }
     }
     
     public var body: some View {
@@ -82,9 +77,16 @@ public struct ProfileHeroDossierView: View {
                     Spacer()
                     
                     Button(action: onCustomize) {
-                        HStack(spacing: 5) {
+                        HStack(spacing: 6) {
                             Image(systemName: "slider.horizontal.3")
-                            Text(configureButtonLabel)
+                            Text("Configure")
+                            
+                            if isOverridden {
+                                Circle()
+                                    .fill(Color.white)
+                                    .frame(width: 5, height: 5)
+                                    .shadow(color: .white.opacity(0.6), radius: 2)
+                            }
                         }
                         .font(.system(size: 11, weight: .bold))
                         .padding(.horizontal, 14)

@@ -7,48 +7,55 @@ import SwiftUI
 import MeticulousProfile
 
 public struct ProfileVariableOverridesView: View {
-    let originalProfile: Profile
+    
+    public enum ApplyMode: Sendable {
+        case sessionOnly
+        case persist
+    }
+    
+    /// The immutable baseline author specification.
+    let baseProfile: Profile
     let defaultDose: Double
-    let onApply: (Profile, Double) -> Void
+    let hasPersistedOverride: Bool
+    
+    let onRevert: () -> Void
+    let onApply: (Profile, Double, ApplyMode) -> Void
     let onCancel: () -> Void
     
-    // Ephemeral Targets
+    // Working Targets
     @State private var targetYield: Double
     @State private var targetTemperature: Double
     @State private var doseWeight: Double
     
-    // Ephemeral Profile Variables mapped by variable key
+    // Working Profile Variables mapped by variable key
     @State private var variableValues: [String: Double]
     
-    private var hasChanges: Bool {
-        if abs(targetYield - originalProfile.finalWeight) > 0.05 { return true }
-        if abs(targetTemperature - originalProfile.temperature) > 0.05 { return true }
-        if abs(doseWeight - defaultDose) > 0.05 { return true }
-        for v in originalProfile.variables {
-            if let current = variableValues[v.key], abs(current - v.value) > 0.05 {
-                return true
-            }
-        }
-        return false
-    }
-    
     public init(
-        profile: Profile,
-        initialDose: Double = 18.0,
-        onApply: @escaping (Profile, Double) -> Void,
+        baseProfile: Profile,
+        defaultDose: Double = 18.0,
+        workingProfile: Profile? = nil,
+        workingDose: Double? = nil,
+        hasPersistedOverride: Bool = false,
+        onRevert: @escaping () -> Void,
+        onApply: @escaping (Profile, Double, ApplyMode) -> Void,
         onCancel: @escaping () -> Void
     ) {
-        self.originalProfile = profile
-        self.defaultDose = initialDose
+        self.baseProfile = baseProfile
+        self.defaultDose = defaultDose
+        self.hasPersistedOverride = hasPersistedOverride
+        self.onRevert = onRevert
         self.onApply = onApply
         self.onCancel = onCancel
         
-        _targetYield = State(initialValue: profile.finalWeight)
-        _targetTemperature = State(initialValue: profile.temperature)
+        let initialProfile = workingProfile ?? baseProfile
+        let initialDose = workingDose ?? defaultDose
+        
+        _targetYield = State(initialValue: initialProfile.finalWeight)
+        _targetTemperature = State(initialValue: initialProfile.temperature)
         _doseWeight = State(initialValue: initialDose)
         
         var initialDict: [String: Double] = [:]
-        for v in profile.variables {
+        for v in initialProfile.variables {
             initialDict[v.key] = v.value
         }
         _variableValues = State(initialValue: initialDict)
@@ -67,12 +74,12 @@ public struct ProfileVariableOverridesView: View {
             // Scrollable Content
             ScrollView {
                 VStack(spacing: 20) {
-                    // Session Notice Banner
+                    // Informational Banner
                     HStack(spacing: 8) {
                         Image(systemName: "info.circle.fill")
                             .font(.system(size: 12))
                             .foregroundStyle(.secondary)
-                        Text("Overrides apply only to this brewing session. Profile on disk remains untouched.")
+                        Text("Dial-in tweaks apply locally. Base profile JSON on disk remains untouched.")
                             .font(.system(size: 11))
                             .foregroundStyle(.secondary)
                         Spacer()
@@ -86,7 +93,7 @@ public struct ProfileVariableOverridesView: View {
                     targetsSection
                     
                     // Section 2: Variables (If present)
-                    if !originalProfile.variables.isEmpty {
+                    if !baseProfile.variables.isEmpty {
                         variablesSection
                     }
                 }
@@ -107,29 +114,27 @@ public struct ProfileVariableOverridesView: View {
     
     // MARK: - Header
     
+    // MARK: - Header
+    
     private var headerBar: some View {
         HStack {
-            Text(originalProfile.name)
+            Text("Configuration")
                 .font(.title3.weight(.black))
                 .foregroundStyle(.white)
             
             Spacer()
             
-            if hasChanges {
-                Button(action: resetToDefaults) {
-                    HStack(spacing: 4) {
-                        Image(systemName: "arrow.counterclockwise")
-                        Text("Reset Defaults")
-                    }
-                    .font(.system(size: 11, weight: .bold))
+            Button(action: onRevert) {
+                HStack(spacing: 6) {
+                    Image(systemName: "arrow.counterclockwise")
+                    Text("Revert to Profile Defaults")
                 }
-                .buttonStyle(.plain)
-                .foregroundStyle(.secondary)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 5)
-                .background(Theme.Surface.control)
-                .clipShape(RoundedRectangle(cornerRadius: Theme.Layout.controlRadius))
+                .font(.system(size: 11, weight: .bold))
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
             }
+            .buttonStyle(.bordered)
+            .tint(.secondary)
         }
     }
     
@@ -187,13 +192,13 @@ public struct ProfileVariableOverridesView: View {
                     .font(.system(size: 10, weight: .heavy, design: .monospaced))
                     .foregroundStyle(.secondary)
                 Spacer()
-                Text("\(originalProfile.variables.count) VARIABLES")
+                Text("\(baseProfile.variables.count) VARIABLES")
                     .font(.system(size: 9, weight: .bold, design: .monospaced))
                     .foregroundStyle(.secondary)
             }
             
             VStack(spacing: 12) {
-                ForEach(originalProfile.variables, id: \.key) { variable in
+                ForEach(baseProfile.variables, id: \.key) { variable in
                     if let binding = binding(for: variable.key) {
                         VariableRowControl(
                             variable: variable,
@@ -218,12 +223,26 @@ public struct ProfileVariableOverridesView: View {
             
             Spacer()
             
-            // High-Contrast Primary Apply Button
-            Button(action: applyAndConfirm) {
+            // Intentional Save & Apply Action (Secondary / Deliberate)
+            Button(action: { apply(mode: .persist) }) {
+                HStack(spacing: 5) {
+                    Image(systemName: "square.and.arrow.down")
+                        .font(.system(size: 11, weight: .bold))
+                    Text("Save & Apply")
+                        .font(.system(size: 12, weight: .semibold))
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+            }
+            .buttonStyle(.bordered)
+            .tint(.white.opacity(0.85))
+            
+            // Conservative Primary Default Action: Apply to Current Session
+            Button(action: { apply(mode: .sessionOnly) }) {
                 HStack(spacing: 6) {
                     Image(systemName: "checkmark")
                         .font(.system(size: 11, weight: .black))
-                    Text("Apply")
+                    Text("Apply (Session)")
                         .font(.system(size: 12, weight: .bold))
                 }
                 .frame(minWidth: 140)
@@ -246,22 +265,13 @@ public struct ProfileVariableOverridesView: View {
         )
     }
     
-    private func resetToDefaults() {
-        targetYield = originalProfile.finalWeight
-        targetTemperature = originalProfile.temperature
-        doseWeight = defaultDose
-        for v in originalProfile.variables {
-            variableValues[v.key] = v.value
-        }
-    }
-    
-    private func applyAndConfirm() {
-        var modified = originalProfile
+    private func apply(mode: ApplyMode) {
+        var modified = baseProfile
         modified.finalWeight = targetYield
         modified.temperature = targetTemperature
         
         var updatedVariables: [Variable] = []
-        for v in originalProfile.variables {
+        for v in baseProfile.variables {
             var copiedVar = v
             if let overriddenVal = variableValues[v.key] {
                 copiedVar.value = overriddenVal
@@ -270,7 +280,7 @@ public struct ProfileVariableOverridesView: View {
         }
         modified.variables = updatedVariables
         
-        onApply(modified, doseWeight)
+        onApply(modified, doseWeight, mode)
     }
 }
 
@@ -310,7 +320,7 @@ private struct TargetRowStepper: View {
                 
                 Spacer()
                 
-                // Stepper Controls with Large Touch Targets
+                // Stepper Controls
                 HStack(spacing: 6) {
                     Button(action: decrement) {
                         Image(systemName: "minus")
