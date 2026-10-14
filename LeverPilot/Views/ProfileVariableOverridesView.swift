@@ -22,9 +22,9 @@ public struct ProfileVariableOverridesView: View {
     let onApply: (Profile, Double, ApplyMode) -> Void
     let onCancel: () -> Void
     
-    // Working Targets
-    @State private var targetYield: Double
-    @State private var targetTemperature: Double
+    // Working Parameters
+    @State private var finalWeight: Double
+    @State private var temperature: Double
     @State private var doseWeight: Double
     
     // Working Profile Variables mapped by variable key
@@ -50,8 +50,8 @@ public struct ProfileVariableOverridesView: View {
         let initialProfile = workingProfile ?? baseProfile
         let initialDose = workingDose ?? defaultDose
         
-        _targetYield = State(initialValue: initialProfile.finalWeight)
-        _targetTemperature = State(initialValue: initialProfile.temperature)
+        _finalWeight = State(initialValue: initialProfile.finalWeight)
+        _temperature = State(initialValue: initialProfile.temperature)
         _doseWeight = State(initialValue: initialDose)
         
         var initialDict: [String: Double] = [:]
@@ -79,7 +79,7 @@ public struct ProfileVariableOverridesView: View {
                         Image(systemName: "info.circle.fill")
                             .font(.system(size: 12))
                             .foregroundStyle(.secondary)
-                        Text("Dial-in tweaks apply locally. Base profile JSON on disk remains untouched.")
+                        Text("Profile overrides apply locally. Profile JSON file on disk remains untouched.")
                             .font(.system(size: 11))
                             .foregroundStyle(.secondary)
                         Spacer()
@@ -89,8 +89,8 @@ public struct ProfileVariableOverridesView: View {
                     .background(Color.white.opacity(0.03))
                     .clipShape(RoundedRectangle(cornerRadius: Theme.Layout.cardRadius))
                     
-                    // Section 1: Targets (Dose -> Target Weight -> Temperature)
-                    targetsSection
+                    // Section 1: Parameters (Dose -> Final Weight -> Temperature)
+                    parametersSection
                     
                     // Section 2: Variables (If present)
                     if !baseProfile.variables.isEmpty {
@@ -118,7 +118,7 @@ public struct ProfileVariableOverridesView: View {
     
     private var headerBar: some View {
         HStack {
-            Text("Configuration")
+            Text("Profile Overrides")
                 .font(.title3.weight(.black))
                 .foregroundStyle(.white)
             
@@ -138,17 +138,17 @@ public struct ProfileVariableOverridesView: View {
         }
     }
     
-    // MARK: - Targets Section
+    // MARK: - Parameters Section
     
-    private var targetsSection: some View {
+    private var parametersSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("TARGETS")
+            Text("PARAMETERS")
                 .font(.system(size: 10, weight: .heavy, design: .monospaced))
                 .foregroundStyle(.secondary)
             
             VStack(spacing: 12) {
                 // 1. Dose
-                TargetRowStepper(
+                ParametersRowStepper(
                     icon: "cup.and.saucer.fill",
                     label: "Dose",
                     unit: "g",
@@ -158,23 +158,23 @@ public struct ProfileVariableOverridesView: View {
                     subtitle: "Weight of ground coffee in portafilter"
                 )
                 
-                // 2. Target Weight
-                TargetRowStepper(
+                // 2. Final Weight
+                ParametersRowStepper(
                     icon: "scalemass.fill",
-                    label: "Target Weight",
+                    label: "Final Weight",
                     unit: "g",
-                    value: $targetYield,
+                    value: $finalWeight,
                     step: 0.5,
                     range: 10.0...120.0,
-                    subtitle: String(format: "Ratio 1:%.1f (based on %.1fg dose)", targetYield / max(1.0, doseWeight), doseWeight)
+                    subtitle: String(format: "Ratio 1:%.1f (based on %.1fg dose)", finalWeight / max(1.0, doseWeight), doseWeight)
                 )
                 
                 // 3. Temperature
-                TargetRowStepper(
+                ParametersRowStepper(
                     icon: "thermometer.medium",
                     label: "Temperature",
                     unit: "°C",
-                    value: $targetTemperature,
+                    value: $temperature,
                     step: 1.0,
                     range: 75.0...100.0,
                     subtitle: "Water temperature"
@@ -267,8 +267,8 @@ public struct ProfileVariableOverridesView: View {
     
     private func apply(mode: ApplyMode) {
         var modified = baseProfile
-        modified.finalWeight = targetYield
-        modified.temperature = targetTemperature
+        modified.finalWeight = finalWeight
+        modified.temperature = temperature
         
         var updatedVariables: [Variable] = []
         for v in baseProfile.variables {
@@ -286,7 +286,7 @@ public struct ProfileVariableOverridesView: View {
 
 // MARK: - Target Stepper + Slider Row
 
-private struct TargetRowStepper: View {
+private struct ParametersRowStepper: View {
     let icon: String
     let label: String
     let unit: String
