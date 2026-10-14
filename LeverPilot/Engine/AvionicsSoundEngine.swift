@@ -70,35 +70,58 @@ public final class AvionicsSoundEngine {
     @ObservationIgnored private var audioEngine = AVAudioEngine()
     @ObservationIgnored private var sourceNode: AVAudioSourceNode?
     @ObservationIgnored private let state = AudioState()
+    private let sampleRate: Double = 44100.0
     
     public init() {
         setupAudioEngine()
     }
 
     private func setupAudioEngine() {
-        let sampleRate: Double = 44100.0
         let audioState = self.state
+        let rate = self.sampleRate
 
         sourceNode = AVAudioSourceNode { _, _, frameCount, audioBufferList -> OSStatus in
             let ablPointer = UnsafeMutableAudioBufferListPointer(audioBufferList)
             guard let buffer = ablPointer.first, let ptr = buffer.mData?.assumingMemoryBound(to: Float.self) else {
                 return noErr
             }
-            audioState.render(frameCount: frameCount, ptr: ptr, sampleRate: sampleRate)
+            audioState.render(frameCount: frameCount, ptr: ptr, sampleRate: rate)
+            
+            // If output is stereo non-interleaved, duplicate channel 0 to channel 1
+            if ablPointer.count > 1, let secondBuffer = ablPointer[1].mData?.assumingMemoryBound(to: Float.self) {
+                secondBuffer.assign(from: ptr, count: Int(frameCount))
+            }
+            
             return noErr
         }
 
         guard let sourceNode = sourceNode else { return }
+        
+        let monoFormat = AVAudioFormat(standardFormatWithSampleRate: sampleRate, channels: 1)
         audioEngine.attach(sourceNode)
-        audioEngine.connect(sourceNode, to: audioEngine.mainMixerNode, format: nil)
-        try? audioEngine.start()
+        audioEngine.connect(sourceNode, to: audioEngine.mainMixerNode, format: monoFormat)
+        
+        ensureRunning()
+    }
+
+    /// Guarantees that the underlying audio engine is awake and rendering.
+    public func ensureRunning() {
+        guard !audioEngine.isRunning else { return }
+        do {
+            try audioEngine.start()
+            print("🔊 [AvionicsSoundEngine] Audio engine started successfully.")
+        } catch {
+            print("❌ [AvionicsSoundEngine] Failed to start audio engine: \(error)")
+        }
     }
 
     public func setTone(frequency: Float, volume: Float) {
+        ensureRunning()
         state.setTone(frequency: frequency, volume: volume)
     }
 
     public func playBeep(frequency: Float, duration: Double, volume: Float = 0.25) {
+        ensureRunning()
         setTone(frequency: frequency, volume: volume)
         Task { @MainActor in
             try? await Task.sleep(nanoseconds: UInt64(duration * 1_000_000_000))
