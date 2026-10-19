@@ -315,12 +315,18 @@ public struct ProfileConsoleView: View {
                     }
                 }
                 
-                ForEach(scenarioStore.mockScenarios, id: \.id) { scenario in
+                #if ENABLE_WORKBENCH
+                let shotRecords = scenarioStore.mockScenarios + scenarioStore.scenarios
+                #else
+                let shotRecords = scenarioStore.mockScenarios
+                #endif
+                
+                ForEach(shotRecords, id: \.id) { scenario in
                     Button {
                         primedScenario = scenario
                     } label: {
                         HStack {
-                            Text(scenario.id)
+                            Text(scenario.profileName.isEmpty ? scenario.id : "\(scenario.profileName) · \(scenario.timestamp.formatted(.dateTime.month(.abbreviated).day().hour().minute()))")
                             if primedScenario?.id == scenario.id {
                                 Image(systemName: "checkmark")
                             }
