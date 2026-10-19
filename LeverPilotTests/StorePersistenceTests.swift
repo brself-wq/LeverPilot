@@ -1,13 +1,5 @@
 //
 //  StorePersistenceTests.swift
-//  LeverPilot
-//
-//  Created by Ben Self on 9/11/26.
-//
-
-
-//
-//  StorePersistenceTests.swift
 //  LeverPilotTests
 //
 
@@ -115,13 +107,13 @@ final class StorePersistenceTests: XCTestCase {
         XCTAssertNotEqual(store.profile(withID: targetID)?.temperature, 99.0)
     }
     
-    // MARK: - 4. ScenarioStore Recording & Purge
+    // MARK: - 4. ShotRecordStore Recording & Purge
     
-    func test_scenarioStore_recordsShot_andClearsHistory() throws {
+    func test_shotRecordStore_recordsShot_andClearsHistory() throws {
         let logsDir = tempDirectory.appendingPathComponent("ShotLogs", isDirectory: true)
-        let scenarioStore = ScenarioStore(mode: .disk(directory: logsDir))
+        let shotRecordStore = ShotRecordStore(mode: .disk(directory: logsDir))
         
-        let initialCount = scenarioStore.scenarios.count
+        let initialCount = shotRecordStore.shotRecords.count
         
         let shot = ShotRecord(
             id: "test-shot-abc",
@@ -135,14 +127,14 @@ final class StorePersistenceTests: XCTestCase {
             ]
         )
         
-        try scenarioStore.recordCompletedShot(shot)
+        try shotRecordStore.recordCompletedShot(shot)
         
-        XCTAssertEqual(scenarioStore.scenarios.count, initialCount + 1)
-        XCTAssertEqual(scenarioStore.scenarios.first?.id, "test-shot-abc")
+        XCTAssertEqual(shotRecordStore.shotRecords.count, initialCount + 1)
+        XCTAssertEqual(shotRecordStore.shotRecords.first?.id, "test-shot-abc")
         
         // Purge check
-        try scenarioStore.clearAllHistory()
-        XCTAssertEqual(scenarioStore.scenarios.count, 0)
+        try shotRecordStore.clearAllHistory()
+        XCTAssertEqual(shotRecordStore.shotRecords.count, 0)
     }
     
     // MARK: - 5. Directory Boundary Isolation & Path Traversal Prevention

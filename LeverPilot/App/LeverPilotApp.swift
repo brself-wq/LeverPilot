@@ -16,7 +16,7 @@ struct LeverPilotApp: App {
     
     // MARK: - App-Level Shared Singletons
     @State private var profileStore = ProfileStore()
-    @State private var scenarioStore = ScenarioStore()
+    @State private var shotRecordStore = ShotRecordStore()
     @State private var settingsStore = SettingsStore()
     @State private var bleManager = EspressoBLEManager(savedDevices: loadSavedBLEDevices())
     @State private var coordinator = ShotCoordinator()
@@ -103,19 +103,19 @@ struct LeverPilotApp: App {
                     profiles: profileStore.profiles,
                     profileStore: profileStore, // <--- Add this
                     bleManager: bleManager,
-                    scenarioStore: scenarioStore,
+                    shotRecordStore: shotRecordStore,
                     settings: settingsStore,
                     onArm: { profile, dose, scenario in
                         launchShot(with: profile, dose: dose, primedScenario: scenario)
                     }
                 )
             case .history:
-                ShotHistoryBrowserView(scenarioStore: scenarioStore)
+                ShotHistoryBrowserView(shotRecordStore: shotRecordStore)
             case .settings:
                 SettingsView(settings: settingsStore)
             #if ENABLE_WORKBENCH
             case .workbench:
-                WorkbenchView(scenarioStore: scenarioStore)
+                WorkbenchView(shotRecordStore: shotRecordStore)
             #endif
             }
         }
@@ -404,7 +404,7 @@ struct LeverPilotApp: App {
         coordinator.detachTelemetry()
         
         if let finishedRecord = coordinator.completedShotRecord {
-            try? scenarioStore.recordCompletedShot(finishedRecord)
+            try? shotRecordStore.recordCompletedShot(finishedRecord)
             
             withAnimation(.easeInOut(duration: 0.25)) {
                 activeExtractionProfile = nil

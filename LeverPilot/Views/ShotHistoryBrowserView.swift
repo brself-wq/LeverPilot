@@ -8,15 +8,15 @@ import Charts
 import MeticulousProfile
 
 public struct ShotHistoryBrowserView: View {
-    let scenarioStore: ScenarioStore
+    let shotRecordStore: ShotRecordStore
     
     @State private var selectedShotID: String? = nil
     @State private var searchQuery: String = ""
     @State private var shotPendingDelete: ShotRecord? = nil
     @State private var showDeleteConfirmation: Bool = false
     
-    public init(scenarioStore: ScenarioStore) {
-        self.scenarioStore = scenarioStore
+    public init(shotRecordStore: ShotRecordStore) {
+        self.shotRecordStore = shotRecordStore
     }
     
     // MARK: - Filtered & Sorted Scenarios
@@ -24,9 +24,9 @@ public struct ShotHistoryBrowserView: View {
     private var filteredShots: [ShotRecord] {
         let query = searchQuery.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         if query.isEmpty {
-            return scenarioStore.scenarios
+            return shotRecordStore.shotRecords
         }
-        return scenarioStore.scenarios.filter { shot in
+        return shotRecordStore.shotRecords.filter { shot in
             shot.profileName.localizedCaseInsensitiveContains(query)
         }
     }
@@ -375,7 +375,7 @@ public struct ShotHistoryBrowserView: View {
         }
         
         do {
-            try scenarioStore.deleteShot(withID: shot.id)
+            try shotRecordStore.deleteShot(withID: shot.id)
             withAnimation(.easeInOut(duration: 0.2)) {
                 selectedShotID = nextSelectedID
             }

@@ -9,18 +9,18 @@ import MeticulousProfile
 
 @MainActor
 public struct WorkbenchView: View {
-    let scenarioStore: ScenarioStore
+    let shotRecordStore: ShotRecordStore
     
     @State private var controller = ShotPlaybackController()
     @State private var selectedShotID: String? = nil
     @State private var isPlayingBack: Bool = false
     
-    public init(scenarioStore: ScenarioStore) {
-        self.scenarioStore = scenarioStore
+    public init(shotRecordStore: ShotRecordStore) {
+        self.shotRecordStore = shotRecordStore
     }
     
     private var shots: [ShotRecord] {
-        scenarioStore.scenarios
+        shotRecordStore.shotRecords
     }
     
     private var mountedShot: ShotRecord? {

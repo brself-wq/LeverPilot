@@ -1,24 +1,21 @@
 //
-//  ScenarioStore.swift
+//  ShotRecordStore.swift
 //  LeverPilot
 //
 
 import Foundation
 import Observation
 
-// MARK: - Ergonomic Domain Alias
-public typealias ShotRecordStore = ScenarioStore
-
 @Observable
 @MainActor
-public final class ScenarioStore {
+public final class ShotRecordStore {
     public enum StorageMode: Sendable {
         case disk(directory: URL? = nil)
         case inMemory
     }
     
     /// Real historical shot logs recorded from completed pulls.
-    public var scenarios: [ShotRecord] = []
+    public var shotRecords: [ShotRecord] = []
     
     /// Bundled mock test fixtures reserved exclusively for simulator / desk debugging.
     /// In RELEASE builds, this is guaranteed to remain empty.
@@ -61,7 +58,7 @@ public final class ScenarioStore {
     }
     
     public func recordCompletedShot(_ shot: ShotRecord) throws {
-        scenarios.insert(shot, at: 0)
+        shotRecords.insert(shot, at: 0)
         
         guard case .disk = mode, let dir = shotLogsDirectory else { return }
         
@@ -80,7 +77,7 @@ public final class ScenarioStore {
     }
     
     public func clearAllHistory() throws {
-        scenarios.removeAll()
+        shotRecords.removeAll()
         guard case .disk = mode, let dir = shotLogsDirectory else { return }
         if fileManager.fileExists(atPath: dir.path()) {
             try fileManager.removeItem(at: dir)
@@ -89,7 +86,7 @@ public final class ScenarioStore {
     }
     
     public func deleteShot(withID id: String) throws {
-        scenarios.removeAll(where: { $0.id == id })
+        shotRecords.removeAll(where: { $0.id == id })
         guard case .disk = mode, let dir = shotLogsDirectory else { return }
         if let fileURLs = try? fileManager.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil) {
             for url in fileURLs where url.lastPathComponent.contains(id.prefix(8)) {
@@ -132,7 +129,7 @@ public final class ScenarioStore {
             }
         }
         
-        self.scenarios = recorded.sorted { $0.timestamp > $1.timestamp }
+        self.shotRecords = recorded.sorted { $0.timestamp > $1.timestamp }
     }
     
     private func loadBundledOnly(bundle: Bundle) {

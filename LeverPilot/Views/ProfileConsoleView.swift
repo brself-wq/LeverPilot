@@ -19,7 +19,7 @@ public struct ProfileConsoleView: View {
     let profiles: [Profile]
     let profileStore: ProfileStore
     let bleManager: EspressoBLEManager
-    let scenarioStore: ScenarioStore
+    let shotRecordStore: ShotRecordStore
     let settings: SettingsStore
     let onArm: (Profile, Double, ShotRecord?) -> Void
     
@@ -48,14 +48,14 @@ public struct ProfileConsoleView: View {
         profiles: [Profile],
         profileStore: ProfileStore,
         bleManager: EspressoBLEManager,
-        scenarioStore: ScenarioStore,
+        shotRecordStore: ShotRecordStore,
         settings: SettingsStore,
         onArm: @escaping (Profile, Double, ShotRecord?) -> Void
     ) {
         self.profiles = profiles
         self.profileStore = profileStore
         self.bleManager = bleManager
-        self.scenarioStore = scenarioStore
+        self.shotRecordStore = shotRecordStore
         self.settings = settings
         self.onArm = onArm
         self._sessionDose = State(initialValue: settings.defaultDose)
@@ -316,9 +316,9 @@ public struct ProfileConsoleView: View {
                 }
                 
                 #if ENABLE_WORKBENCH
-                let shotRecords = scenarioStore.mockScenarios + scenarioStore.scenarios
+                let shotRecords = shotRecordStore.mockScenarios + shotRecordStore.shotRecords
                 #else
-                let shotRecords = scenarioStore.mockScenarios
+                let shotRecords = shotRecordStore.mockScenarios
                 #endif
                 
                 ForEach(shotRecords, id: \.id) { scenario in
