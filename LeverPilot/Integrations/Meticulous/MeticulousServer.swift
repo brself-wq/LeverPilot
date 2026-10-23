@@ -291,28 +291,56 @@ public actor MeticulousServer {
             }
         }
 
-        // 3. Settings Probe
-        if path.hasPrefix("/api/v1/settings") {
-            let settingsPayload = "{\"config\":{\"machine\":\"Flair 58 (Meticulous Emulated)\"},\"heat_on_boot\":true}"
-            return httpResponse(statusCode: 200, json: settingsPayload)
+        // 3b. Machine State Probe (Fixes Metic 404)
+        if path.hasPrefix("/api/v1/machine") {
+            let machinePayload = """
+                    {
+                        "state": "idle",
+                        "status": "ready",
+                        "temperature": 93.0,
+                        "firmware": "2.0.0",
+                        "serial": "LP-FLAIR-58"
+                    }
+                    """
+            MeticulousTraceLogger.log("[HTTP \(endpoint)] <<< 200 /api/v1/machine serving idle state")
+            return httpResponse(statusCode: 200, json: machinePayload)
         }
-
-        // 4. Ingestion & Telemetry History Endpoint (Stateless Disk Catalog)
+        
+        // 4. History Stats & Last Shot (Must precede generic /api/v1/history)
+        if path.hasPrefix("/api/v1/history/stats") {
+            let count = fetchCandidateShotURLs().count
+            let statsPayload = "{\"total_shots\":\(count),\"shots_today\":1}"
+            MeticulousTraceLogger.log("[HTTP \(endpoint)] <<< 200 /api/v1/history/stats (count: \(count))")
+            return httpResponse(statusCode: 200, json: statsPayload)
+        }
+        
+        if path.hasPrefix("/api/v1/history/last") {
+            if let lastShot = loadSingleDetailedShotEntry(forId: nil) {
+                MeticulousTraceLogger.log("[HTTP \(endpoint)] <<< 200 /api/v1/history/last serving '\(lastShot.id)'")
+                if let encoded = try? JSONEncoder().encode(lastShot),
+                   let jsonString = String(data: encoded, encoding: .utf8) {
+                    return httpResponse(statusCode: 200, json: jsonString)
+                }
+            }
+            return httpResponse(statusCode: 200, json: "{}")
+        }
+        
+        // 4b. Ingestion & Telemetry History Endpoint
         if path.hasPrefix("/api/v1/history") {
-            // Check for specific requested shot ID
+            // Check for specific requested shot ID in query param or body
             var requestedId: String? = nil
             if let idRange = request.range(of: "\"ids\":[\"") {
                 let rest = request[idRange.upperBound...]
                 if let endQuote = rest.firstIndex(of: "\"") {
                     requestedId = String(rest[..<endQuote])
                 }
+            } else if let idRange = request.range(of: "id=") {
+                let rest = request[idRange.upperBound...]
+                let end = rest.firstIndex(where: { $0 == "&" || $0 == " " || $0 == "\r" }) ?? rest.endIndex
+                requestedId = String(rest[..<end])
             }
-
-            let isDetailRequest = request.contains("dump_data=true")
-                || request.contains("\"dump_data\":true")
-                || request.contains("\"dump_data\": true")
-
-            if isDetailRequest {
+            
+            if let requestedId = requestedId {
                 if let detailedEntry = loadSingleDetailedShotEntry(forId: requestedId) {
                     MeticulousTraceLogger.log("[HTTP \(endpoint)] <<< 200 Serving detailed telemetry for '\(detailedEntry.id)' (\(detailedEntry.data?.count ?? 0) points)")
                     let response = MeticulousHistoryResponse(history: [detailedEntry])
@@ -321,19 +349,31 @@ public actor MeticulousServer {
                         return httpResponse(statusCode: 200, json: jsonString)
                     }
                 }
-            } else {
-                let listingEntries = loadRecentShotListingHeadersFromDisk()
-                MeticulousTraceLogger.log("[HTTP \(endpoint)] <<< 200 Serving history listing (\(listingEntries.count) shots)")
-                let response = MeticulousHistoryResponse(history: listingEntries)
-                if let encoded = try? JSONEncoder().encode(response),
-                   let jsonString = String(data: encoded, encoding: .utf8) {
-                    return httpResponse(statusCode: 200, json: jsonString)
+            }
+            
+            // SANDBOX EXPERIMENT: Load all recent shots with FULL telemetry data!
+            let candidateURLs = fetchCandidateShotURLs(maxCeiling: 5)
+            let decoder = JSONDecoder()
+            decoder.dateDecodingStrategy = .iso8601
+            var detailedEntries: [MeticulousHistoryEntry] = []
+            
+            for url in candidateURLs {
+                if let data = try? Data(contentsOf: url),
+                   let record = try? decoder.decode(ShotRecord.self, from: data) {
+                    detailedEntries.append(record.toMeticulousHistoryEntry())
                 }
             }
-
+            
+            MeticulousTraceLogger.log("[HTTP \(endpoint)] <<< 200 Serving FULL telemetry history (\(detailedEntries.count) shots)")
+            let response = MeticulousHistoryResponse(history: detailedEntries)
+            if let encoded = try? JSONEncoder().encode(response),
+               let jsonString = String(data: encoded, encoding: .utf8) {
+                return httpResponse(statusCode: 200, json: jsonString)
+            }
+            
             return httpResponse(statusCode: 200, json: "{\"history\":[]}")
         }
-
+        
         // 5. Profile Catalog Endpoint
         if path.hasPrefix("/api/v1/profile") {
             let latest = loadRecentShotListingHeadersFromDisk().first
